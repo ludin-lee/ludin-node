@@ -1,0 +1,137 @@
+# rudin
+
+**Swagger UI, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express or NestJS.
+
+- 🔐 **Login required** – nobody sees the docs, the spec JSON or *Try it out* without signing in
+- 👥 **Accounts & roles** – `viewer` / `developer` / `admin` (or your own), per-tag / per-path visibility
+- 🌐 **IP allowlist** – CIDR, ranges, IPv6, proxy-aware, lockout-proof
+- 📝 **Audit log** – who logged in, who called what, from where (JSON lines or your own sink)
+- 🎨 **Beautiful UI** – 60 KB total (19 KB gzip), light/dark, brand colors, logo, custom CSS
+- ⚡ **Zero-config binding mode** – users & IPs from code / `process.env`, no database needed
+
+## Quick start (Express)
+
+```bash
+npm i rudin @rudin/express
+```
+
+```ts
+import express from 'express';
+import { rudin } from '@rudin/express';
+
+const app = express();
+
+app.use('/docs', rudin({
+  spec: './openapi.yaml',                         // path, URL, object or async function
+  auth: {
+    users: [
+      { email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' },
+      { email: 'dev@acme.io',   password: process.env.DOCS_DEV_PW!,   role: 'developer' },
+      { email: 'qa@acme.io',    password: process.env.DOCS_QA_PW!,    role: 'viewer' },
+    ],
+    session: { secret: process.env.DOCS_SESSION_SECRET },
+  },
+  ipAllowlist: ['10.0.0.0/8', '203.0.113.42'],
+  visibility: { 'tag:Internal': ['admin'] },
+  theme: { title: 'Acme API', primary: '#0f766e', logo: '/logo.svg' },
+}));
+```
+
+Passwords may be plain text (quick start) or hashes — generate one with `npx rudin hash`. Supported: `$scrypt$` (built in, zero deps), bcrypt (`npm i bcryptjs`), argon2 (`npm i argon2`).
+
+## Quick start (NestJS)
+
+```bash
+npm i rudin @rudin/express @rudin/nestjs
+```
+
+`setupRudin` is a drop-in for `SwaggerModule.setup`:
+
+```ts
+import { setupRudin } from '@rudin/nestjs';
+
+const document = SwaggerModule.createDocument(app, config);
+setupRudin(app, '/docs', document, {
+  auth: { users: [{ email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' }] },
+});
+```
+
+Or as a module: `RudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
+
+## Two modes
+
+| | Binding mode (default) | Store mode (v0.2) |
+|---|---|---|
+| Users / IP rules live in | code + `process.env` | a database (`store: sqliteStore(...)`) |
+| Admin screen | **read-only** view of the config | invite users, edit roles & IP rules |
+| Sessions | signed JWT cookie, stateless | DB sessions, revocable |
+| Audit log | stdout / `audit.sink` callback | stored + browsable |
+
+Binding mode is deliberately read-only: settings edited in a UI would be lost on the next deploy. The admin screen shows the effective config and explains what a store unlocks.
+
+## Options
+
+```ts
+interface RudinOptions {
+  spec: string | object | (() => object | Promise<object>) | SpecEntry[];  // multiple specs supported
+  auth?: false | {
+    users?: BoundUser[];
+    verify?: (email, password) => AuthUser | null;   // plug in your own auth
+    session?: { secret?: string; ttl?: '12h'; cookieName?: string };
+    lockout?: { attempts?: 5; window?: '15m' };
+  };
+  ipAllowlist?: string[];          // '10.0.0.0/8', '2001:db8::/32', '1.2.3.4-1.2.3.9', '*'
+  ipPolicy?: 'and' | 'or';         // and: IP AND login (default) · or: matching IP skips login
+  ipAllowlistRole?: Role;          // role for IP-only visitors (default 'developer')
+  trustProxy?: boolean | number;   // honour X-Forwarded-For (hops to trust)
+  allowLocalhost?: boolean;        // default true – never lock yourself out
+  hideOnBlock?: boolean;           // 404 instead of 403 for blocked IPs
+  roles?: Record<string, Permission[]>;
+  visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
+  audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
+  theme?: { title, logo, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
+  allowedTargets?: string[];       // extra origins Try-it-out may call
+}
+```
+
+Roles and permissions (defaults):
+
+| role | docs:read | docs:try | audit:read | admin:read/write |
+|---|---|---|---|---|
+| viewer | ✓ | | | |
+| developer | ✓ | ✓ | self | |
+| admin | ✓ | ✓ | ✓ | ✓ |
+
+Escape hatch if you lock yourself out: `RUDIN_BYPASS_IP_CHECK=1`.
+
+## How Try-it-out works
+
+Requests go through a server-side proxy (`POST /docs/api/try`) so that every call is audited and attributed to the signed-in user, CORS is never an issue, and only origins listed in the spec's `servers` (or `allowedTargets`) can be reached. The upstream receives `X-Rudin-User` and `X-Forwarded-For`.
+
+## Repository layout
+
+```
+packages/core      rudin – framework-agnostic handler, auth, IP, audit, embedded UI
+packages/express   @rudin/express
+packages/nestjs    @rudin/nestjs
+packages/ui        Preact + Vite, built into a single HTML string in core
+examples/express   Petstore demo on :3000
+examples/nest      @nestjs/swagger demo on :3001
+```
+
+```bash
+pnpm install
+pnpm build            # ui → core → adapters
+pnpm test             # core unit tests
+pnpm dev:express      # http://localhost:3000/docs  (admin@example.com / admin)
+pnpm dev:nest         # http://localhost:3001/docs
+CHROMIUM_PATH=... node scripts/e2e.mjs   # browser test + screenshots (needs dev:express running)
+```
+
+## Roadmap
+
+- **v0.2** store mode: SQLite & Postgres adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser
+- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Fastify & Koa adapters, CSV export & retention
+- **v1.0** stable API
+
+MIT
