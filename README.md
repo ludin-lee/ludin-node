@@ -1,6 +1,8 @@
 # ludin
 
-**Swagger UI, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express or NestJS.
+**API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express or NestJS.
+
+📄 Feature spec: [English](docs/FEATURE_SPEC.en.md) · [한국어](docs/FEATURE_SPEC.md)
 
 - 🔐 **Login required** – nobody sees the docs, the spec JSON or *Try it out* without signing in
 - 👥 **Accounts & roles** – `viewer` / `developer` / `admin` (or your own), per-tag / per-path visibility
