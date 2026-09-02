@@ -13,7 +13,7 @@ export class SpecLoader {
 
   constructor(spec: SpecSource | SpecEntry[]) {
     this.entries = Array.isArray(spec) ? spec : [{ name: 'default', spec }];
-    if (this.entries.length === 0) throw new Error('[rudin] At least one spec is required.');
+    if (this.entries.length === 0) throw new Error('[ludin] At least one spec is required.');
   }
 
   /** Specs visible to a role (name + visibleTo only, no docs loaded). */
@@ -40,7 +40,7 @@ export class SpecLoader {
     let text: string;
     if (/^https?:\/\//.test(src)) {
       const res = await fetch(src);
-      if (!res.ok) throw new Error(`[rudin] Failed to fetch spec ${src}: ${res.status}`);
+      if (!res.ok) throw new Error(`[ludin] Failed to fetch spec ${src}: ${res.status}`);
       text = await res.text();
     } else {
       text = await readFile(resolve(src), 'utf8');
@@ -60,7 +60,7 @@ export function parseSpecText(text: string, hint = ''): OpenApiDoc {
     doc = YAML.parse(text);
   }
   if (doc && typeof doc === 'object' && 'swagger' in doc && !('openapi' in doc)) {
-    console.warn('[rudin] Swagger 2.0 documents are rendered best-effort; convert to OpenAPI 3 for full support.');
+    console.warn('[ludin] Swagger 2.0 documents are rendered best-effort; convert to OpenAPI 3 for full support.');
   }
   return doc;
 }

@@ -1,15 +1,15 @@
 import { Inject, Module, RequestMethod } from '@nestjs/common';
 import type { DynamicModule, INestApplication, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { rudin as rudinExpress } from '@rudin/express';
-import type { RudinMiddleware } from '@rudin/express';
-import type { RudinOptions } from 'rudin';
+import { ludin as ludinExpress } from '@ludin/express';
+import type { LudinMiddleware } from '@ludin/express';
+import type { LudinOptions } from 'ludin';
 
-export type { RudinOptions } from 'rudin';
-export { hashPassword } from 'rudin';
+export type { LudinOptions } from 'ludin';
+export { hashPassword } from 'ludin';
 
-export const RUDIN_OPTIONS = Symbol('RUDIN_OPTIONS');
+export const LUDIN_OPTIONS = Symbol('LUDIN_OPTIONS');
 
-export interface RudinModuleOptions extends Omit<RudinOptions, 'basePath'> {
+export interface LudinModuleOptions extends Omit<LudinOptions, 'basePath'> {
   /** Mount path. Default '/docs'. */
   path?: string;
 }
@@ -19,17 +19,17 @@ export interface RudinModuleOptions extends Omit<RudinOptions, 'basePath'> {
  *
  * ```ts
  * const document = SwaggerModule.createDocument(app, config);
- * setupRudin(app, '/docs', document, { auth: { users: [...] } });
+ * setupLudin(app, '/docs', document, { auth: { users: [...] } });
  * ```
  */
-export function setupRudin(
+export function setupLudin(
   app: INestApplication,
   path: string,
-  document: RudinOptions['spec'],
-  options: Omit<RudinModuleOptions, 'path' | 'spec'> = {},
-): RudinMiddleware {
+  document: LudinOptions['spec'],
+  options: Omit<LudinModuleOptions, 'path' | 'spec'> = {},
+): LudinMiddleware {
   const basePath = normalize(path);
-  const mw = rudinExpress({ ...options, spec: document, basePath });
+  const mw = ludinExpress({ ...options, spec: document, basePath });
   const adapter = app.getHttpAdapter();
   const instance = adapter.getInstance?.() as { use?: (p: string, fn: unknown) => void } | undefined;
   if (typeof instance?.use === 'function') {
@@ -41,38 +41,38 @@ export function setupRudin(
 }
 
 /**
- * Module form – `RudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
+ * Module form – `LudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
  * Useful when the spec is produced by a provider or you prefer DI configuration.
  */
 @Module({})
-export class RudinModule implements NestModule {
-  static forRoot(options: RudinModuleOptions): DynamicModule {
+export class LudinModule implements NestModule {
+  static forRoot(options: LudinModuleOptions): DynamicModule {
     return {
-      module: RudinModule,
-      providers: [{ provide: RUDIN_OPTIONS, useValue: options }],
-      exports: [RUDIN_OPTIONS],
+      module: LudinModule,
+      providers: [{ provide: LUDIN_OPTIONS, useValue: options }],
+      exports: [LUDIN_OPTIONS],
     };
   }
 
   static forRootAsync(opts: {
     imports?: DynamicModule['imports'];
     inject?: unknown[];
-    useFactory: (...args: unknown[]) => RudinModuleOptions | Promise<RudinModuleOptions>;
+    useFactory: (...args: unknown[]) => LudinModuleOptions | Promise<LudinModuleOptions>;
   }): DynamicModule {
     return {
-      module: RudinModule,
+      module: LudinModule,
       imports: opts.imports ?? [],
-      providers: [{ provide: RUDIN_OPTIONS, inject: opts.inject as never[], useFactory: opts.useFactory }],
-      exports: [RUDIN_OPTIONS],
+      providers: [{ provide: LUDIN_OPTIONS, inject: opts.inject as never[], useFactory: opts.useFactory }],
+      exports: [LUDIN_OPTIONS],
     };
   }
 
-  constructor(@Inject(RUDIN_OPTIONS) private readonly options: RudinModuleOptions) {}
+  constructor(@Inject(LUDIN_OPTIONS) private readonly options: LudinModuleOptions) {}
 
   configure(consumer: MiddlewareConsumer) {
     const basePath = normalize(this.options.path ?? '/docs');
     const { path: _p, ...rest } = this.options;
-    const mw = rudinExpress({ ...rest, basePath });
+    const mw = ludinExpress({ ...rest, basePath });
     // Apply on every route and let the middleware decide by prefix – this
     // keeps us compatible with both path-to-regexp v0 (Nest ≤10) and v8 (Nest 11).
     consumer

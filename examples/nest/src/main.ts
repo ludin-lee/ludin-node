@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Controller, Get, Module, Param, Query } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ApiOperation, ApiTags, DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { setupRudin } from '@rudin/nestjs';
+import { setupLudin } from '@ludin/nestjs';
 
 @ApiTags('Users')
 @Controller('users')
@@ -29,10 +29,10 @@ async function bootstrap() {
   // Exactly like SwaggerModule.setup – but with login, roles and IP rules.
   const config = new DocumentBuilder().setTitle('Nest demo').setVersion('1.0').addBearerAuth().build();
   const document = SwaggerModule.createDocument(app, config);
-  setupRudin(app, '/docs', document, {
+  setupLudin(app, '/docs', document, {
     auth: {
-      users: [{ email: 'admin@example.com', password: process.env.RUDIN_ADMIN_PW ?? 'admin', role: 'admin' }],
-      session: { secret: process.env.RUDIN_SESSION_SECRET ?? 'dev-only-secret' },
+      users: [{ email: 'admin@example.com', password: process.env.LUDIN_ADMIN_PW ?? 'admin', role: 'admin' }],
+      session: { secret: process.env.LUDIN_SESSION_SECRET ?? 'dev-only-secret' },
     },
     theme: { title: 'Nest demo', primary: '#e0234e' },
   });

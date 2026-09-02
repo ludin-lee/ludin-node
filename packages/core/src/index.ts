@@ -1,4 +1,4 @@
-export { createRudin } from './handler.js';
+export { createLudin } from './handler.js';
 export { hashPassword, verifyPassword, isHashed } from './password.js';
 export { createIpMatcher, resolveClientIp, normalizeIp } from './ip.js';
 export { createBindingStore } from './store.js';

@@ -1,7 +1,7 @@
 {
-  "name": "@rudin/nestjs",
+  "name": "@ludin/nestjs",
   "version": "0.1.0",
-  "description": "NestJS module for rudin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
+  "description": "NestJS module for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -15,7 +15,7 @@
   },
   "files": ["dist"],
   "scripts": { "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18" },
-  "dependencies": { "rudin": "workspace:*", "@rudin/express": "workspace:*" },
+  "dependencies": { "ludin": "workspace:*", "@ludin/express": "workspace:*" },
   "peerDependencies": { "@nestjs/common": ">=9.0.0", "@nestjs/core": ">=9.0.0" },
   "devDependencies": {
     "@nestjs/common": "^10.4.0",

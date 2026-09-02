@@ -21,7 +21,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [specs, setSpecs] = useState<Array<{ name: string }>>([]);
   const [specName, setSpecName] = useState<string>(() => {
     try {
-      return localStorage.getItem('rudin.spec') || '';
+      return localStorage.getItem('ludin.spec') || '';
     } catch {
       return '';
     }
@@ -50,7 +50,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
       .then(setDoc)
       .catch((e) => setLoadErr(e.message));
     try {
-      localStorage.setItem('rudin.spec', specName);
+      localStorage.setItem('ludin.spec', specName);
     } catch {
       /* ignore */
     }
@@ -218,7 +218,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <span>
             {allOps.length} endpoints
           </span>
-          <span>rudin {boot.version ?? ''}</span>
+          <span>ludin {boot.version ?? ''}</span>
         </div>
       </aside>
 

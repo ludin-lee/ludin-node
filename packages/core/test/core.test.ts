@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRudin, createIpMatcher, hashPassword, resolveClientIp, applyVisibility } from '../src/index.js';
-import type { RudinRequest, AuditEvent } from '../src/index.js';
+import { createLudin, createIpMatcher, hashPassword, resolveClientIp, applyVisibility } from '../src/index.js';
+import type { LudinRequest, AuditEvent } from '../src/index.js';
 
 const spec = {
   openapi: '3.0.3',
@@ -14,7 +14,7 @@ const spec = {
   },
 };
 
-function req(partial: Partial<RudinRequest>): RudinRequest {
+function req(partial: Partial<LudinRequest>): LudinRequest {
   return {
     method: 'GET',
     path: '/',
@@ -26,12 +26,12 @@ function req(partial: Partial<RudinRequest>): RudinRequest {
   };
 }
 
-function post(path: string, body: unknown, extra: Partial<RudinRequest> = {}) {
+function post(path: string, body: unknown, extra: Partial<LudinRequest> = {}) {
   return req({
     method: 'POST',
     path,
     body: JSON.stringify(body),
-    headers: { host: 'localhost:3000', 'x-requested-with': 'rudin', ...extra.headers },
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', ...extra.headers },
     ...extra,
   });
 }
@@ -77,7 +77,7 @@ test('visibility removes tagged / pathed operations', () => {
 test('login flow: html served, spec locked until login, cookie grants access', async () => {
   const events: AuditEvent[] = [];
   const hashed = await hashPassword('s3cret');
-  const rudin = createRudin({
+  const ludin = createLudin({
     spec,
     auth: {
       users: [
@@ -90,35 +90,35 @@ test('login flow: html served, spec locked until login, cookie grants access', a
     audit: { sink: (e) => void events.push(e) },
   });
 
-  const page = await rudin.handle(req({ path: '/' }));
+  const page = await ludin.handle(req({ path: '/' }));
   assert.equal(page.status, 200);
-  assert.match(String(page.body), /window\.__RUDIN__/);
+  assert.match(String(page.body), /window\.__LUDIN__/);
 
-  const locked = await rudin.handle(req({ path: '/api/spec' }));
+  const locked = await ludin.handle(req({ path: '/api/spec' }));
   assert.equal(locked.status, 401);
 
-  const bad = await rudin.handle(post('/api/login', { email: 'a@x.io', password: 'nope' }));
+  const bad = await ludin.handle(post('/api/login', { email: 'a@x.io', password: 'nope' }));
   assert.equal(bad.status, 401);
 
-  const ok = await rudin.handle(post('/api/login', { email: 'a@x.io', password: 's3cret' }));
+  const ok = await ludin.handle(post('/api/login', { email: 'a@x.io', password: 's3cret' }));
   assert.equal(ok.status, 200);
   const cookie = cookieOf(ok);
-  assert.match(cookie, /^rudin_session=/);
+  assert.match(cookie, /^ludin_session=/);
 
-  const specRes = await rudin.handle(req({ path: '/api/spec', headers: { host: 'x', cookie } }));
+  const specRes = await ludin.handle(req({ path: '/api/spec', headers: { host: 'x', cookie } }));
   assert.equal(specRes.status, 200);
   const doc = JSON.parse(String(specRes.body));
   assert.ok(doc.paths['/admin/reset'], 'admin sees internal');
 
-  const vLogin = await rudin.handle(post('/api/login', { email: 'v@x.io', password: 'plain' }));
+  const vLogin = await ludin.handle(post('/api/login', { email: 'v@x.io', password: 'plain' }));
   const vCookie = cookieOf(vLogin);
-  const vSpec = JSON.parse(String((await rudin.handle(req({ path: '/api/spec', headers: { host: 'x', cookie: vCookie } }))).body));
+  const vSpec = JSON.parse(String((await ludin.handle(req({ path: '/api/spec', headers: { host: 'x', cookie: vCookie } }))).body));
   assert.equal(vSpec.paths['/admin/reset'], undefined, 'viewer does not see internal');
 
-  const vTry = await rudin.handle(post('/api/try', { method: 'GET', url: 'http://api.example.com/pets' }, { headers: { cookie: vCookie } }));
+  const vTry = await ludin.handle(post('/api/try', { method: 'GET', url: 'http://api.example.com/pets' }, { headers: { cookie: vCookie } }));
   assert.equal(vTry.status, 403, 'viewer cannot try');
 
-  const adminRes = await rudin.handle(req({ path: '/api/admin', headers: { host: 'x', cookie } }));
+  const adminRes = await ludin.handle(req({ path: '/api/admin', headers: { host: 'x', cookie } }));
   const admin = JSON.parse(String(adminRes.body));
   assert.equal(admin.readonly, true);
   assert.equal(admin.users.length, 2);
@@ -131,58 +131,58 @@ test('login flow: html served, spec locked until login, cookie grants access', a
 });
 
 test('csrf header required for mutations', async () => {
-  const rudin = createRudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'p' }] } });
-  const res = await rudin.handle(req({ method: 'POST', path: '/api/login', body: '{}' }));
+  const ludin = createLudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'p' }] } });
+  const res = await ludin.handle(req({ method: 'POST', path: '/api/login', body: '{}' }));
   assert.equal(res.status, 403);
 });
 
 test('lockout after repeated failures', async () => {
-  const rudin = createRudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'p' }], lockout: { attempts: 3, window: '1m' } }, audit: { sink: false } });
-  for (let i = 0; i < 3; i++) await rudin.handle(post('/api/login', { email: 'a@x.io', password: 'x' }));
-  const res = await rudin.handle(post('/api/login', { email: 'a@x.io', password: 'p' }));
+  const ludin = createLudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'p' }], lockout: { attempts: 3, window: '1m' } }, audit: { sink: false } });
+  for (let i = 0; i < 3; i++) await ludin.handle(post('/api/login', { email: 'a@x.io', password: 'x' }));
+  const res = await ludin.handle(post('/api/login', { email: 'a@x.io', password: 'p' }));
   assert.equal(res.status, 429);
 });
 
 test('ip allowlist: and / or policies, localhost bypass, hideOnBlock', async () => {
   const base = { spec, auth: { users: [{ email: 'a@x.io', password: 'p' }] }, ipAllowlist: ['10.0.0.0/8'], audit: { sink: false as const } };
-  const and = createRudin(base);
+  const and = createLudin(base);
   assert.equal((await and.handle(req({ remoteAddress: '8.8.8.8' }))).status, 403);
   assert.equal((await and.handle(req({ remoteAddress: '127.0.0.1' }))).status, 200, 'localhost bypass');
   assert.equal((await and.handle(req({ remoteAddress: '10.1.1.1', path: '/api/spec' }))).status, 401, 'and: still needs login');
 
-  const or = createRudin({ ...base, ipPolicy: 'or' });
+  const or = createLudin({ ...base, ipPolicy: 'or' });
   assert.equal((await or.handle(req({ remoteAddress: '10.1.1.1', path: '/api/spec' }))).status, 200, 'or: ip is enough');
   const me = JSON.parse(String((await or.handle(req({ remoteAddress: '10.1.1.1', path: '/api/me' }))).body));
   assert.equal(me.anonymous, true);
 
-  const hidden = createRudin({ ...base, hideOnBlock: true, allowLocalhost: false });
+  const hidden = createLudin({ ...base, hideOnBlock: true, allowLocalhost: false });
   assert.equal((await hidden.handle(req({ remoteAddress: '127.0.0.1' }))).status, 404);
 
-  const proxied = createRudin({ ...base, trustProxy: true });
+  const proxied = createLudin({ ...base, trustProxy: true });
   assert.equal((await proxied.handle(req({ remoteAddress: '127.0.0.1', headers: { host: 'x', 'x-forwarded-for': '8.8.8.8' } }))).status, 403);
 });
 
 test('auth: false grants anonymous developer', async () => {
-  const rudin = createRudin({ spec, auth: false, audit: { sink: false } });
-  const me = JSON.parse(String((await rudin.handle(req({ path: '/api/me' }))).body));
+  const ludin = createLudin({ spec, auth: false, audit: { sink: false } });
+  const me = JSON.parse(String((await ludin.handle(req({ path: '/api/me' }))).body));
   assert.equal(me.user.role, 'developer');
   assert.equal(me.authEnabled, false);
 });
 
 test('try proxy rejects unknown origins and self', async () => {
-  const rudin = createRudin({ spec, auth: false, audit: { sink: false } });
-  const bad = await rudin.handle(post('/api/try', { method: 'GET', url: 'http://evil.example/x' }));
+  const ludin = createLudin({ spec, auth: false, audit: { sink: false } });
+  const bad = await ludin.handle(post('/api/try', { method: 'GET', url: 'http://evil.example/x' }));
   assert.equal(bad.status, 403);
-  const self = await rudin.handle(post('/api/try', { method: 'GET', url: '/docs/api/me' }));
+  const self = await ludin.handle(post('/api/try', { method: 'GET', url: '/docs/api/me' }));
   assert.equal(self.status, 400);
 });
 
 test('custom verify hook', async () => {
-  const rudin = createRudin({
+  const ludin = createLudin({
     spec,
     auth: { verify: async (e, p) => (e === 'x' && p === 'y' ? { id: '1', email: 'x', role: 'viewer' } : null) },
     audit: { sink: false },
   });
-  assert.equal((await rudin.handle(post('/api/login', { email: 'x', password: 'y' }))).status, 200);
-  assert.equal((await rudin.handle(post('/api/login', { email: 'x', password: 'z' }))).status, 401);
+  assert.equal((await ludin.handle(post('/api/login', { email: 'x', password: 'y' }))).status, 200);
+  assert.equal((await ludin.handle(post('/api/login', { email: 'x', password: 'z' }))).status, 401);
 });

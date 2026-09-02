@@ -23,11 +23,11 @@ export interface Boot {
 
 declare global {
   interface Window {
-    __RUDIN__: Boot;
+    __LUDIN__: Boot;
   }
 }
 
-export const boot: Boot = window.__RUDIN__;
+export const boot: Boot = window.__LUDIN__;
 
 export function applyTheme(t: Theme) {
   const root = document.documentElement;
@@ -55,7 +55,7 @@ export type Mode = 'light' | 'dark' | 'system';
 
 export function getMode(): Mode {
   try {
-    return (localStorage.getItem('rudin.mode') as Mode) || boot.theme.mode || 'system';
+    return (localStorage.getItem('ludin.mode') as Mode) || boot.theme.mode || 'system';
   } catch {
     return boot.theme.mode || 'system';
   }
@@ -63,7 +63,7 @@ export function getMode(): Mode {
 
 export function setMode(mode: Mode) {
   try {
-    localStorage.setItem('rudin.mode', mode);
+    localStorage.setItem('ludin.mode', mode);
   } catch {
     /* ignore */
   }

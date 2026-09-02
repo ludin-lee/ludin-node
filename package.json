@@ -1,5 +1,5 @@
 {
-  "name": "rudin-monorepo",
+  "name": "ludin-monorepo",
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.28.0",

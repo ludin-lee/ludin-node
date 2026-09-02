@@ -10,11 +10,11 @@ import { UI_HTML } from './ui-bundle.js';
 import type {
   AuthUser,
   Permission,
-  RudinHandler,
-  RudinOptions,
-  RudinRequest,
-  RudinResponse,
-  RudinStore,
+  LudinHandler,
+  LudinOptions,
+  LudinRequest,
+  LudinResponse,
+  LudinStore,
 } from './types.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
@@ -26,28 +26,28 @@ class HttpError extends Error {
 }
 
 interface Ctx {
-  req: RudinRequest;
+  req: LudinRequest;
   ip: string;
   user: AuthUser | null;
   /** true when access is granted by IP (ipPolicy 'or') or auth is disabled */
   anonymous: boolean;
 }
 
-export function createRudin(options: RudinOptions): RudinHandler {
-  if (!options || !options.spec) throw new Error('[rudin] `spec` is required.');
+export function createLudin(options: LudinOptions): LudinHandler {
+  if (!options || !options.spec) throw new Error('[ludin] `spec` is required.');
 
   const basePath = normalizeBase(options.basePath ?? '/docs');
   const authEnabled = options.auth !== false;
   const auth = options.auth === false ? undefined : options.auth ?? {};
-  const store: RudinStore = options.store ?? createBindingStore(auth?.users ?? [], options.ipAllowlist ?? []);
+  const store: LudinStore = options.store ?? createBindingStore(auth?.users ?? [], options.ipAllowlist ?? []);
   const roles = new RoleRegistry(options.roles);
   const specs = new SpecLoader(options.spec);
   const auditor = new Auditor(options.audit, options.store);
   const signer = new SessionSigner(
-    auth?.session?.secret ?? process.env.RUDIN_SESSION_SECRET,
+    auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET,
     parseDuration(auth?.session?.ttl, 12 * 3600),
   );
-  const cookieName = auth?.session?.cookieName ?? 'rudin_session';
+  const cookieName = auth?.session?.cookieName ?? 'ludin_session';
   const lockout = new Lockout(auth?.lockout?.attempts ?? 5, parseDuration(auth?.lockout?.window, 15 * 60) * 1000);
   const ipPolicy = options.ipPolicy ?? 'and';
   const allowLocalhost = options.allowLocalhost ?? true;
@@ -55,13 +55,13 @@ export function createRudin(options: RudinOptions): RudinHandler {
 
   // Validate bound users early.
   if (authEnabled && !auth?.verify && (auth?.users?.length ?? 0) === 0 && !options.store) {
-    console.warn('[rudin] auth is enabled but no users are configured – nobody will be able to log in.');
+    console.warn('[ludin] auth is enabled but no users are configured – nobody will be able to log in.');
   }
   for (const u of auth?.users ?? []) {
     if (!isHashed(u.password)) {
-      console.warn(`[rudin] User ${u.email} has a plain-text password. Prefer a hash: npx rudin hash`);
+      console.warn(`[ludin] User ${u.email} has a plain-text password. Prefer a hash: npx ludin hash`);
     }
-    if (u.role && !roles.exists(u.role)) throw new Error(`[rudin] Unknown role "${u.role}" for ${u.email}`);
+    if (u.role && !roles.exists(u.role)) throw new Error(`[ludin] Unknown role "${u.role}" for ${u.email}`);
   }
 
   async function globalIpMatcher() {
@@ -70,12 +70,12 @@ export function createRudin(options: RudinOptions): RudinHandler {
   }
 
   // -------------------------------------------------------------------------
-  async function handle(req: RudinRequest): Promise<RudinResponse> {
+  async function handle(req: LudinRequest): Promise<LudinResponse> {
     const ip = resolveClientIp(req.remoteAddress, req.headers, options.trustProxy);
     try {
       // 1. Global IP check ---------------------------------------------------
       const matcher = await globalIpMatcher();
-      const bypass = process.env.RUDIN_BYPASS_IP_CHECK === '1' || (allowLocalhost && isLocalhost(ip));
+      const bypass = process.env.LUDIN_BYPASS_IP_CHECK === '1' || (allowLocalhost && isLocalhost(ip));
       const ipMatched = matcher ? matcher(ip) : true;
       if (matcher && !ipMatched && !bypass) {
         await auditor.emit({ type: 'ip.blocked', ip, user: null, detail: { path: req.path } });
@@ -113,13 +113,13 @@ export function createRudin(options: RudinOptions): RudinHandler {
         if (wantsJson) return json(err.status, { error: err.message, code: err.code });
         return { status: err.status, headers: { 'content-type': 'text/html; charset=utf-8' }, body: errorPage(err) };
       }
-      console.error('[rudin] unhandled error', err);
+      console.error('[ludin] unhandled error', err);
       return json(500, { error: 'Internal error' });
     }
   }
 
   // -------------------------------------------------------------------------
-  function html(ctx: Ctx): RudinResponse {
+  function html(ctx: Ctx): LudinResponse {
     const boot = {
       basePath,
       authEnabled,
@@ -128,8 +128,8 @@ export function createRudin(options: RudinOptions): RudinHandler {
       version: '0.1.0',
     };
     const page = UI_HTML.replace(
-      '<!--RUDIN_CONFIG-->',
-      `<script>window.__RUDIN__=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>`,
+      '<!--LUDIN_CONFIG-->',
+      `<script>window.__LUDIN__=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>`,
     );
     return {
       status: 200,
@@ -144,10 +144,10 @@ export function createRudin(options: RudinOptions): RudinHandler {
   }
 
   // -------------------------------------------------------------------------
-  async function api(ctx: Ctx, path: string): Promise<RudinResponse> {
+  async function api(ctx: Ctx, path: string): Promise<LudinResponse> {
     const { req } = ctx;
     const isMutation = req.method !== 'GET' && req.method !== 'HEAD';
-    if (isMutation && req.headers['x-requested-with'] !== 'rudin') {
+    if (isMutation && req.headers['x-requested-with'] !== 'ludin') {
       throw new HttpError(403, 'Missing X-Requested-With header', 'csrf');
     }
 
@@ -200,7 +200,7 @@ export function createRudin(options: RudinOptions): RudinHandler {
     };
   }
 
-  async function login(ctx: Ctx): Promise<RudinResponse> {
+  async function login(ctx: Ctx): Promise<LudinResponse> {
     if (!authEnabled) throw new HttpError(400, 'Authentication is disabled');
     if (ctx.req.method !== 'POST') throw new HttpError(405, 'Method Not Allowed');
     const body = parseJson(ctx.req.body) as { email?: string; password?: string };
@@ -244,7 +244,7 @@ export function createRudin(options: RudinOptions): RudinHandler {
     return res;
   }
 
-  async function logout(ctx: Ctx): Promise<RudinResponse> {
+  async function logout(ctx: Ctx): Promise<LudinResponse> {
     if (ctx.req.method !== 'POST') throw new HttpError(405, 'Method Not Allowed');
     if (ctx.user && !ctx.anonymous) await auditor.emit({ type: 'logout', ip: ctx.ip, user: pick(ctx.user) });
     const res = json(200, { ok: true });
@@ -252,7 +252,7 @@ export function createRudin(options: RudinOptions): RudinHandler {
     return res;
   }
 
-  async function admin(ctx: Ctx): Promise<RudinResponse> {
+  async function admin(ctx: Ctx): Promise<LudinResponse> {
     const users = (await store.users.list()).map((u) => ({
       email: u.email,
       name: u.name,
@@ -276,7 +276,7 @@ export function createRudin(options: RudinOptions): RudinHandler {
   }
 
   // -------------------------------------------------------------------------
-  async function tryProxy(ctx: Ctx): Promise<RudinResponse> {
+  async function tryProxy(ctx: Ctx): Promise<LudinResponse> {
     if (ctx.req.method !== 'POST') throw new HttpError(405, 'Method Not Allowed');
     const body = parseJson(ctx.req.body) as {
       method?: string;
@@ -298,9 +298,9 @@ export function createRudin(options: RudinOptions): RudinHandler {
     if (!allowed.has(target.origin)) {
       throw new HttpError(403, `Target origin ${target.origin} is not allowed. Add it to allowedTargets.`, 'target_not_allowed');
     }
-    // Never let the proxy call rudin itself.
+    // Never let the proxy call ludin itself.
     if (target.origin === selfOrigin && target.pathname.startsWith(basePath)) {
-      throw new HttpError(400, 'Cannot proxy to rudin itself');
+      throw new HttpError(400, 'Cannot proxy to ludin itself');
     }
 
     const headers: Record<string, string> = {};
@@ -308,7 +308,7 @@ export function createRudin(options: RudinOptions): RudinHandler {
       if (!/^(host|content-length|connection|cookie)$/i.test(k) && typeof v === 'string') headers[k] = v;
     }
     headers['x-forwarded-for'] = ctx.ip;
-    headers['x-rudin-user'] = ctx.user!.email;
+    headers['x-ludin-user'] = ctx.user!.email;
 
     const started = Date.now();
     const method = body.method.toUpperCase();
@@ -368,11 +368,11 @@ export function createRudin(options: RudinOptions): RudinHandler {
 }
 
 // ---------------------------------------------------------------------------
-function json(status: number, data: unknown): RudinResponse {
+function json(status: number, data: unknown): LudinResponse {
   return { status, headers: { ...JSON_HEADERS }, body: JSON.stringify(data) };
 }
 
-function parseJson(body: RudinRequest['body']): unknown {
+function parseJson(body: LudinRequest['body']): unknown {
   if (body == null || body === '') return {};
   try {
     return JSON.parse(typeof body === 'string' ? body : body.toString('utf8'));
@@ -390,13 +390,13 @@ function normalizeBase(p: string): string {
   return p.replace(/\/+$/, '') || '/';
 }
 
-function isSecure(req: RudinRequest): boolean {
+function isSecure(req: LudinRequest): boolean {
   const xfp = req.headers['x-forwarded-proto'];
   const proto = (Array.isArray(xfp) ? xfp[0] : xfp) ?? req.protocol;
   return proto === 'https';
 }
 
-function requestOrigin(req: RudinRequest): string {
+function requestOrigin(req: LudinRequest): string {
   const xfh = req.headers['x-forwarded-host'];
   const host = (Array.isArray(xfh) ? xfh[0] : xfh) ?? (req.headers['host'] as string) ?? 'localhost';
   return `${isSecure(req) ? 'https' : 'http'}://${host}`;

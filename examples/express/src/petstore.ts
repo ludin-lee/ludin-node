@@ -3,7 +3,7 @@ export const petstore = {
   info: {
     title: 'Petstore',
     version: '1.4.2',
-    description: 'A small demo API used by the rudin examples.\n\nEndpoints tagged **Admin** are only visible to the admin role.',
+    description: 'A small demo API used by the ludin examples.\n\nEndpoints tagged **Admin** are only visible to the admin role.',
     license: { name: 'MIT' },
   },
   servers: [{ url: '/api', description: 'Same origin' }],

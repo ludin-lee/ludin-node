@@ -1,5 +1,5 @@
 import express from 'express';
-import { rudin } from '@rudin/express';
+import { ludin } from '@ludin/express';
 import { petstore } from './petstore.js';
 
 const app = express();
@@ -24,23 +24,23 @@ app.delete('/api/pets/:id', (req, res) => res.status(204).end());
 app.post('/api/admin/reset', (req, res) => res.json({ ok: true }));
 app.get('/api/secure/me', (req, res) => {
   if (req.headers.authorization !== 'Bearer letmein') return res.status(401).json({ message: 'bad token' });
-  res.json({ user: 'demo', via: req.headers['x-rudin-user'] });
+  res.json({ user: 'demo', via: req.headers['x-ludin-user'] });
 });
 
 // --- docs -------------------------------------------------------------------
 app.use(
   '/docs',
-  rudin({
+  ludin({
     spec: petstore,
     auth: {
       users: [
-        { email: 'admin@example.com', password: process.env.RUDIN_ADMIN_PW ?? 'admin', role: 'admin', name: 'Admin' },
-        { email: 'dev@example.com', password: process.env.RUDIN_DEV_PW ?? 'dev', role: 'developer', name: 'Dev' },
-        { email: 'viewer@example.com', password: process.env.RUDIN_VIEWER_PW ?? 'viewer', role: 'viewer' },
+        { email: 'admin@example.com', password: process.env.LUDIN_ADMIN_PW ?? 'admin', role: 'admin', name: 'Admin' },
+        { email: 'dev@example.com', password: process.env.LUDIN_DEV_PW ?? 'dev', role: 'developer', name: 'Dev' },
+        { email: 'viewer@example.com', password: process.env.LUDIN_VIEWER_PW ?? 'viewer', role: 'viewer' },
       ],
-      session: { secret: process.env.RUDIN_SESSION_SECRET ?? 'dev-only-secret' },
+      session: { secret: process.env.LUDIN_SESSION_SECRET ?? 'dev-only-secret' },
     },
-    ipAllowlist: (process.env.RUDIN_IPS ?? '').split(',').filter(Boolean),
+    ipAllowlist: (process.env.LUDIN_IPS ?? '').split(',').filter(Boolean),
     visibility: { 'tag:Admin': ['admin'] },
     theme: {
       title: 'Petstore API',

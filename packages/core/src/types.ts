@@ -79,7 +79,7 @@ export interface AuthOptions {
   /** Custom verifier – hook into your own auth system. */
   verify?: (email: string, password: string) => Promise<AuthUser | null> | AuthUser | null;
   session?: {
-    /** HMAC secret for session cookies. Falls back to RUDIN_SESSION_SECRET, then a random per-process secret. */
+    /** HMAC secret for session cookies. Falls back to LUDIN_SESSION_SECRET, then a random per-process secret. */
     secret?: string;
     /** e.g. '12h', '7d', or seconds. Default '12h'. */
     ttl?: string | number;
@@ -93,7 +93,7 @@ export interface AuthOptions {
   };
 }
 
-export interface RudinOptions {
+export interface LudinOptions {
   spec: SpecSource | SpecEntry[];
   /** `false` disables login entirely (IP allowlist only). */
   auth?: false | AuthOptions;
@@ -118,7 +118,7 @@ export interface RudinOptions {
   basePath?: string;
   /** Extra hosts Try-it-out proxy may call, besides the spec's `servers`. */
   allowedTargets?: string[];
-  store?: RudinStore;
+  store?: LudinStore;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ export interface IpRule {
   note?: string;
 }
 
-export interface RudinStore {
+export interface LudinStore {
   readonly?: boolean;
   users: {
     findByEmail(email: string): Promise<StoredUser | null>;
@@ -163,7 +163,7 @@ export interface RudinStore {
 // Framework-agnostic request / response
 // ---------------------------------------------------------------------------
 
-export interface RudinRequest {
+export interface LudinRequest {
   method: string;
   /** Path relative to the mount point, starting with '/'. */
   path: string;
@@ -177,13 +177,13 @@ export interface RudinRequest {
   protocol?: string;
 }
 
-export interface RudinResponse {
+export interface LudinResponse {
   status: number;
   headers: Record<string, string | string[]>;
   body?: string | Buffer;
 }
 
-export interface RudinHandler {
-  handle(req: RudinRequest): Promise<RudinResponse>;
-  options: Readonly<RudinOptions>;
+export interface LudinHandler {
+  handle(req: LudinRequest): Promise<LudinResponse>;
+  options: Readonly<LudinOptions>;
 }

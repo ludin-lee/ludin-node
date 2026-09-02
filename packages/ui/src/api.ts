@@ -12,7 +12,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: {
       accept: 'application/json',
       ...(init.body ? { 'content-type': 'application/json' } : {}),
-      'x-requested-with': 'rudin',
+      'x-requested-with': 'ludin',
       ...(init.headers ?? {}),
     },
     credentials: 'same-origin',

@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createRudin } from 'rudin';
-import type { RudinHandler, RudinOptions, RudinRequest } from 'rudin';
+import { createLudin } from 'ludin';
+import type { LudinHandler, LudinOptions, LudinRequest } from 'ludin';
 
-export type { RudinOptions, RudinHandler } from 'rudin';
-export { hashPassword } from 'rudin';
+export type { LudinOptions, LudinHandler } from 'ludin';
+export { hashPassword } from 'ludin';
 
 type Next = (err?: unknown) => void;
 type ExpressLikeReq = IncomingMessage & {
@@ -16,25 +16,25 @@ type ExpressLikeReq = IncomingMessage & {
   protocol?: string;
 };
 
-export interface RudinMiddleware {
+export interface LudinMiddleware {
   (req: ExpressLikeReq, res: ServerResponse, next: Next): void;
-  rudin: RudinHandler;
+  ludin: LudinHandler;
 }
 
 /**
- * Create an Express middleware. Mount it with `app.use('/docs', rudin({...}))`.
+ * Create an Express middleware. Mount it with `app.use('/docs', ludin({...}))`.
  * The mount path is detected from `req.baseUrl`, so `basePath` is optional.
  */
-export function rudin(options: RudinOptions): RudinMiddleware {
-  let handler: RudinHandler | null = null;
+export function ludin(options: LudinOptions): LudinMiddleware {
+  let handler: LudinHandler | null = null;
   let resolvedBase: string | undefined = options.basePath;
 
   const middleware = ((req, res, next) => {
     // Lazily create so the mount path (baseUrl) is known.
     if (!handler) {
       resolvedBase = resolvedBase ?? (req.baseUrl || '/');
-      handler = createRudin({ ...options, basePath: resolvedBase });
-      middleware.rudin = handler;
+      handler = createLudin({ ...options, basePath: resolvedBase });
+      middleware.ludin = handler;
     }
     toRequest(req, resolvedBase!)
       .then((r) => handler!.handle(r))
@@ -44,19 +44,19 @@ export function rudin(options: RudinOptions): RudinMiddleware {
         res.end(out.body);
       })
       .catch(next);
-  }) as RudinMiddleware;
+  }) as LudinMiddleware;
 
-  // Eager handler for `.rudin` access before first request when basePath is given.
+  // Eager handler for `.ludin` access before first request when basePath is given.
   if (options.basePath) {
-    handler = createRudin(options);
-    middleware.rudin = handler;
+    handler = createLudin(options);
+    middleware.ludin = handler;
   } else {
-    middleware.rudin = undefined as unknown as RudinHandler;
+    middleware.ludin = undefined as unknown as LudinHandler;
   }
   return middleware;
 }
 
-export async function toRequest(req: ExpressLikeReq, basePath: string): Promise<RudinRequest> {
+export async function toRequest(req: ExpressLikeReq, basePath: string): Promise<LudinRequest> {
   const original = req.originalUrl ?? req.url ?? '/';
   const base = (req.baseUrl || basePath || '').replace(/\/+$/, '');
   const full = base && original.startsWith(base) ? original.slice(base.length) : original;
@@ -68,7 +68,7 @@ export async function toRequest(req: ExpressLikeReq, basePath: string): Promise<
     method: req.method ?? 'GET',
     path: rawPath || '/',
     query,
-    headers: req.headers as RudinRequest['headers'],
+    headers: req.headers as LudinRequest['headers'],
     body: await readBody(req),
     remoteAddress: req.socket?.remoteAddress ?? '',
     protocol: req.protocol ?? ((req.socket as { encrypted?: boolean } | undefined)?.encrypted ? 'https' : 'http'),

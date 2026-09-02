@@ -1,4 +1,4 @@
-# rudin
+# ludin
 
 **Swagger UI, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express or NestJS.
 
@@ -12,16 +12,16 @@
 ## Quick start (Express)
 
 ```bash
-npm i rudin @rudin/express
+npm i ludin @ludin/express
 ```
 
 ```ts
 import express from 'express';
-import { rudin } from '@rudin/express';
+import { ludin } from '@ludin/express';
 
 const app = express();
 
-app.use('/docs', rudin({
+app.use('/docs', ludin({
   spec: './openapi.yaml',                         // path, URL, object or async function
   auth: {
     users: [
@@ -37,26 +37,26 @@ app.use('/docs', rudin({
 }));
 ```
 
-Passwords may be plain text (quick start) or hashes — generate one with `npx rudin hash`. Supported: `$scrypt$` (built in, zero deps), bcrypt (`npm i bcryptjs`), argon2 (`npm i argon2`).
+Passwords may be plain text (quick start) or hashes — generate one with `npx ludin hash`. Supported: `$scrypt$` (built in, zero deps), bcrypt (`npm i bcryptjs`), argon2 (`npm i argon2`).
 
 ## Quick start (NestJS)
 
 ```bash
-npm i rudin @rudin/express @rudin/nestjs
+npm i ludin @ludin/express @ludin/nestjs
 ```
 
-`setupRudin` is a drop-in for `SwaggerModule.setup`:
+`setupLudin` is a drop-in for `SwaggerModule.setup`:
 
 ```ts
-import { setupRudin } from '@rudin/nestjs';
+import { setupLudin } from '@ludin/nestjs';
 
 const document = SwaggerModule.createDocument(app, config);
-setupRudin(app, '/docs', document, {
+setupLudin(app, '/docs', document, {
   auth: { users: [{ email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' }] },
 });
 ```
 
-Or as a module: `RudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
+Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
 
 ## Two modes
 
@@ -72,7 +72,7 @@ Binding mode is deliberately read-only: settings edited in a UI would be lost on
 ## Options
 
 ```ts
-interface RudinOptions {
+interface LudinOptions {
   spec: string | object | (() => object | Promise<object>) | SpecEntry[];  // multiple specs supported
   auth?: false | {
     users?: BoundUser[];
@@ -102,18 +102,18 @@ Roles and permissions (defaults):
 | developer | ✓ | ✓ | self | |
 | admin | ✓ | ✓ | ✓ | ✓ |
 
-Escape hatch if you lock yourself out: `RUDIN_BYPASS_IP_CHECK=1`.
+Escape hatch if you lock yourself out: `LUDIN_BYPASS_IP_CHECK=1`.
 
 ## How Try-it-out works
 
-Requests go through a server-side proxy (`POST /docs/api/try`) so that every call is audited and attributed to the signed-in user, CORS is never an issue, and only origins listed in the spec's `servers` (or `allowedTargets`) can be reached. The upstream receives `X-Rudin-User` and `X-Forwarded-For`.
+Requests go through a server-side proxy (`POST /docs/api/try`) so that every call is audited and attributed to the signed-in user, CORS is never an issue, and only origins listed in the spec's `servers` (or `allowedTargets`) can be reached. The upstream receives `X-Ludin-User` and `X-Forwarded-For`.
 
 ## Repository layout
 
 ```
-packages/core      rudin – framework-agnostic handler, auth, IP, audit, embedded UI
-packages/express   @rudin/express
-packages/nestjs    @rudin/nestjs
+packages/core      ludin – framework-agnostic handler, auth, IP, audit, embedded UI
+packages/express   @ludin/express
+packages/nestjs    @ludin/nestjs
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
 examples/nest      @nestjs/swagger demo on :3001

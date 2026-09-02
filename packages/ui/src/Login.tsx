@@ -41,7 +41,7 @@ export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
         <button class="btn btn-primary" disabled={busy}>
           {busy ? <span class="spin" style="border-top-color:#fff" /> : 'Sign in'}
         </button>
-        <div class="foot">Protected by rudin</div>
+        <div class="foot">Protected by ludin</div>
       </form>
     </div>
   );

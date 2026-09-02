@@ -64,16 +64,16 @@ export function createIpMatcher(rules: string[] = []): IpMatcher {
     }
     if (rule.includes('-') && !rule.includes(':')) {
       const [a, b] = rule.split('-').map((s) => ipToBigInt(s));
-      if (!a || !b) throw new Error(`[rudin] Invalid IP range: ${rule}`);
+      if (!a || !b) throw new Error(`[ludin] Invalid IP range: ${rule}`);
       compiled.push((v, bits) => bits === a.bits && v >= a.value && v <= b.value);
       continue;
     }
     const [base, prefixStr] = rule.split('/');
     const parsed = ipToBigInt(base);
-    if (!parsed) throw new Error(`[rudin] Invalid IP / CIDR: ${rule}`);
+    if (!parsed) throw new Error(`[ludin] Invalid IP / CIDR: ${rule}`);
     const prefix = prefixStr == null ? parsed.bits : Number(prefixStr);
     if (Number.isNaN(prefix) || prefix < 0 || prefix > parsed.bits) {
-      throw new Error(`[rudin] Invalid CIDR prefix: ${rule}`);
+      throw new Error(`[ludin] Invalid CIDR prefix: ${rule}`);
     }
     const shift = BigInt(parsed.bits - prefix);
     const network = parsed.value >> shift;

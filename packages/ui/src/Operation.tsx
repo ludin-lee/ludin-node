@@ -429,14 +429,14 @@ function fmtBytes(n: number) {
 
 function loadAuth(): Record<string, string> {
   try {
-    return JSON.parse(sessionStorage.getItem('rudin.auth') || '{}');
+    return JSON.parse(sessionStorage.getItem('ludin.auth') || '{}');
   } catch {
     return {};
   }
 }
 function saveAuth(v: Record<string, string>) {
   try {
-    sessionStorage.setItem('rudin.auth', JSON.stringify(v));
+    sessionStorage.setItem('ludin.auth', JSON.stringify(v));
   } catch {
     /* ignore */
   }

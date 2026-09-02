@@ -15,7 +15,7 @@ export function parseDuration(value: string | number | undefined, fallbackSec: n
   if (value == null) return fallbackSec;
   if (typeof value === 'number') return value;
   const m = /^(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)?$/.exec(value.trim());
-  if (!m) throw new Error(`[rudin] Invalid duration: ${value}`);
+  if (!m) throw new Error(`[ludin] Invalid duration: ${value}`);
   const n = Number(m[1]);
   const unit = m[2] ?? 's';
   const mult: Record<string, number> = { ms: 0.001, s: 1, m: 60, h: 3600, d: 86400 };
@@ -33,8 +33,8 @@ export class SessionSigner {
       secret = randomBytes(32).toString('hex');
       if (process.env.NODE_ENV === 'production') {
         console.warn(
-          '[rudin] No session secret configured – using a random one. Sessions will not survive restarts. ' +
-            'Set auth.session.secret or RUDIN_SESSION_SECRET.',
+          '[ludin] No session secret configured – using a random one. Sessions will not survive restarts. ' +
+            'Set auth.session.secret or LUDIN_SESSION_SECRET.',
         );
       }
     }

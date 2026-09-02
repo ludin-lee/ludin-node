@@ -1,7 +1,7 @@
 {
-  "name": "@rudin/express",
+  "name": "@ludin/express",
   "version": "0.1.0",
-  "description": "Express adapter for rudin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
+  "description": "Express adapter for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -15,7 +15,7 @@
   },
   "files": ["dist"],
   "scripts": { "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18" },
-  "dependencies": { "rudin": "workspace:*" },
+  "dependencies": { "ludin": "workspace:*" },
   "peerDependencies": { "express": ">=4.17.0" },
   "devDependencies": { "@types/express": "^4.17.21", "@types/node": "^22.0.0", "express": "^4.21.0" }
 }

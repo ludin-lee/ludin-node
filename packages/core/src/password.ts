@@ -64,7 +64,7 @@ async function optionalImport<T>(name: string): Promise<T> {
     return (mod.default ?? mod) as T;
   } catch {
     throw new Error(
-      `[rudin] A password uses the ${name} format but the "${name}" package is not installed. ` +
+      `[ludin] A password uses the ${name} format but the "${name}" package is not installed. ` +
         `Run: npm i ${name}`,
     );
   }

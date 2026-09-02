@@ -10,14 +10,14 @@ async function main() {
       plain = await prompt('Password: ');
     }
     if (!plain) {
-      console.error('Usage: rudin hash [password]');
+      console.error('Usage: ludin hash [password]');
       process.exit(1);
     }
     console.log(await hashPassword(plain));
     return;
   }
-  console.log(`rudin – commands:
-  rudin hash [password]   Print a $scrypt$ hash to use in auth.users[].password / env`);
+  console.log(`ludin – commands:
+  ludin hash [password]   Print a $scrypt$ hash to use in auth.users[].password / env`);
 }
 
 function prompt(q: string): Promise<string> {
