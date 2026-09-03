@@ -63,7 +63,14 @@ test('store mode: capabilities are advertised and binding mode refuses writes', 
   const cookie = await loginAs(ludin, 'admin@x.io', 'admin-password');
   const me = bodyOf(await ludin.handle(req({ path: '/api/me', headers: { host: 'x', cookie } })));
   assert.equal(me.readonly, false);
-  assert.deepEqual(me.capabilities, { users: true, invites: true, ipRules: true, sessions: true, auditQuery: true });
+  assert.deepEqual(me.capabilities, {
+    users: true,
+    invites: true,
+    ipRules: true,
+    sessions: true,
+    auditQuery: true,
+    notices: true,
+  });
 
   const bound = createLudin({
     spec,
@@ -264,4 +271,84 @@ test('store mode: audit browsing is 501 without a queryable store', async () => 
   const res = await bound.handle(req({ path: '/api/audit', headers: { host: 'x', cookie } }));
   assert.equal(res.status, 501);
   assert.equal(bodyOf(res).code, 'store_required');
+});
+
+test('notices: the board is store-only and refuses binding mode', async () => {
+  const bound = createLudin({
+    spec,
+    auth: { users: [{ email: 'a@x.io', password: 'binding-password', role: 'admin' }], session: { secret: 'test' } },
+    audit: { sink: false },
+  });
+  const cookie = await loginAs(bound, 'a@x.io', 'binding-password');
+  const me = bodyOf(await bound.handle(req({ path: '/api/me', headers: { host: 'x', cookie } })));
+  assert.equal(me.capabilities.notices, false);
+
+  const list = await bound.handle(req({ path: '/api/notices', headers: { host: 'x', cookie } }));
+  assert.equal(list.status, 501);
+  assert.equal(bodyOf(list).code, 'store_required');
+  const post = await bound.handle(send('POST', '/api/notices', { title: 'Hi', body: 'x' }, cookie));
+  assert.equal(post.status, 501);
+});
+
+test('notices: drafts and visibleTo decide who sees a post', async () => {
+  const { ludin } = setup();
+  const adminCookie = await loginAs(ludin, 'admin@x.io', 'admin-password');
+  const devCookie = await loginAs(ludin, 'dev@x.io', 'dev-password');
+
+  const published = await ludin.handle(
+    send('POST', '/api/notices', { title: 'Release 2.4', body: '## Changes\n- faster', pinned: true }, adminCookie),
+  );
+  assert.equal(published.status, 201);
+  assert.equal(bodyOf(published).notice.status, 'published');
+  assert.equal(bodyOf(published).notice.authorEmail, 'admin@x.io');
+
+  await ludin.handle(send('POST', '/api/notices', { title: 'Work in progress', body: 'later', status: 'draft' }, adminCookie));
+  const adminOnly = bodyOf(
+    await ludin.handle(send('POST', '/api/notices', { title: 'Internal', body: 'secret', visibleTo: ['admin'] }, adminCookie)),
+  ).notice;
+
+  const asAdmin = bodyOf(await ludin.handle(req({ path: '/api/notices', headers: { host: 'x', cookie: adminCookie } })));
+  assert.equal(asAdmin.canWrite, true);
+  assert.equal(asAdmin.notices.length, 3);
+  assert.equal(asAdmin.notices[0].body, undefined, 'the list carries excerpts, not bodies');
+  assert.match(asAdmin.notices.find((n: { title: string }) => n.title === 'Release 2.4').excerpt, /Changes/);
+
+  const asDev = bodyOf(await ludin.handle(req({ path: '/api/notices', headers: { host: 'x', cookie: devCookie } })));
+  assert.equal(asDev.canWrite, false);
+  assert.deepEqual(asDev.notices.map((n: { title: string }) => n.title), ['Release 2.4']);
+
+  const hidden = await ludin.handle(req({ path: `/api/notices/${adminOnly.id}`, headers: { host: 'x', cookie: devCookie } }));
+  assert.equal(hidden.status, 404, 'a role-restricted notice is not readable, not just hidden from the list');
+
+  const readable = bodyOf(await ludin.handle(req({ path: `/api/notices/${adminOnly.id}`, headers: { host: 'x', cookie: adminCookie } })));
+  assert.equal(readable.notice.body, 'secret');
+});
+
+test('notices: only notices:write may post, edit or delete', async () => {
+  const { ludin } = setup();
+  const adminCookie = await loginAs(ludin, 'admin@x.io', 'admin-password');
+  const devCookie = await loginAs(ludin, 'dev@x.io', 'dev-password');
+
+  const denied = await ludin.handle(send('POST', '/api/notices', { title: 'Nope', body: 'x' }, devCookie));
+  assert.equal(denied.status, 403);
+
+  const created = bodyOf(await ludin.handle(send('POST', '/api/notices', { title: 'Draft', body: 'a', status: 'draft' }, adminCookie))).notice;
+  const devEdit = await ludin.handle(send('PATCH', `/api/notices/${created.id}`, { title: 'Hijacked' }, devCookie));
+  assert.equal(devEdit.status, 403);
+
+  const edited = bodyOf(await ludin.handle(send('PATCH', `/api/notices/${created.id}`, { status: 'published', body: 'b' }, adminCookie))).notice;
+  assert.equal(edited.status, 'published');
+  assert.equal(edited.body, 'b');
+  assert.ok(edited.updatedAt >= created.updatedAt);
+
+  const empty = await ludin.handle(send('POST', '/api/notices', { title: '   ', body: 'x' }, adminCookie));
+  assert.equal(empty.status, 400);
+
+  assert.equal((await ludin.handle(send('DELETE', `/api/notices/${created.id}`, null, devCookie))).status, 403);
+  assert.equal((await ludin.handle(send('DELETE', `/api/notices/${created.id}`, null, adminCookie))).status, 200);
+  assert.equal((await ludin.handle(req({ path: `/api/notices/${created.id}`, headers: { host: 'x', cookie: adminCookie } }))).status, 404);
+
+  const audit = bodyOf(await ludin.handle(req({ path: '/api/audit', headers: { host: 'x', cookie: adminCookie } })));
+  const types = audit.items.map((e: { type: string }) => e.type);
+  assert.ok(types.includes('notice.create') && types.includes('notice.update') && types.includes('notice.remove'));
 });

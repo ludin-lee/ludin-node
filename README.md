@@ -12,7 +12,9 @@
 - 👥 **Accounts & roles** – `viewer` / `developer` / `admin` (or your own), per-tag / per-path visibility
 - 🌐 **IP allowlist** – CIDR, ranges, IPv6, proxy-aware, lockout-proof
 - 📝 **Audit log** – who logged in, who called what, from where (JSON lines, your own sink, or a browsable table)
-- 🎨 **Beautiful UI** – 78 KB total (23 KB gzip), light/dark, brand colors, logo, custom CSS
+- 📢 **Notice board** – post release notes or onboarding instructions in Markdown, per role, right next to the docs (store mode)
+- 📤 **Spec download** – hand a customer the JSON/YAML they are allowed to see, and log who took it
+- 🎨 **Beautiful UI** – 89 KB total (26 KB gzip), light/dark, your logo and brand colors, custom CSS
 - ⚡ **Zero-config binding mode** – users & IPs from code / `process.env`, no database needed
 - 🗄 **Store mode** – add a database and the admin screen turns editable: invitations, roles, IP rules, forced sign-out, audit browsing
 
@@ -120,6 +122,7 @@ app.use('/docs', ludin({
 
 One line and the same deployment gains:
 
+- **A notice board** – release notes, onboarding steps, the README a client should read first. Markdown, pinnable, draft-able, and restrictable to certain roles. Deliberately store-only: a notice typed into a config file would vanish on the next deploy.
 - **Invitations** – admins create a link, the invitee picks their own password. Only a SHA-256 hash of the token is stored, and the link is single-use.
 - **Editable accounts** – add people, change roles, disable, reset passwords, per-account IP restrictions.
 - **Revocable sessions** – "sign out everywhere", or force-sign-out anyone from the admin screen. Disabling an account or changing its role or password kills its live cookies on the next request.
@@ -166,20 +169,30 @@ interface LudinOptions {
   roles?: Record<string, Permission[]>;
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean; retentionDays?: number };
-  theme?: { title, logo, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
+  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }
 ```
 
 Roles and permissions (defaults):
 
-| role | docs:read | docs:try | audit:read | admin:read/write |
-|---|---|---|---|---|
-| viewer | ✓ | | | |
-| developer | ✓ | ✓ | self | |
-| admin | ✓ | ✓ | ✓ | ✓ |
+| role | docs:read | docs:try | audit:read | admin:read/write | notices:write |
+|---|---|---|---|---|---|
+| viewer | ✓ | | | | |
+| developer | ✓ | ✓ | self | | |
+| admin | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 Escape hatch if you lock yourself out: `LUDIN_BYPASS_IP_CHECK=1`.
+
+## Handing the docs to a customer
+
+Everything a client sees is already filtered by their role, and the same is true of what they can take with them:
+
+- **Download** – the Overview screen offers the document as JSON or YAML (`/docs/api/spec.json`, `/docs/api/spec.yaml`). The file goes through the same `visibility` filter as the rendered docs, and each download is recorded as a `docs.export` audit event.
+- **Notices** – in store mode a *Notices* tab appears next to the docs. Anyone with `notices:write` (admin by default) can post Markdown, pin it, keep it as a draft, or limit it to certain roles.
+- **Branding** – `theme.title` names the platform, `theme.logo` (any URL or data URI) is the icon in the top-left corner, `theme.logoDark` swaps it in dark mode, `theme.favicon` sets the tab icon.
+
+Notice bodies and OpenAPI descriptions are rendered as Markdown; the source is HTML-escaped before decoration and only `http(s)`, `mailto:` and relative links survive, so a document can never inject markup into the page.
 
 ## How Try-it-out works
 
@@ -230,7 +243,7 @@ needs an `NPM_TOKEN` secret in the `npm` environment.
 
 ## Roadmap
 
-- **v0.2** ✅ store mode: SQLite & MySQL adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention
+- **v0.2** ✅ store mode: SQLite & MySQL adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention, notice board, spec download
 - **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Postgres / Prisma / Redis stores
 - **v1.0** stable API
 

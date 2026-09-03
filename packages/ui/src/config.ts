@@ -1,6 +1,7 @@
 export interface Theme {
   title?: string;
   logo?: string;
+  logoDark?: string;
   favicon?: string;
   primary?: string;
   accent?: string;
@@ -24,6 +25,7 @@ export interface Boot {
     ipRules: boolean;
     sessions: boolean;
     auditQuery: boolean;
+    notices: boolean;
   };
   version?: string;
 }

@@ -5,7 +5,7 @@ import { Lockout } from './lockout.js';
 import { hashPassword, verifyPassword, isHashed } from './password.js';
 import { RoleRegistry } from './roles.js';
 import { SessionSigner, parseCookies, parseDuration, serializeCookie } from './session.js';
-import { SpecLoader, applyVisibility, serverOrigins } from './spec.js';
+import { SpecLoader, applyVisibility, serverOrigins, toYaml } from './spec.js';
 import { createBindingStore } from './store.js';
 import { UI_HTML } from './ui-bundle.js';
 import type {
@@ -14,6 +14,7 @@ import type {
   AuthUser,
   Invite,
   IpRule,
+  Notice,
   Permission,
   LudinHandler,
   LudinOptions,
@@ -68,6 +69,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
     ipRules: !!(store.ipRules.upsert && store.ipRules.remove),
     sessions: !!store.sessions,
     auditQuery: !!store.audit?.query,
+    notices: !!store.notices,
   };
 
   // Validate bound users early.
@@ -252,13 +254,14 @@ export function createLudin(options: LudinOptions): LudinHandler {
         return json(200, { specs: specs.listFor(ctx.user!.role) });
       case '/api/spec': {
         require(ctx, 'docs:read');
-        const name = req.query.name || specs.entries[0].name;
-        if (!specs.listFor(ctx.user!.role).some((s) => s.name === name)) throw new HttpError(404, 'Spec not found');
-        const doc = await specs.load(name);
-        if (!doc) throw new HttpError(404, 'Spec not found');
-        await auditor.emit({ type: 'docs.view', ip: ctx.ip, user: pick(ctx.user), detail: { spec: name } });
-        return json(200, applyVisibility(doc, options.visibility, ctx.user!.role));
+        const visible = await visibleSpec(ctx);
+        await auditor.emit({ type: 'docs.view', ip: ctx.ip, user: pick(ctx.user), detail: { spec: visible.name } });
+        return json(200, visible.doc);
       }
+      case '/api/spec.json':
+      case '/api/spec.yaml':
+        require(ctx, 'docs:read');
+        return exportSpec(ctx, path.endsWith('.yaml') ? 'yaml' : 'json');
       case '/api/try':
         require(ctx, 'docs:try');
         return tryProxy(ctx);
@@ -276,6 +279,9 @@ export function createLudin(options: LudinOptions): LudinHandler {
       case '/api/admin/invites':
         require(ctx, 'admin:write');
         return createInvite(ctx);
+      case '/api/notices':
+        require(ctx, 'docs:read');
+        return ctx.req.method === 'POST' ? createNotice(ctx) : listNotices(ctx);
       case '/api/audit':
         return auditQuery(ctx, 'json');
       case '/api/audit.csv':
@@ -300,7 +306,43 @@ export function createLudin(options: LudinOptions): LudinHandler {
       require(ctx, 'admin:write');
       return revokeInvite(ctx, m[1]);
     }
+    if ((m = /^\/api\/notices\/([^/]+)$/.exec(path))) {
+      require(ctx, 'docs:read');
+      if (req.method === 'GET') return readNotice(ctx, m[1]);
+      if (req.method === 'DELETE') return removeNotice(ctx, m[1]);
+      return updateNotice(ctx, m[1]);
+    }
     throw new HttpError(404, 'Not Found');
+  }
+
+  /** Loads the requested spec, already filtered for the caller's role. */
+  async function visibleSpec(ctx: Ctx): Promise<{ name: string; doc: Record<string, any> }> {
+    const name = ctx.req.query.name || specs.entries[0].name;
+    if (!specs.listFor(ctx.user!.role).some((s) => s.name === name)) throw new HttpError(404, 'Spec not found');
+    const doc = await specs.load(name);
+    if (!doc) throw new HttpError(404, 'Spec not found');
+    return { name, doc: applyVisibility(doc, options.visibility, ctx.user!.role) };
+  }
+
+  /**
+   * Hand the document out as a file. It goes through the same visibility filter
+   * as the rendered docs, so what a customer downloads is exactly what they are
+   * allowed to see – and the download is audited.
+   */
+  async function exportSpec(ctx: Ctx, format: 'json' | 'yaml'): Promise<LudinResponse> {
+    requireMethod(ctx, 'GET');
+    const { name, doc } = await visibleSpec(ctx);
+    await auditor.emit({ type: 'docs.export', ip: ctx.ip, user: pick(ctx.user), detail: { spec: name, format } });
+    const base = String(doc.info?.title ?? name).replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60) || 'openapi';
+    return {
+      status: 200,
+      headers: {
+        'content-type': format === 'json' ? 'application/json; charset=utf-8' : 'application/yaml; charset=utf-8',
+        'content-disposition': `attachment; filename="${base}.${format}"`,
+        'cache-control': 'no-store',
+      },
+      body: format === 'json' ? JSON.stringify(doc, null, 2) : toYaml(doc),
+    };
   }
 
   function require(ctx: Ctx, perm: Permission) {
@@ -332,6 +374,11 @@ export function createLudin(options: LudinOptions): LudinHandler {
       permissions: ctx.user ? roles.permissions(ctx.user.role) : [],
       readonly: !!store.readonly,
       capabilities,
+      // Role names, for screens that let you pick one (notice visibility).
+      roles:
+        ctx.user && (roles.has(ctx.user.role, 'notices:write') || roles.has(ctx.user.role, 'admin:read'))
+          ? roles.names()
+          : undefined,
       authEnabled,
     };
   }
@@ -736,6 +783,107 @@ export function createLudin(options: LudinOptions): LudinHandler {
     return startSession(ctx, { id: user.id, email: user.email, role: user.role, name: user.name, ipAllowlist: user.ipAllowlist });
   }
 
+  // -- notices ----------------------------------------------------------------
+  /** Notices are a store-mode feature: there is nowhere to keep them otherwise. */
+  function canWriteNotices(ctx: Ctx): boolean {
+    return !!ctx.user && roles.has(ctx.user.role, 'notices:write');
+  }
+
+  /** Drafts are for authors only; `visibleTo` narrows a notice to certain roles. */
+  function visibleNotice(ctx: Ctx, notice: Notice): boolean {
+    if (notice.status !== 'published' && !canWriteNotices(ctx)) return false;
+    if (notice.visibleTo?.length && !notice.visibleTo.includes(ctx.user!.role)) return false;
+    return true;
+  }
+
+  async function listNotices(ctx: Ctx): Promise<LudinResponse> {
+    requireMethod(ctx, 'GET');
+    requireCapability('notices');
+    const notices = (await store.notices!.list()).filter((n) => visibleNotice(ctx, n));
+    return json(200, {
+      canWrite: canWriteNotices(ctx),
+      // The list stays light: bodies are fetched per notice.
+      notices: notices.map(({ body, ...rest }) => ({ ...rest, excerpt: excerpt(body) })),
+    });
+  }
+
+  async function readNotice(ctx: Ctx, id: string): Promise<LudinResponse> {
+    requireCapability('notices');
+    const notice = await store.notices!.get(id);
+    if (!notice || !visibleNotice(ctx, notice)) throw new HttpError(404, 'No such notice', 'not_found');
+    return json(200, { notice, canWrite: canWriteNotices(ctx) });
+  }
+
+  function noticeInput(ctx: Ctx, partial: boolean) {
+    const body = parseJson(ctx.req.body) as Partial<Notice> & { visibleTo?: Role[] };
+    const out: Partial<Notice> = {};
+    if (body.title !== undefined || !partial) {
+      const title = (body.title ?? '').trim();
+      if (!title) throw new HttpError(400, 'A title is required');
+      if (title.length > 300) throw new HttpError(400, 'Titles are limited to 300 characters');
+      out.title = title;
+    }
+    if (body.body !== undefined || !partial) {
+      const text = body.body ?? '';
+      if (text.length > 100_000) throw new HttpError(400, 'Notices are limited to 100,000 characters');
+      out.body = text;
+    }
+    if (body.status !== undefined) {
+      if (body.status !== 'draft' && body.status !== 'published') throw new HttpError(400, `Unknown status "${body.status}"`);
+      out.status = body.status;
+    }
+    if (body.pinned !== undefined) out.pinned = !!body.pinned;
+    if (body.visibleTo !== undefined) {
+      const list = body.visibleTo ?? [];
+      for (const role of list) if (!roles.exists(role)) throw new HttpError(400, `Unknown role "${role}"`);
+      out.visibleTo = list;
+    }
+    return out;
+  }
+
+  async function createNotice(ctx: Ctx): Promise<LudinResponse> {
+    requireMethod(ctx, 'POST');
+    requireCapability('notices');
+    require(ctx, 'notices:write');
+    const input = noticeInput(ctx, false);
+    const now = new Date().toISOString();
+    const notice = await store.notices!.create({
+      id: randomUUID(),
+      title: input.title!,
+      body: input.body ?? '',
+      status: input.status ?? 'published',
+      pinned: input.pinned ?? false,
+      visibleTo: input.visibleTo,
+      authorEmail: ctx.user!.email,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await auditor.emit({ type: 'notice.create', ip: ctx.ip, user: pick(ctx.user), detail: { title: notice.title, status: notice.status } });
+    return json(201, { notice });
+  }
+
+  async function updateNotice(ctx: Ctx, id: string): Promise<LudinResponse> {
+    requireMethod(ctx, 'PATCH', 'POST');
+    requireCapability('notices');
+    require(ctx, 'notices:write');
+    if (!(await store.notices!.get(id))) throw new HttpError(404, 'No such notice', 'not_found');
+    const patch = noticeInput(ctx, true);
+    if (Object.keys(patch).length === 0) throw new HttpError(400, 'Nothing to update');
+    const notice = await store.notices!.update(id, { ...patch, updatedAt: new Date().toISOString() });
+    await auditor.emit({ type: 'notice.update', ip: ctx.ip, user: pick(ctx.user), detail: { title: notice.title, changed: Object.keys(patch) } });
+    return json(200, { notice });
+  }
+
+  async function removeNotice(ctx: Ctx, id: string): Promise<LudinResponse> {
+    requireCapability('notices');
+    require(ctx, 'notices:write');
+    const notice = await store.notices!.get(id);
+    if (!notice) throw new HttpError(404, 'No such notice', 'not_found');
+    await store.notices!.remove(id);
+    await auditor.emit({ type: 'notice.remove', ip: ctx.ip, user: pick(ctx.user), detail: { title: notice.title } });
+    return json(200, { ok: true });
+  }
+
   // -- audit ------------------------------------------------------------------
   async function auditQuery(ctx: Ctx, format: 'json' | 'csv'): Promise<LudinResponse> {
     requireMethod(ctx, 'GET');
@@ -879,6 +1027,16 @@ function parseJson(body: LudinRequest['body']): unknown {
   } catch {
     throw new HttpError(400, 'Invalid JSON body');
   }
+}
+
+/** First couple of lines of a notice, for the list view. */
+function excerpt(body: string): string {
+  const text = body
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_`>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > 180 ? `${text.slice(0, 180)}…` : text;
 }
 
 function sha256(value: string): string {

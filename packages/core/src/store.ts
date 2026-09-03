@@ -7,6 +7,7 @@ import type {
   IpRule,
   LudinStore,
   NewUser,
+  Notice,
   Page,
   Session,
   StoredUser,
@@ -78,6 +79,7 @@ export function createMemoryStore(seed: MemoryStoreSeed = {}): LudinStore {
   const users: StoredUser[] = (seed.users ?? []).map((u) => ({ ...toStored(u), createdAt: new Date().toISOString() }));
   const rules: IpRule[] = (seed.ipAllowlist ?? []).map((cidr, i) => ({ id: `seed-${i}`, cidr }));
   const invites: Invite[] = [];
+  const notices: Notice[] = [];
   const sessions = new Map<string, Session>();
   /** Newest first. */
   const events: AuditEvent[] = [];
@@ -158,6 +160,28 @@ export function createMemoryStore(seed: MemoryStoreSeed = {}): LudinStore {
       async remove(id) {
         const i = invites.findIndex((x) => x.id === id);
         if (i >= 0) invites.splice(i, 1);
+      },
+    },
+    notices: {
+      async list() {
+        return notices.slice();
+      },
+      async get(id) {
+        return notices.find((n) => n.id === id) ?? null;
+      },
+      async create(notice) {
+        notices.unshift(notice);
+        return notice;
+      },
+      async update(id, patch) {
+        const notice = notices.find((n) => n.id === id);
+        if (!notice) throw new Error(`[ludin] No such notice: ${id}`);
+        Object.assign(notice, patch);
+        return notice;
+      },
+      async remove(id) {
+        const i = notices.findIndex((n) => n.id === id);
+        if (i >= 0) notices.splice(i, 1);
       },
     },
     sessions: {

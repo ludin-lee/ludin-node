@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { Markdown } from './Markdown';
 import { api, type TryResult } from './api';
 import { buildUrl, deref, exampleFor, securityRequirements, serverUrls, toCurl, type Doc, type Operation } from './openapi';
 import { Schema } from './Schema';
@@ -26,7 +27,9 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
             </span>
           ))}
         </div>
-        {op.op.description && op.op.description !== op.summary && <div class="op-desc md">{op.op.description}</div>}
+        {op.op.description && op.op.description !== op.summary && (
+          <Markdown text={op.op.description} class="op-desc md" />
+        )}
       </div>
 
       <div class="split">
@@ -67,7 +70,11 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
               </h3>
               <div class="card">
                 <div class="card-b">
-                  {body.description && <div class="md" style="margin-bottom:10px">{body.description}</div>}
+                  {body.description && (
+                    <div style="margin-bottom:10px">
+                      <Markdown text={body.description} />
+                    </div>
+                  )}
                   <BodyTabs doc={doc} content={body.content ?? {}} />
                 </div>
               </div>

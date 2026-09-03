@@ -6,6 +6,7 @@ import { Brand } from './Brand';
 import { OperationView } from './Operation';
 import { Admin } from './Admin';
 import { Audit } from './Audit';
+import { Notices, lastSeen } from './Notices';
 import { Overview } from './Overview';
 
 type Route =
@@ -13,12 +14,15 @@ type Route =
   | { kind: 'op'; id: string }
   | { kind: 'admin' }
   | { kind: 'audit' }
+  | { kind: 'notices'; id?: string }
   | { kind: 'schema'; name: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   if (h === 'admin') return { kind: 'admin' };
   if (h === 'audit') return { kind: 'audit' };
+  if (h === 'notices') return { kind: 'notices' };
+  if (h.startsWith('notices/')) return { kind: 'notices', id: h.slice(8) };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
@@ -40,6 +44,16 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [navOpen, setNavOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [mode, setModeState] = useState<Mode>(getMode());
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!me.capabilities?.notices) return;
+    const seen = lastSeen();
+    api
+      .notices()
+      .then((r) => setUnread(r.notices.filter((n) => n.status === 'published' && n.updatedAt > seen).length))
+      .catch(() => setUnread(0));
+  }, [route.kind]);
 
   useEffect(() => {
     api.specs().then((r) => {
@@ -139,6 +153,12 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </select>
         )}
         <span class="spacer" />
+        {me.capabilities?.notices && (
+          <a href="#/notices" class={`btn btn-sm ${route.kind === 'notices' ? 'btn-primary' : 'btn-ghost'}`}>
+            Notices
+            {unread > 0 && route.kind !== 'notices' && <span class="unread" title={`${unread} new`} />}
+          </a>
+        )}
         {me.capabilities?.auditQuery && (can('audit:read') || can('audit:read:self')) && (
           <a href="#/audit" class={`btn btn-sm ${route.kind === 'audit' ? 'btn-primary' : 'btn-ghost'}`}>
             Audit
@@ -248,6 +268,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <div class="content">
           {route.kind === 'admin' && can('admin:read') ? (
             <Admin />
+          ) : route.kind === 'notices' ? (
+            <Notices id={route.id} roles={me.roles ?? []} />
           ) : route.kind === 'audit' && (can('audit:read') || can('audit:read:self')) ? (
             <Audit canReadAll={can('audit:read')} />
           ) : route.kind === 'op' ? (
@@ -260,9 +282,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               </div>
             ) : null
           ) : route.kind === 'schema' ? (
-            doc ? <Overview doc={doc} groups={groups} schemaName={route.name} /> : null
+            doc ? <Overview doc={doc} groups={groups} schemaName={route.name} specName={specName} /> : null
           ) : doc ? (
-            <Overview doc={doc} groups={groups} />
+            <Overview doc={doc} groups={groups} specName={specName} />
           ) : null}
         </div>
       </main>

@@ -126,6 +126,47 @@ try {
   });
   await page.screenshot({ path: 'shots/09-audit.png' });
 
+  // the platform logo (theme.logo) renders in the top-left
+  if (!(await page.locator('.brand img').count())) throw new Error('theme.logo is not rendered');
+
+  // the spec download hands out a file, filtered for this role
+  const download = await page.request.get(`${base}/api/spec.json?name=default`);
+  if (download.status() !== 200) throw new Error(`spec download failed: ${download.status()}`);
+  if (!/attachment; filename=/.test(download.headers()['content-disposition'] ?? '')) {
+    throw new Error('spec download is not served as a file');
+  }
+  if (!(await download.json()).paths['/pets']) throw new Error('downloaded document is empty');
+
+  // notice board: write one, read it back rendered
+  await page.click('a[href="#/notices"]');
+  await page.waitForSelector('button:has-text("+ New notice")');
+  await page.click('button:has-text("+ New notice")');
+  await page.waitForSelector('.modal');
+  await page.locator('.modal .field input').first().fill('Release 2.4');
+  await page.locator('.modal textarea').fill('## Changes\n\n- `POST /pets` now accepts `tag`\n- see [the guide](https://example.com)');
+  await page.click('.modal button:has-text("Preview")');
+  await page.waitForSelector('.modal .md-page h2');
+  await page.click('.modal button:has-text("Post notice")');
+  await page.waitForSelector('.notice-item:has-text("Release 2.4")');
+  await page.click('.notice-item:has-text("Release 2.4")');
+  await page.waitForSelector('.md-page h2:has-text("Changes")');
+  if (!(await page.locator('.md-page code:has-text("POST /pets")').count())) throw new Error('markdown code span missing');
+  if (!(await page.locator('.md-page a[href="https://example.com"]').count())) throw new Error('markdown link missing');
+  await page.screenshot({ path: 'shots/10-notices.png' });
+
+  // a reader without notices:write sees the post but no editing affordances
+  const readerCtx = await browser.newContext({ viewport: { width: 1380, height: 860 } });
+  const reader = await readerCtx.newPage();
+  await reader.goto(base);
+  await reader.fill('#email', 'dev@example.com');
+  await reader.fill('#pw', 'dev');
+  await reader.click('button.btn-primary');
+  await reader.waitForSelector('.shell');
+  await reader.click('a[href="#/notices"]');
+  await reader.waitForSelector('.notice-item:has-text("Release 2.4")');
+  if (await reader.locator('button:has-text("+ New notice")').count()) throw new Error('a reader must not see the compose button');
+  await readerCtx.close();
+
   // sessions can be revoked from the admin screen
   await page.click('a[href="#/admin"]');
   await page.waitForSelector('table');

@@ -41,7 +41,7 @@ test('mysql adapter: creates its schema through query(), not prepared statements
   await store.users.list();
 
   const ddl = calls.filter((c) => /CREATE TABLE/i.test(c.sql));
-  assert.equal(ddl.length, 5, 'users, ip rules, invites, sessions, audit');
+  assert.equal(ddl.length, 6, 'users, ip rules, invites, sessions, notices, audit');
   assert.ok(ddl.every((c) => c.via === 'query'), 'DDL is not preparable everywhere');
   assert.ok(ddl.every((c) => /ENGINE=InnoDB CHARACTER SET utf8mb4/.test(c.sql)));
   assert.ok(find(calls, 'AUTO_INCREMENT'), 'audit uses an auto-increment sequence');

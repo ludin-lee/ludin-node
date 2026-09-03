@@ -1,7 +1,19 @@
 import type { Doc, TagGroup } from './openapi';
+import { api } from './api';
 import { Schema } from './Schema';
+import { Markdown } from './Markdown';
 
-export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGroup[]; schemaName?: string }) {
+export function Overview({
+  doc,
+  groups,
+  schemaName,
+  specName,
+}: {
+  doc: Doc;
+  groups: TagGroup[];
+  schemaName?: string;
+  specName?: string;
+}) {
   const info = doc.info ?? {};
   if (schemaName) {
     const schema = doc.components?.schemas?.[schemaName];
@@ -27,8 +39,18 @@ export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGro
           {doc.openapi && <span class="chip">OpenAPI {doc.openapi}</span>}
           {doc.swagger && <span class="chip">Swagger {doc.swagger}</span>}
           {info.license?.name && <span class="chip">{info.license.name}</span>}
+          {specName && (
+            <>
+              <a class="btn btn-sm" href={api.specDownloadUrl(specName, 'json')} download title="Download the document you are allowed to see">
+                ↓ JSON
+              </a>
+              <a class="btn btn-sm" href={api.specDownloadUrl(specName, 'yaml')} download title="Download the document you are allowed to see">
+                ↓ YAML
+              </a>
+            </>
+          )}
         </div>
-        {info.description && <div class="op-desc md">{info.description}</div>}
+        {info.description && <Markdown text={info.description} class="op-desc md" />}
       </div>
 
       <div class="kpi">
@@ -69,7 +91,11 @@ export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGro
             </span>
           </div>
           <div class="card-b" style="padding:6px 8px">
-            {g.description && <div class="md" style="padding:6px 8px 10px">{g.description}</div>}
+            {g.description && (
+              <div style="padding:6px 8px 10px">
+                <Markdown text={g.description} />
+              </div>
+            )}
             {g.operations.map((o) => (
               <a href={`#/op/${encodeURIComponent(o.id)}`} class={`nav-item ${o.deprecated ? 'deprecated' : ''}`}>
                 <span class={`method ${o.method}`}>{o.method}</span>

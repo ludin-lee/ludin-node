@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/emit-bundle.mjs"
+    "build": "vite build && node scripts/emit-bundle.mjs",
+    "test": "node --test --import tsx test/*.test.ts"
   },
   "dependencies": {
     "preact": "^10.24.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.9.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
     "vite": "^5.4.0",
-    "vite-plugin-singlefile": "^2.0.2",
-    "typescript": "^5.6.0"
+    "vite-plugin-singlefile": "^2.0.2"
   }
 }

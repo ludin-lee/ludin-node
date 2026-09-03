@@ -3,7 +3,7 @@ import type { Permission, Role } from './types.js';
 export const DEFAULT_ROLES: Record<string, Permission[]> = {
   viewer: ['docs:read'],
   developer: ['docs:read', 'docs:try', 'audit:read:self'],
-  admin: ['docs:read', 'docs:try', 'audit:read', 'audit:read:self', 'admin:read', 'admin:write'],
+  admin: ['docs:read', 'docs:try', 'audit:read', 'audit:read:self', 'admin:read', 'admin:write', 'notices:write'],
 };
 
 export class RoleRegistry {
