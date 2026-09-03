@@ -10,6 +10,8 @@ export class Auditor {
     this.sink = opts.sink === undefined ? defaultSink : opts.sink;
   }
 
+  private lastPrune = 0;
+
   get recordBodies(): boolean {
     return !!this.opts.recordBodies;
   }
@@ -30,6 +32,21 @@ export class Auditor {
       if (this.store?.audit) await this.store.audit.append(full);
     } catch (err) {
       console.error('[ludin] audit sink failed', err);
+    }
+    void this.prune();
+  }
+
+  /** Retention: drop old events, at most once an hour. */
+  private async prune(): Promise<void> {
+    const days = this.opts.retentionDays;
+    if (!days || !this.store?.audit?.prune) return;
+    const now = Date.now();
+    if (now - this.lastPrune < 3600_000) return;
+    this.lastPrune = now;
+    try {
+      await this.store.audit.prune(new Date(now - days * 86400_000).toISOString());
+    } catch (err) {
+      console.error('[ludin] audit prune failed', err);
     }
   }
 }

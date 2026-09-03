@@ -55,7 +55,7 @@ app.use('/docs', ludin({
 ### 2.2 스토어 모드 전환
 
 ```ts
-import { sqliteStore } from 'ludin/store-sqlite';
+import { sqliteStore } from '@ludin/store-sqlite';
 
 app.use('/docs', ludin({
   spec: './openapi.json',
@@ -138,49 +138,56 @@ app.use('/docs', ludin({
 ### 4.1 패키지 구조
 
 ```
-ludin                 코어 (미들웨어, 렌더러, 인증, IP, 어댑터 인터페이스) — 의존성 최소
-ludin/store-sqlite    better-sqlite3 기반
-ludin/store-postgres  pg 기반
-ludin/store-prisma    기존 Prisma 클라이언트 재사용
-ludin/store-redis     세션·로그 전용 경량 스토어
-ludin/auth-oidc       OAuth2/OIDC 어댑터 (v1 이후)
+ludin                  코어 (핸들러, 인증, IP, 감사, UI 번들, 인메모리 스토어) — 런타임 의존성 1개(yaml)
+@ludin/store-sqlite    내장 node:sqlite, 없으면 better-sqlite3 폴백                   [출시]
+@ludin/store-postgres  pg 기반                                                       [예정]
+@ludin/store-prisma    기존 Prisma 클라이언트 재사용                                   [예정]
+@ludin/store-redis     세션·로그 전용 경량 스토어                                      [예정]
+@ludin/auth-oidc       OAuth2/OIDC 어댑터                                            [v1 이후]
 ```
 
-서브패스 export로 분리하여 바인딩 모드 사용자가 네이티브 DB 드라이버를 설치하지 않게 한다.
+스토어를 별도 패키지로 분리하여 바인딩 모드 사용자가 DB 드라이버를 설치하지 않게 한다. 개발·테스트용으로는 코어의 `createMemoryStore()`가 영속성 없이 스토어 모드 기능 전체를 제공한다.
 
-### 4.2 스토리지 어댑터 인터페이스 (초안)
+### 4.2 스토리지 어댑터 인터페이스
 
 ```ts
 interface LudinStore {
+  readonly?: boolean;                    // true for the built-in binding-mode store
   users: {
-    findByEmail(email: string): Promise<User | null>;
-    list(): Promise<User[]>;
-    create(input: NewUser): Promise<User>;
-    update(id: string, patch: Partial<User>): Promise<User>;
-    remove(id: string): Promise<void>;
+    findByEmail(email): Promise<StoredUser | null>;
+    findById?(id): Promise<StoredUser | null>;
+    list(): Promise<StoredUser[]>;
+    create?(input: NewUser): Promise<StoredUser>;
+    update?(id, patch): Promise<StoredUser>;
+    remove?(id): Promise<void>;
   };
-  invites: {
-    create(email: string, role: string, ttl: number): Promise<Invite>;
-    consume(token: string): Promise<Invite | null>;
+  ipRules: { list(): Promise<IpRule[]>; upsert?(rule): Promise<IpRule>; remove?(id): Promise<void> };
+  invites?: {
+    create(invite: Invite): Promise<Invite>;
+    findByTokenHash(tokenHash): Promise<Invite | null>;
+    list(): Promise<Invite[]>;
+    markAccepted(id, at): Promise<void>;
+    remove(id): Promise<void>;
   };
-  ipRules: {
-    list(): Promise<IpRule[]>;
-    upsert(rule: IpRule): Promise<void>;
-    remove(id: string): Promise<void>;
+  sessions?: {
+    create(session: Session): Promise<Session>;
+    get(id): Promise<Session | null>;
+    touch?(id, at): Promise<void>;
+    listForUser(userId): Promise<Session[]>;
+    revoke(id): Promise<void>;
+    revokeAllForUser(userId): Promise<void>;
   };
-  sessions: {
-    create(userId: string, meta: SessionMeta): Promise<Session>;
-    get(id: string): Promise<Session | null>;
-    revoke(id: string): Promise<void>;
-    revokeAllForUser(userId: string): Promise<void>;
-  };
-  audit: {
+  audit?: {
     append(event: AuditEvent): Promise<void>;
-    query(filter: AuditFilter): Promise<Page<AuditEvent>>;
+    query?(filter: AuditFilter): Promise<Page<AuditEvent>>;
+    prune?(before: string): Promise<number>;   // retention
   };
-  readonly?: boolean;   // 바인딩 모드용 내장 스토어는 true
 }
 ```
+
+`users` / `ipRules` 이후는 전부 선택 사항이다. 스토어는 구현한 만큼만 능력을 광고하고, 코어는 그것을 capabilities(`users`, `invites`, `ipRules`, `sessions`, `auditQuery`)로 UI에 내려보내 버튼 활성/비활성을 결정한다.
+
+보안에 관련된 처리는 어댑터가 아니라 항상 코어에 둔다: 비밀번호 해싱, 초대 토큰 생성(스토어에는 SHA-256 해시만 저장), 세션 id 발급, 마지막 admin 제거·자기 잠금(self-lockout) 차단 가드.
 
 바인딩 모드는 이 인터페이스의 **읽기 전용 메모리 구현체**를 내부적으로 사용한다. 즉 코어는 항상 store를 통해서만 데이터에 접근하고, 모드 차이는 어댑터 차이일 뿐이다.
 
@@ -207,6 +214,20 @@ interface LudinStore {
 요청 → IP 검사 → (ipPolicy에 따라) 세션 검사 → 역할 검사
    → 스펙 필터링(visibleTo) → 렌더 / API 응답 → 감사 로그 기록
 ```
+
+### 4.5 스토어 모드 API 표면
+
+전부 동일한 파이프라인(§4.4)을 거치며, 별도 표기가 없으면 `admin:write`가 필요하다. 설치된 스토어가 해당 기능을 지원하지 않으면 `501 store_required`로 응답한다 — 바인딩 모드가 돌려주는 응답과 같다.
+
+| 메서드 · 경로 | 용도 |
+|---|---|
+| `POST /api/admin/users` · `PATCH|DELETE /api/admin/users/:id` | 계정 생성 / 수정 / 삭제 |
+| `POST /api/admin/users/:id/revoke-sessions` | 강제 로그아웃 |
+| `POST /api/session/revoke-all` | 모든 기기에서 로그아웃 (로그인한 사용자 누구나) |
+| `POST /api/admin/ip` · `DELETE /api/admin/ip/:id` | IP 규칙 편집 (`force` 없이는 자기 잠금 거부) |
+| `POST /api/admin/invites` · `DELETE /api/admin/invites/:id` | 초대 발급 / 취소 |
+| `GET /api/invites/info` · `POST /api/invites/accept` | **공개**: 초대 수락 화면과 비밀번호 설정 |
+| `GET /api/audit` · `GET /api/audit.csv` | 감사 로그 조회 / 내보내기 (`audit:read`, `audit:read:self`는 본인 것만) |
 
 ---
 
@@ -238,12 +259,12 @@ interface LudinOptions {
 
 ## 6. 로드맵
 
-| 단계 | 범위 |
-|---|---|
-| **v0.1 (MVP)** | OpenAPI 3.x 렌더링 + Try it out, 이메일/비밀번호 로그인(JWT 쿠키), 바인딩 모드 계정·IP(읽기 전용), IP 화이트리스트(CIDR, trustProxy, 탈출구), 기본 테마 옵션, stdout 감사 로그, Express·Fastify 어댑터 |
-| **v0.2** | 스토어 모드(sqlite, postgres), 초대 플로우, 역할 편집 UI, IP 편집 UI, DB 세션·강제 로그아웃, 감사 로그 UI |
-| **v0.3** | 문서 가시성 제어(visibleTo), 다중 스펙, 검색·딥링크 고도화, NestJS 모듈·Koa·Hono 어댑터, 커스텀 CSS·다크모드 |
-| **v1.0** | OIDC/OAuth2 어댑터, Prisma·Redis 스토어, 계정별 IP 제한, CSV 내보내기·보존 정책, 안정 API 확정 |
+| 단계 | 상태 | 범위 |
+|---|---|---|
+| **v0.1 (MVP)** | 완료 | OpenAPI 3.x 렌더링 + Try it out, 이메일/비밀번호 로그인(JWT 쿠키), 바인딩 모드 계정·IP(읽기 전용), IP 화이트리스트(CIDR, trustProxy, 탈출구), 기본 테마 옵션, stdout 감사 로그, Express·Fastify 어댑터 |
+| **v0.2** | 완료 | 스토어 모드(sqlite), 초대 플로우, 역할 편집 UI, IP 편집 UI, DB 세션·강제 로그아웃, 감사 로그 UI·CSV·보존 기간, 계정별 IP 제한 |
+| **v0.3** | 완료 | 문서 가시성 제어(visibleTo), 다중 스펙, 검색·딥링크 고도화, NestJS 모듈·Koa·Hono·node:http 어댑터, 커스텀 CSS·다크모드 |
+| **v1.0** | 예정 | OIDC/OAuth2 어댑터, Postgres·Prisma·Redis 스토어, 안정 API 확정 |
 
 ---
 

@@ -1,12 +1,13 @@
 {
   "name": "ludin-monorepo",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "build": "pnpm --filter @ludin/ui build && pnpm -r --filter './packages/*' --filter '!@ludin/ui' build",
     "test": "pnpm -r test",
     "dev:express": "pnpm --filter example-express dev",
+    "dev:express:store": "LUDIN_DB=./ludin.db pnpm --filter example-express dev",
     "dev:nest": "pnpm --filter example-nest dev",
     "hash": "node packages/core/dist/cli.js hash"
   },

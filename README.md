@@ -7,9 +7,10 @@
 - 🔐 **Login required** – nobody sees the docs, the spec JSON or *Try it out* without signing in
 - 👥 **Accounts & roles** – `viewer` / `developer` / `admin` (or your own), per-tag / per-path visibility
 - 🌐 **IP allowlist** – CIDR, ranges, IPv6, proxy-aware, lockout-proof
-- 📝 **Audit log** – who logged in, who called what, from where (JSON lines or your own sink)
-- 🎨 **Beautiful UI** – 60 KB total (19 KB gzip), light/dark, brand colors, logo, custom CSS
+- 📝 **Audit log** – who logged in, who called what, from where (JSON lines, your own sink, or a browsable table)
+- 🎨 **Beautiful UI** – 78 KB total (23 KB gzip), light/dark, brand colors, logo, custom CSS
 - ⚡ **Zero-config binding mode** – users & IPs from code / `process.env`, no database needed
+- 🗄 **Store mode** – add a database and the admin screen turns editable: invitations, roles, IP rules, forced sign-out, audit browsing
 
 ## Quick start (Express)
 
@@ -87,20 +88,50 @@ On runtimes that do not expose the client address (Cloudflare Workers, Vercel Ed
 
 ## Two modes
 
-| | Binding mode (default) | Store mode (v0.2) |
+| | Binding mode (default) | Store mode |
 |---|---|---|
 | Users / IP rules live in | code + `process.env` | a database (`store: sqliteStore(...)`) |
 | Admin screen | **read-only** view of the config | invite users, edit roles & IP rules |
 | Sessions | signed JWT cookie, stateless | DB sessions, revocable |
-| Audit log | stdout / `audit.sink` callback | stored + browsable |
+| Audit log | stdout / `audit.sink` callback | stored + browsable + CSV export |
 
 Binding mode is deliberately read-only: settings edited in a UI would be lost on the next deploy. The admin screen shows the effective config and explains what a store unlocks.
+
+### Store mode
+
+```bash
+npm i ludin @ludin/express @ludin/store-sqlite
+```
+
+```ts
+import { sqliteStore } from '@ludin/store-sqlite';
+
+app.use('/docs', ludin({
+  spec: './openapi.yaml',
+  store: sqliteStore('./ludin.db'),
+  auth: { users: [{ email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' }] },
+  audit: { retentionDays: 90 },
+}));
+```
+
+One line and the same deployment gains:
+
+- **Invitations** – admins create a link, the invitee picks their own password. Only a SHA-256 hash of the token is stored, and the link is single-use.
+- **Editable accounts** – add people, change roles, disable, reset passwords, per-account IP restrictions.
+- **Revocable sessions** – "sign out everywhere", or force-sign-out anyone from the admin screen. Disabling an account or changing its role or password kills its live cookies on the next request.
+- **Audit browser** – filter by event, user, date and free text, paginate, export CSV. `developer` sees only their own trail, `admin` sees everyone's.
+- **Editable IP rules** – with a guard that refuses any change that would lock *you* out (`force: true` overrides).
+
+`auth.users` and `ipAllowlist` still work: they are used **once**, as a seed, while the database is empty — after that the store is the truth. Plain-text seed passwords are hashed on the way in.
+
+Storage adapters: `@ludin/store-sqlite` (Node's built-in `node:sqlite`, or `better-sqlite3` if installed). `createMemoryStore()` from `ludin` gives the same feature set without persistence, for dev and tests. Postgres / Prisma / Redis adapters implement the same `LudinStore` interface.
 
 ## Options
 
 ```ts
 interface LudinOptions {
   spec: string | object | (() => object | Promise<object>) | SpecEntry[];  // multiple specs supported
+  store?: LudinStore;              // store mode: sqliteStore('./ludin.db'), createMemoryStore(), …
   auth?: false | {
     users?: BoundUser[];
     verify?: (email, password) => AuthUser | null;   // plug in your own auth
@@ -115,7 +146,7 @@ interface LudinOptions {
   hideOnBlock?: boolean;           // 404 instead of 403 for blocked IPs
   roles?: Record<string, Permission[]>;
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
-  audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
+  audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean; retentionDays?: number };
   theme?: { title, logo, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }
@@ -145,6 +176,7 @@ packages/koa       @ludin/koa
 packages/hono      @ludin/hono
 packages/node      @ludin/node   (plain node:http, connect, polka)
 packages/nestjs    @ludin/nestjs
+packages/store-sqlite  @ludin/store-sqlite – accounts, invites, sessions, audit in a file
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
 examples/nest      @nestjs/swagger demo on :3001
@@ -155,14 +187,16 @@ pnpm install
 pnpm build            # ui → core → adapters
 pnpm test             # core + adapter tests
 pnpm dev:express      # http://localhost:3000/docs  (admin@example.com / admin)
+pnpm dev:express:store  # same demo in store mode (./ludin.db)
 pnpm dev:nest         # http://localhost:3001/docs
-CHROMIUM_PATH=... node scripts/e2e.mjs   # browser test + screenshots (needs dev:express running)
+CHROMIUM_PATH=... node scripts/e2e.mjs         # browser test + screenshots (needs dev:express running)
+CHROMIUM_PATH=... node scripts/e2e-store.mjs   # store-mode browser test (boots its own server)
 ```
 
 ## Roadmap
 
-- **v0.2** store mode: SQLite & Postgres adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser
-- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), CSV export & retention
+- **v0.2** ✅ store mode: SQLite adapter, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention
+- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Postgres / Prisma / Redis stores, per-account IP rules in the UI
 - **v1.0** stable API
 
 MIT

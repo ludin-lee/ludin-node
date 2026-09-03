@@ -1,6 +1,11 @@
 import express from 'express';
 import { ludin } from '@ludin/express';
+import { sqliteStore } from '@ludin/store-sqlite';
 import { petstore } from './petstore.js';
+
+// Binding mode by default; set LUDIN_DB=./ludin.db to run in store mode, where
+// the accounts below become a one-time seed and the admin screen turns editable.
+const store = process.env.LUDIN_DB ? sqliteStore(process.env.LUDIN_DB) : undefined;
 
 const app = express();
 app.use(express.json());
@@ -32,6 +37,7 @@ app.use(
   '/docs',
   ludin({
     spec: petstore,
+    store,
     auth: {
       users: [
         { email: 'admin@example.com', password: process.env.LUDIN_ADMIN_PW ?? 'admin', role: 'admin', name: 'Admin' },
@@ -41,6 +47,7 @@ app.use(
       session: { secret: process.env.LUDIN_SESSION_SECRET ?? 'dev-only-secret' },
     },
     ipAllowlist: (process.env.LUDIN_IPS ?? '').split(',').filter(Boolean),
+    audit: { retentionDays: 90 },
     visibility: { 'tag:Admin': ['admin'] },
     theme: {
       title: 'Petstore API',
@@ -53,4 +60,6 @@ app.use(
 );
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () => console.log(`▶ http://localhost:${port}/docs`));
+app.listen(port, () =>
+  console.log(`▶ http://localhost:${port}/docs  (${store ? `store mode · ${process.env.LUDIN_DB}` : 'binding mode'})`),
+);

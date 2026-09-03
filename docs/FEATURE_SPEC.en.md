@@ -55,7 +55,7 @@ app.use('/docs', ludin({
 ### 2.2 Switching to store mode
 
 ```ts
-import { sqliteStore } from 'ludin/store-sqlite';
+import { sqliteStore } from '@ludin/store-sqlite';
 
 app.use('/docs', ludin({
   spec: './openapi.json',
@@ -138,49 +138,56 @@ Scope is deliberately limited to **theming**. Component-level customization is o
 ### 4.1 Package structure
 
 ```
-ludin                 core (middleware, renderer, auth, IP, adapter interfaces) — minimal deps
-ludin/store-sqlite    based on better-sqlite3
-ludin/store-postgres  based on pg
-ludin/store-prisma    reuses an existing Prisma client
-ludin/store-redis     lightweight store for sessions · logs only
-ludin/auth-oidc       OAuth2/OIDC adapter (post-v1)
+ludin                  core (handler, auth, IP, audit, UI bundle, in-memory stores) — one runtime dep (yaml)
+@ludin/store-sqlite    built-in node:sqlite, falling back to better-sqlite3          [shipped]
+@ludin/store-postgres  based on pg                                                   [planned]
+@ludin/store-prisma    reuses an existing Prisma client                              [planned]
+@ludin/store-redis     lightweight store for sessions · logs only                    [planned]
+@ludin/auth-oidc       OAuth2/OIDC adapter                                           [post-v1]
 ```
 
-Split via subpath exports so that binding-mode users never install native DB drivers.
+Stores are separate packages so that binding-mode users never install a DB driver. For development and tests, `createMemoryStore()` from the core offers the full store-mode surface without persistence.
 
-### 4.2 Storage adapter interface (draft)
+### 4.2 Storage adapter interface
 
 ```ts
 interface LudinStore {
+  readonly?: boolean;                    // true for the built-in binding-mode store
   users: {
-    findByEmail(email: string): Promise<User | null>;
-    list(): Promise<User[]>;
-    create(input: NewUser): Promise<User>;
-    update(id: string, patch: Partial<User>): Promise<User>;
-    remove(id: string): Promise<void>;
+    findByEmail(email): Promise<StoredUser | null>;
+    findById?(id): Promise<StoredUser | null>;
+    list(): Promise<StoredUser[]>;
+    create?(input: NewUser): Promise<StoredUser>;
+    update?(id, patch): Promise<StoredUser>;
+    remove?(id): Promise<void>;
   };
-  invites: {
-    create(email: string, role: string, ttl: number): Promise<Invite>;
-    consume(token: string): Promise<Invite | null>;
+  ipRules: { list(): Promise<IpRule[]>; upsert?(rule): Promise<IpRule>; remove?(id): Promise<void> };
+  invites?: {
+    create(invite: Invite): Promise<Invite>;
+    findByTokenHash(tokenHash): Promise<Invite | null>;
+    list(): Promise<Invite[]>;
+    markAccepted(id, at): Promise<void>;
+    remove(id): Promise<void>;
   };
-  ipRules: {
-    list(): Promise<IpRule[]>;
-    upsert(rule: IpRule): Promise<void>;
-    remove(id: string): Promise<void>;
+  sessions?: {
+    create(session: Session): Promise<Session>;
+    get(id): Promise<Session | null>;
+    touch?(id, at): Promise<void>;
+    listForUser(userId): Promise<Session[]>;
+    revoke(id): Promise<void>;
+    revokeAllForUser(userId): Promise<void>;
   };
-  sessions: {
-    create(userId: string, meta: SessionMeta): Promise<Session>;
-    get(id: string): Promise<Session | null>;
-    revoke(id: string): Promise<void>;
-    revokeAllForUser(userId: string): Promise<void>;
-  };
-  audit: {
+  audit?: {
     append(event: AuditEvent): Promise<void>;
-    query(filter: AuditFilter): Promise<Page<AuditEvent>>;
+    query?(filter: AuditFilter): Promise<Page<AuditEvent>>;
+    prune?(before: string): Promise<number>;   // retention
   };
-  readonly?: boolean;   // true for the built-in binding-mode store
 }
 ```
+
+Everything past `users` / `ipRules` is optional: a store advertises what it can do simply by implementing it, and the core reports that back to the UI as capabilities (`users`, `invites`, `ipRules`, `sessions`, `auditQuery`), which is what enables or disables each button.
+
+Security-relevant work stays in the core, never in an adapter: password hashing, invitation token generation (only a SHA-256 hash reaches the store), session ids, and the guards that refuse a last-admin removal or a self-lockout.
 
 Binding mode internally uses a **read-only in-memory implementation** of this interface. In other words, the core always accesses data through a store — the difference between modes is nothing more than a difference of adapters.
 
@@ -207,6 +214,20 @@ The core is written as a framework-agnostic handler of the form `(standard Reque
 request → IP check → (per ipPolicy) session check → role check
    → spec filtering (visibleTo) → render / API response → audit log entry
 ```
+
+### 4.5 Store-mode API surface
+
+All of these sit behind the same pipeline (§4.4) and need `admin:write` unless noted. When the installed store cannot do the job they answer `501 store_required`, which is exactly what binding mode returns.
+
+| Method · path | Purpose |
+|---|---|
+| `POST /api/admin/users` · `PATCH|DELETE /api/admin/users/:id` | create / edit / delete accounts |
+| `POST /api/admin/users/:id/revoke-sessions` | force sign-out |
+| `POST /api/session/revoke-all` | sign out everywhere (any signed-in user) |
+| `POST /api/admin/ip` · `DELETE /api/admin/ip/:id` | edit IP rules (refuses self-lockout unless `force`) |
+| `POST /api/admin/invites` · `DELETE /api/admin/invites/:id` | issue / revoke an invitation |
+| `GET /api/invites/info` · `POST /api/invites/accept` | **public**: the accept screen and setting the password |
+| `GET /api/audit` · `GET /api/audit.csv` | browse / export (`audit:read`, or `audit:read:self` scoped to yourself) |
 
 ---
 
@@ -238,12 +259,12 @@ interface LudinOptions {
 
 ## 6. Roadmap
 
-| Stage | Scope |
-|---|---|
-| **v0.1 (MVP)** | OpenAPI 3.x rendering + Try it out, email/password login (JWT cookie), binding-mode accounts · IPs (read-only), IP allowlist (CIDR, trustProxy, escape hatch), basic theme options, stdout audit log, Express · Fastify adapters |
-| **v0.2** | Store mode (sqlite, postgres), invitation flow, role-editing UI, IP-editing UI, DB sessions · force logout, audit log UI |
-| **v0.3** | Document visibility control (visibleTo), multiple specs, better search · deep links, NestJS module · Koa · Hono adapters, custom CSS · dark mode |
-| **v1.0** | OIDC/OAuth2 adapters, Prisma · Redis stores, per-account IP restrictions, CSV export · retention policy, stable API frozen |
+| Stage | Status | Scope |
+|---|---|---|
+| **v0.1 (MVP)** | done | OpenAPI 3.x rendering + Try it out, email/password login (JWT cookie), binding-mode accounts · IPs (read-only), IP allowlist (CIDR, trustProxy, escape hatch), basic theme options, stdout audit log, Express · Fastify adapters |
+| **v0.2** | done | Store mode (sqlite), invitation flow, role-editing UI, IP-editing UI, DB sessions · force logout, audit log UI · CSV · retention, per-account IP restrictions |
+| **v0.3** | done | Document visibility control (visibleTo), multiple specs, better search · deep links, NestJS module · Koa · Hono · node:http adapters, custom CSS · dark mode |
+| **v1.0** | planned | OIDC/OAuth2 adapters, Postgres · Prisma · Redis stores, stable API frozen |
 
 ---
 

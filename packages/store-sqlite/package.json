@@ -1,7 +1,7 @@
 {
-  "name": "@ludin/hono",
+  "name": "@ludin/store-sqlite",
   "version": "0.2.0",
-  "description": "Hono handler for ludin \u2013 OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
+  "description": "SQLite store for ludin \u2013 accounts, invites, sessions and audit log in a file.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -30,11 +30,21 @@
     "ludin": "workspace:*"
   },
   "peerDependencies": {
-    "hono": ">=4.0.0"
+    "better-sqlite3": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "hono": "^4.6.0",
     "tsx": "^4.19.0"
-  }
+  },
+  "keywords": [
+    "ludin",
+    "openapi",
+    "sqlite",
+    "store"
+  ]
 }

@@ -23,6 +23,9 @@ importers:
       '@ludin/express':
         specifier: workspace:*
         version: link:../../packages/express
+      '@ludin/store-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/store-sqlite
       express:
         specifier: ^4.21.0
         version: 4.22.2
@@ -178,6 +181,22 @@ importers:
 
   packages/node:
     dependencies:
+      ludin:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.13
+
+  packages/store-sqlite:
+    dependencies:
+      better-sqlite3:
+        specifier: '>=9.0.0'
+        version: 13.0.3
       ludin:
         specifier: workspace:*
         version: link:../core
@@ -1177,6 +1196,10 @@ packages:
   bcryptjs@3.0.3:
     resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
     hasBin: true
+
+  better-sqlite3@13.0.3:
+    resolution: {integrity: sha512-RbOBxmLBG8uvFUc15X9+9SFemKcQ0WBuISBVkpuiaUB2qblC8UWlHEjdWVoZ8AdhSwmoEgsiXKfopX0CQxaACQ==}
+    engines: {node: '>=22'}
 
   body-parser@1.20.4:
     resolution: {integrity: sha512-ZTgYYLMOXY9qKU/57FAo8F+HA2dGX7bqGc71txDRC1rS4frdFI5R7NhluHxH6M0YItAP0sHB4uqAOcYKxO6uGA==}
@@ -3002,6 +3025,10 @@ snapshots:
   baseline-browser-mapping@2.11.20: {}
 
   bcryptjs@3.0.3: {}
+
+  better-sqlite3@13.0.3:
+    dependencies:
+      node-addon-api: 8.9.2
 
   body-parser@1.20.4:
     dependencies:
