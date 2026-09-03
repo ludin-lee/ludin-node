@@ -140,6 +140,7 @@ app.use('/docs', ludin({
 ```
 ludin                  코어 (핸들러, 인증, IP, 감사, UI 번들, 인메모리 스토어) — 런타임 의존성 1개(yaml)
 @ludin/store-sqlite    내장 node:sqlite, 없으면 better-sqlite3 폴백                   [출시]
+@ludin/store-mysql     mysql2 기반 (MySQL 8 / MariaDB)                               [출시]
 @ludin/store-postgres  pg 기반                                                       [예정]
 @ludin/store-prisma    기존 Prisma 클라이언트 재사용                                   [예정]
 @ludin/store-redis     세션·로그 전용 경량 스토어                                      [예정]
@@ -147,6 +148,8 @@ ludin                  코어 (핸들러, 인증, IP, 감사, UI 번들, 인메�
 ```
 
 스토어를 별도 패키지로 분리하여 바인딩 모드 사용자가 DB 드라이버를 설치하지 않게 한다. 개발·테스트용으로는 코어의 `createMemoryStore()`가 영속성 없이 스토어 모드 기능 전체를 제공한다.
+
+SQL 스토어의 쿼리·행 매핑·keyset 페이지네이션은 코어의 `createSqlStore()` 하나에 모여 있고, 어댑터는 **드라이버와 DDL만** 제공한다. 엔진 간 동작이 갈라지지 않으며, Postgres 어댑터도 같은 방식으로 추가된다.
 
 ### 4.2 스토리지 어댑터 인터페이스
 
@@ -262,7 +265,7 @@ interface LudinOptions {
 | 단계 | 상태 | 범위 |
 |---|---|---|
 | **v0.1 (MVP)** | 완료 | OpenAPI 3.x 렌더링 + Try it out, 이메일/비밀번호 로그인(JWT 쿠키), 바인딩 모드 계정·IP(읽기 전용), IP 화이트리스트(CIDR, trustProxy, 탈출구), 기본 테마 옵션, stdout 감사 로그, Express·Fastify 어댑터 |
-| **v0.2** | 완료 | 스토어 모드(sqlite), 초대 플로우, 역할 편집 UI, IP 편집 UI, DB 세션·강제 로그아웃, 감사 로그 UI·CSV·보존 기간, 계정별 IP 제한 |
+| **v0.2** | 완료 | 스토어 모드(sqlite · mysql), 초대 플로우, 역할 편집 UI, IP 편집 UI, DB 세션·강제 로그아웃, 감사 로그 UI·CSV·보존 기간, 계정별 IP 제한 |
 | **v0.3** | 완료 | 문서 가시성 제어(visibleTo), 다중 스펙, 검색·딥링크 고도화, NestJS 모듈·Koa·Hono·node:http 어댑터, 커스텀 CSS·다크모드 |
 | **v1.0** | 예정 | OIDC/OAuth2 어댑터, Postgres·Prisma·Redis 스토어, 안정 API 확정 |
 

@@ -140,6 +140,7 @@ Scope is deliberately limited to **theming**. Component-level customization is o
 ```
 ludin                  core (handler, auth, IP, audit, UI bundle, in-memory stores) — one runtime dep (yaml)
 @ludin/store-sqlite    built-in node:sqlite, falling back to better-sqlite3          [shipped]
+@ludin/store-mysql     based on mysql2 (MySQL 8 / MariaDB)                           [shipped]
 @ludin/store-postgres  based on pg                                                   [planned]
 @ludin/store-prisma    reuses an existing Prisma client                              [planned]
 @ludin/store-redis     lightweight store for sessions · logs only                    [planned]
@@ -147,6 +148,8 @@ ludin                  core (handler, auth, IP, audit, UI bundle, in-memory stor
 ```
 
 Stores are separate packages so that binding-mode users never install a DB driver. For development and tests, `createMemoryStore()` from the core offers the full store-mode surface without persistence.
+
+For SQL engines the queries, row mapping and keyset pagination live in a single `createSqlStore()` in the core; an adapter supplies **only a driver and its DDL**. Engines therefore cannot drift apart in behaviour, and a Postgres adapter is added the same way.
 
 ### 4.2 Storage adapter interface
 
@@ -262,7 +265,7 @@ interface LudinOptions {
 | Stage | Status | Scope |
 |---|---|---|
 | **v0.1 (MVP)** | done | OpenAPI 3.x rendering + Try it out, email/password login (JWT cookie), binding-mode accounts · IPs (read-only), IP allowlist (CIDR, trustProxy, escape hatch), basic theme options, stdout audit log, Express · Fastify adapters |
-| **v0.2** | done | Store mode (sqlite), invitation flow, role-editing UI, IP-editing UI, DB sessions · force logout, audit log UI · CSV · retention, per-account IP restrictions |
+| **v0.2** | done | Store mode (sqlite · mysql), invitation flow, role-editing UI, IP-editing UI, DB sessions · force logout, audit log UI · CSV · retention, per-account IP restrictions |
 | **v0.3** | done | Document visibility control (visibleTo), multiple specs, better search · deep links, NestJS module · Koa · Hono · node:http adapters, custom CSS · dark mode |
 | **v1.0** | planned | OIDC/OAuth2 adapters, Postgres · Prisma · Redis stores, stable API frozen |
 

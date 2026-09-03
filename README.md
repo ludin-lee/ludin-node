@@ -90,7 +90,7 @@ On runtimes that do not expose the client address (Cloudflare Workers, Vercel Ed
 
 | | Binding mode (default) | Store mode |
 |---|---|---|
-| Users / IP rules live in | code + `process.env` | a database (`store: sqliteStore(...)`) |
+| Users / IP rules live in | code + `process.env` | a database (`store: sqliteStore(...)` / `mysqlStore(...)`) |
 | Admin screen | **read-only** view of the config | invite users, edit roles & IP rules |
 | Sessions | signed JWT cookie, stateless | DB sessions, revocable |
 | Audit log | stdout / `audit.sink` callback | stored + browsable + CSV export |
@@ -124,7 +124,22 @@ One line and the same deployment gains:
 
 `auth.users` and `ipAllowlist` still work: they are used **once**, as a seed, while the database is empty — after that the store is the truth. Plain-text seed passwords are hashed on the way in.
 
-Storage adapters: `@ludin/store-sqlite` (Node's built-in `node:sqlite`, or `better-sqlite3` if installed). `createMemoryStore()` from `ludin` gives the same feature set without persistence, for dev and tests. Postgres / Prisma / Redis adapters implement the same `LudinStore` interface.
+Storage adapters:
+
+| Adapter | Backend | Notes |
+|---|---|---|
+| `@ludin/store-sqlite` | a file (`./ludin.db`) | built-in `node:sqlite`, or `better-sqlite3` if installed. One app instance. |
+| `@ludin/store-mysql` | MySQL 8 / MariaDB | needs `mysql2`. Pass a URL, a config object, or a pool you already own — several app instances then share one source of truth. |
+| `createMemoryStore()` | process memory | same feature set, no persistence. Dev, tests, demos. |
+
+```ts
+import { mysqlStore } from '@ludin/store-mysql';
+
+store: mysqlStore(process.env.DATABASE_URL!)          // mysql://user:pass@host:3306/db
+store: mysqlStore(existingPool, { tablePrefix: 'docs_' })   // reuse the app's own pool
+```
+
+Both SQL adapters are thin: the queries, row mapping and keyset pagination live in `createSqlStore()` in the core, so the engines cannot drift apart. An adapter supplies a driver and its DDL — which is all a Postgres adapter will need too.
 
 ## Options
 
@@ -177,6 +192,7 @@ packages/hono      @ludin/hono
 packages/node      @ludin/node   (plain node:http, connect, polka)
 packages/nestjs    @ludin/nestjs
 packages/store-sqlite  @ludin/store-sqlite – accounts, invites, sessions, audit in a file
+packages/store-mysql   @ludin/store-mysql  – the same, in MySQL / MariaDB
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
 examples/nest      @nestjs/swagger demo on :3001
@@ -191,12 +207,13 @@ pnpm dev:express:store  # same demo in store mode (./ludin.db)
 pnpm dev:nest         # http://localhost:3001/docs
 CHROMIUM_PATH=... node scripts/e2e.mjs         # browser test + screenshots (needs dev:express running)
 CHROMIUM_PATH=... node scripts/e2e-store.mjs   # store-mode browser test (boots its own server)
+LUDIN_MYSQL_DOCKER=1 pnpm --filter @ludin/store-mysql test   # MySQL tests in a throwaway container
 ```
 
 ## Roadmap
 
-- **v0.2** ✅ store mode: SQLite adapter, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention
-- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Postgres / Prisma / Redis stores, per-account IP rules in the UI
+- **v0.2** ✅ store mode: SQLite & MySQL adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention
+- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Postgres / Prisma / Redis stores
 - **v1.0** stable API
 
 MIT
