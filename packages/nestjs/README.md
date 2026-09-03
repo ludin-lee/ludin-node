@@ -1,0 +1,24 @@
+# @ludin/nestjs
+
+Nestjs module for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
+
+```bash
+npm i ludin @ludin/express @ludin/nestjs
+```
+
+`setupLudin` is a drop-in for `SwaggerModule.setup`:
+
+```ts
+import { setupLudin } from '@ludin/nestjs';
+
+const document = SwaggerModule.createDocument(app, config);
+setupLudin(app, '/docs', document, {
+  auth: { users: [{ email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' }] },
+});
+```
+
+Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth: { ... } })`.
+
+All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+
+MIT

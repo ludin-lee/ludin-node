@@ -6,6 +6,8 @@
   "scripts": {
     "build": "pnpm --filter @ludin/ui build && pnpm -r --filter './packages/*' --filter '!@ludin/ui' build",
     "test": "pnpm -r test",
+    "typecheck": "pnpm -r --filter './packages/*' exec tsc --noEmit -p tsconfig.json",
+    "test:mysql": "LUDIN_MYSQL_DOCKER=1 pnpm --filter @ludin/store-mysql test",
     "dev:express": "pnpm --filter example-express dev",
     "dev:express:store": "LUDIN_DB=./ludin.db pnpm --filter example-express dev",
     "dev:nest": "pnpm --filter example-nest dev",
@@ -15,5 +17,9 @@
     "playwright": "1.47.2",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ludin-lee/ludin-node.git"
   }
 }

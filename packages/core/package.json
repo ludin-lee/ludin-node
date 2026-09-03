@@ -55,5 +55,20 @@
     "documentation",
     "auth",
     "ip-allowlist"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ludin-lee/ludin-node.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ludin-lee/ludin-node#readme",
+  "bugs": {
+    "url": "https://github.com/ludin-lee/ludin-node/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

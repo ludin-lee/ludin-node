@@ -1,5 +1,9 @@
 # ludin
 
+[![CI](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml/badge.svg)](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/ludin.svg)](https://www.npmjs.com/package/ludin)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`.
 
 📄 Feature spec: [English](docs/FEATURE_SPEC.en.md) · [한국어](docs/FEATURE_SPEC.md)
@@ -201,14 +205,28 @@ examples/nest      @nestjs/swagger demo on :3001
 ```bash
 pnpm install
 pnpm build            # ui → core → adapters
-pnpm test             # core + adapter tests
+pnpm typecheck        # tsc --noEmit across every package (sources + tests)
+pnpm test             # core + adapter + store tests
 pnpm dev:express      # http://localhost:3000/docs  (admin@example.com / admin)
 pnpm dev:express:store  # same demo in store mode (./ludin.db)
 pnpm dev:nest         # http://localhost:3001/docs
 CHROMIUM_PATH=... node scripts/e2e.mjs         # browser test + screenshots (needs dev:express running)
 CHROMIUM_PATH=... node scripts/e2e-store.mjs   # store-mode browser test (boots its own server)
-LUDIN_MYSQL_DOCKER=1 pnpm --filter @ludin/store-mysql test   # MySQL tests in a throwaway container
+pnpm test:mysql       # MySQL store tests in a throwaway container (needs Docker)
 ```
+
+## Contributing & releases
+
+Every pull request runs the full matrix in GitHub Actions: build and tests on
+Node 22 and 24, `tsc --noEmit` over sources *and* tests, the MySQL store suite
+against a real MySQL 8.4 service container, and both browser e2e scripts
+(screenshots are uploaded as artifacts).
+
+Releases are cut from a tag: bump the package versions, update
+[CHANGELOG.md](CHANGELOG.md), then push `vX.Y.Z`. The release workflow verifies
+the tag matches the version, rebuilds, retests and publishes every public
+package with `pnpm publish -r` (which rewrites the `workspace:*` ranges). It
+needs an `NPM_TOKEN` secret in the `npm` environment.
 
 ## Roadmap
 
