@@ -118,6 +118,17 @@ function ddl(T: SqlTables): string[] {
       user_agent TEXT
     )`,
     `CREATE INDEX IF NOT EXISTS ${T.sessions}_user ON ${T.sessions} (user_id)`,
+    `CREATE TABLE IF NOT EXISTS ${T.notices} (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'published',
+      pinned INTEGER NOT NULL DEFAULT 0,
+      visible_to TEXT,
+      author_email TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS ${T.audit} (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
       ts TEXT NOT NULL,

@@ -78,6 +78,7 @@ app.use('/docs', ludin({
 - Security scheme 지원: apiKey, http(basic/bearer), oauth2, openIdConnect — 입력한 자격 증명은 브라우저 세션에만 저장
 - 검색(경로·요약·태그), 딥링크(`#tag/operationId`)
 - 다중 스펙(여러 서비스 문서를 하나의 루딘에서 전환)
+- 스펙 내보내기: 첫 화면에서 JSON/YAML 파일로 내려받기. **역할별 필터링이 적용된 문서**가 나가며 `docs.export` 감사 이벤트로 기록된다
 
 ### 3.2 로그인
 
@@ -92,11 +93,11 @@ app.use('/docs', ludin({
 
 역할은 3단계 기본 제공, 커스텀 역할 추가 가능.
 
-| 역할 | 문서 보기 | Try it out | 감사 로그 조회 | 계정/IP 관리 |
-|---|---|---|---|---|
-| viewer | ○ | ✕ | ✕ | ✕ |
-| developer | ○ | ○ | 본인 것만 | ✕ |
-| admin | ○ | ○ | ○ | ○ (스토어 모드) |
+| 역할 | 문서 보기 | Try it out | 감사 로그 조회 | 계정/IP 관리 | 공지 작성 |
+|---|---|---|---|---|---|
+| viewer | ○ | ✕ | ✕ | ✕ | ✕ |
+| developer | ○ | ○ | 본인 것만 | ✕ | ✕ |
+| admin | ○ | ○ | ○ | ○ (스토어 모드) | ○ (스토어 모드) |
 
 - **초대 (스토어 모드)**: admin이 이메일 + 역할 입력 → 초대 토큰 발급 → 링크 복사 또는 메일 발송(메일 sender는 콜백/어댑터로 주입) → 초대받은 사람이 비밀번호 설정 → 활성화. 토큰 만료·재발급 지원
 - 계정 상태: active / invited / disabled
@@ -125,11 +126,22 @@ app.use('/docs', ludin({
 
 범위를 **테마 수준**으로 한정한다. 컴포넌트 교체 수준의 커스터마이징은 v1에서 제외(유지보수 폭발 방지).
 
-- 옵션: 로고, 파비콘, 서비스명, 기본/강조 색상, 폰트, 라운드/밀도, 라이트·다크·시스템 모드
+- 옵션: 로고(URL·data URI, 다크 모드 전용 `logoDark` 별도 지정 가능), 파비콘, 서비스명(플랫폼 이름), 기본/강조 색상, 폰트, 라운드/밀도, 라이트·다크·시스템 모드
 - 커스텀 CSS 주입(`customCss`), 로그인 화면 문구·배경 커스터마이징
 - 사이드바 그룹 순서·접힘 상태 설정
 - 기존 문서 UI보다 빠른 초기 로드(코드 스플리팅, 대형 스펙 가상 스크롤)
 - 반응형(모바일에서 문서 열람 가능)
+
+### 3.7 공지 게시판 (스토어 모드 전용)
+
+문서 옆에 붙는 게시판. 릴리스 노트, 온보딩 안내, 고객사가 호출 전에 읽어야 할 README를 여기에 둔다.
+
+- 마크다운 본문, 상단 고정(pinned), 초안(draft — 작성자만 보임), 역할 제한(`visibleTo`)
+- 작성 권한은 `notices:write`(기본 admin). 읽기는 문서를 볼 수 있는 모든 계정
+- 상단 바 **Notices** 메뉴에 안 읽은 글 표시(마지막 열람 시각 기준, 브라우저 로컬 저장)
+- 작성·수정·삭제는 감사 로그에 남는다(`notice.create` / `notice.update` / `notice.remove`)
+- **바인딩 모드에서는 제공하지 않는다.** 설정 파일에 적은 공지는 재배포 시 사라지므로 메뉴 자체를 노출하지 않고 API는 `501 store_required`로 응답한다
+- 마크다운은 렌더 전에 HTML 이스케이프하고 `http(s)` · `mailto:` · 상대 경로 링크만 허용한다(OpenAPI description 렌더링도 동일 규칙)
 
 ---
 
@@ -231,6 +243,10 @@ interface LudinStore {
 | `POST /api/admin/invites` · `DELETE /api/admin/invites/:id` | 초대 발급 / 취소 |
 | `GET /api/invites/info` · `POST /api/invites/accept` | **공개**: 초대 수락 화면과 비밀번호 설정 |
 | `GET /api/audit` · `GET /api/audit.csv` | 감사 로그 조회 / 내보내기 (`audit:read`, `audit:read:self`는 본인 것만) |
+| `GET /api/notices` · `GET /api/notices/:id` | 공지 읽기 (`docs:read`, 초안·역할 제한 필터링 적용) |
+| `POST /api/notices` · `PATCH\|DELETE /api/notices/:id` | 공지 작성 / 수정 / 삭제 (`notices:write`) |
+
+스토어와 무관하게 동작하는 내보내기: `GET /api/spec.json` · `GET /api/spec.yaml` (`docs:read`, 역할 필터 적용 후 파일로 응답).
 
 ---
 

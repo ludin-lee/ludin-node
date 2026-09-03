@@ -10,7 +10,8 @@ export type Permission =
   | 'audit:read'
   | 'audit:read:self'
   | 'admin:read'
-  | 'admin:write';
+  | 'admin:write'
+  | 'notices:write';
 
 export interface BoundUser {
   email: string;
@@ -36,8 +37,10 @@ export type SpecSource =
 
 export interface ThemeOptions {
   title?: string;
-  logo?: string; // URL or data URI
-  favicon?: string;
+  logo?: string; // URL or data URI, shown top-left
+  /** Alternate logo for dark mode (a light-background logo vanishes otherwise). */
+  logoDark?: string;
+  favicon?: string; // URL or data URI
   primary?: string; // any CSS color
   accent?: string;
   font?: string; // CSS font-family
@@ -56,6 +59,7 @@ export interface AuditEvent {
     | 'login.failure'
     | 'logout'
     | 'docs.view'
+    | 'docs.export'
     | 'docs.try'
     | 'ip.blocked'
     | 'auth.denied'
@@ -67,7 +71,10 @@ export interface AuditEvent {
     | 'admin.sessions.revoke'
     | 'invite.create'
     | 'invite.accept'
-    | 'invite.revoke';
+    | 'invite.revoke'
+    | 'notice.create'
+    | 'notice.update'
+    | 'notice.remove';
   user?: { email: string; role: Role } | null;
   ip: string;
   detail?: Record<string, unknown>;
@@ -199,6 +206,25 @@ export interface Session {
   userAgent?: string;
 }
 
+/**
+ * A post on the notice board – release notes, onboarding instructions, the
+ * README you want a client to read before they call anything. Store mode only:
+ * a notice written into a binding-mode config would be lost on the next deploy.
+ */
+export interface Notice {
+  id: string;
+  title: string;
+  /** Markdown. Rendered read-only in the docs UI. */
+  body: string;
+  status: 'draft' | 'published';
+  pinned: boolean;
+  /** Roles that may read it. Empty / undefined = everyone who can read the docs. */
+  visibleTo?: Role[];
+  authorEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuditFilter {
   /** Email of the acting user. */
   user?: string;
@@ -248,6 +274,13 @@ export interface LudinStore {
     revoke(id: string): Promise<void>;
     revokeAllForUser(userId: string): Promise<void>;
   };
+  notices?: {
+    list(): Promise<Notice[]>;
+    get(id: string): Promise<Notice | null>;
+    create(notice: Notice): Promise<Notice>;
+    update(id: string, patch: Partial<Omit<Notice, 'id'>>): Promise<Notice>;
+    remove(id: string): Promise<void>;
+  };
   audit?: {
     append(event: AuditEvent): Promise<void>;
     query?(filter: AuditFilter): Promise<Page<AuditEvent>>;
@@ -265,6 +298,7 @@ export interface StoreCapabilities {
   ipRules: boolean;
   sessions: boolean;
   auditQuery: boolean;
+  notices: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -125,6 +125,18 @@ function ddl(T: SqlTables): string[] {
       user_agent VARCHAR(300) NULL,
       KEY ${T.sessions}_user (user_id)
     ) ENGINE=InnoDB ${charset}`,
+    `CREATE TABLE IF NOT EXISTS ${T.notices} (
+      id VARCHAR(64) NOT NULL PRIMARY KEY,
+      title VARCHAR(300) NOT NULL,
+      body MEDIUMTEXT NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'published',
+      pinned TINYINT(1) NOT NULL DEFAULT 0,
+      visible_to TEXT NULL,
+      author_email VARCHAR(255) NULL,
+      created_at CHAR(24) NOT NULL,
+      updated_at CHAR(24) NOT NULL,
+      KEY ${T.notices}_created (created_at)
+    ) ENGINE=InnoDB ${charset}`,
     `CREATE TABLE IF NOT EXISTS ${T.audit} (
       seq BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
       ts CHAR(24) NOT NULL,

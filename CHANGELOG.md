@@ -19,6 +19,16 @@ versioned together.
     development and tests.
   - `createSqlStore()` — the shared SQL implementation both adapters build on;
     an adapter supplies only a driver and its DDL.
+- **Notice board** (store mode). Markdown posts next to the docs — release
+  notes, onboarding steps, the README a client should read first. Pinnable,
+  draftable and restrictable to certain roles through the new `notices:write`
+  permission. Bodies and OpenAPI descriptions now render as Markdown, escaped
+  before decoration so a document cannot inject markup.
+- **Spec download.** `GET /docs/api/spec.json` and `.yaml` hand out the
+  document filtered for the caller's role, as a file, recorded as a
+  `docs.export` audit event.
+- `theme.logoDark` for a dark-mode logo, and the top-left logo falls back to
+  the letter mark when the image fails to load.
 - **Invitations.** Admins issue a single-use link; the invitee sets their own
   password. Only a SHA-256 hash of the token is stored.
 - **Sessions.** In store mode the cookie is a pointer: disabling an account,

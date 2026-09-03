@@ -37,6 +37,7 @@ export interface Capabilities {
   ipRules: boolean;
   sessions: boolean;
   auditQuery: boolean;
+  notices: boolean;
 }
 
 export interface Me {
@@ -46,6 +47,8 @@ export interface Me {
   permissions: string[];
   readonly: boolean;
   capabilities: Capabilities;
+  /** Role names – only sent to users who may pick one. */
+  roles?: string[];
   authEnabled: boolean;
 }
 
@@ -98,6 +101,28 @@ export interface AdminInfo {
   audit: { sink: string; queryable: boolean; retentionDays: number | null };
 }
 
+export interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  status: 'draft' | 'published';
+  pinned: boolean;
+  visibleTo?: string[];
+  authorEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NoticeSummary = Omit<Notice, 'body'> & { excerpt: string };
+
+export interface NoticeInput {
+  title?: string;
+  body?: string;
+  status?: 'draft' | 'published';
+  pinned?: boolean;
+  visibleTo?: string[];
+}
+
 export interface AuditEvent {
   ts: string;
   type: string;
@@ -141,6 +166,9 @@ export const api = {
   try: (payload: { method: string; url: string; headers: Record<string, string>; body: string | null; spec: string }) =>
     send<TryResult>('POST', '/try', payload),
 
+  specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
+    `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,
+
   admin: () => call<AdminInfo>('/admin'),
   createUser: (input: { email: string; password: string; role: string; name?: string; ipAllowlist?: string[] }) =>
     send<{ user: AdminUser }>('POST', '/admin/users', input),
@@ -158,6 +186,13 @@ export const api = {
   revokeInvite: (id: string) => send<{ ok: true }>('DELETE', `/admin/invites/${encodeURIComponent(id)}`),
   inviteInfo: (token: string) => call<{ email: string; role: string; expiresAt: string }>(`/invites/info?token=${encodeURIComponent(token)}`),
   acceptInvite: (input: { token: string; password: string; name?: string }) => send<Me>('POST', '/invites/accept', input),
+
+  notices: () => call<{ canWrite: boolean; notices: NoticeSummary[] }>('/notices'),
+  notice: (id: string) => call<{ notice: Notice; canWrite: boolean }>(`/notices/${encodeURIComponent(id)}`),
+  createNotice: (input: NoticeInput) => send<{ notice: Notice }>('POST', '/notices', input),
+  updateNotice: (id: string, patch: NoticeInput) =>
+    send<{ notice: Notice }>('PATCH', `/notices/${encodeURIComponent(id)}`, patch),
+  removeNotice: (id: string) => send<{ ok: true }>('DELETE', `/notices/${encodeURIComponent(id)}`),
 
   audit: (filter: AuditFilter = {}) =>
     call<{ items: AuditEvent[]; nextCursor?: string | null }>(

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { ComponentChildren } from 'preact';
 import { api, ApiError, type AdminInfo, type AdminUser } from './api';
+import { Modal } from './Modal';
 
 type Dialog =
   | { kind: 'none' }
@@ -370,22 +370,6 @@ function absolute(url: string): string {
 }
 
 // ---------------------------------------------------------------------------
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ComponentChildren }) {
-  return (
-    <div class="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="modal-card">
-        <div class="card-h">
-          {title} <span class="spacer" />
-          <button class="btn btn-sm btn-ghost btn-icon" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-        <div class="card-b">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 function AddIpRule({ busy, onAdd }: { busy: boolean; onAdd: (input: { cidr: string; note?: string }) => void }) {
   const [cidr, setCidr] = useState('');
   const [note, setNote] = useState('');

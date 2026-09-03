@@ -78,6 +78,7 @@ One added `store` line switches the mode; every other option remains valid. If b
 - Security scheme support: apiKey, http (basic/bearer), oauth2, openIdConnect — entered credentials are kept in the browser session only
 - Search (path · summary · tag), deep links (`#tag/operationId`)
 - Multiple specs (switch between several services' docs inside one Ludin instance)
+- Spec download: get the document as a JSON/YAML file from the overview screen. **The role-filtered document** is what leaves the server, and each download is recorded as a `docs.export` audit event
 
 ### 3.2 Login
 
@@ -92,11 +93,11 @@ One added `store` line switches the mode; every other option remains valid. If b
 
 Three roles ship by default; custom roles can be added.
 
-| Role | View docs | Try it out | View audit log | Manage accounts/IPs |
-|---|---|---|---|---|
-| viewer | ○ | ✕ | ✕ | ✕ |
-| developer | ○ | ○ | own entries only | ✕ |
-| admin | ○ | ○ | ○ | ○ (store mode) |
+| Role | View docs | Try it out | View audit log | Manage accounts/IPs | Post notices |
+|---|---|---|---|---|---|
+| viewer | ○ | ✕ | ✕ | ✕ | ✕ |
+| developer | ○ | ○ | own entries only | ✕ | ✕ |
+| admin | ○ | ○ | ○ | ○ (store mode) | ○ (store mode) |
 
 - **Invitations (store mode)**: admin enters an email + role → an invite token is issued → copy the link or send it by email (the mail sender is injected via callback/adapter) → the invitee sets a password → account activated. Token expiry and re-issuing supported
 - Account states: active / invited / disabled
@@ -125,11 +126,22 @@ Three roles ship by default; custom roles can be added.
 
 Scope is deliberately limited to **theming**. Component-level customization is out of scope for v1 (to avoid a maintenance explosion).
 
-- Options: logo, favicon, service name, primary/accent colors, font, radius/density, light · dark · system mode
+- Options: logo (URL or data URI, with a separate `logoDark` for dark mode), favicon, service name (platform name), primary/accent colors, font, radius/density, light · dark · system mode
 - Custom CSS injection (`customCss`), customizable login-screen copy and background
 - Configurable sidebar group order and collapsed state
 - Faster initial load than existing documentation UIs (code splitting, virtual scrolling for large specs)
 - Responsive (docs readable on mobile)
+
+### 3.7 Notice board (store mode only)
+
+A board that sits next to the docs: release notes, onboarding instructions, the README a client should read before calling anything.
+
+- Markdown body, pin to top, drafts (visible to authors only), role restriction (`visibleTo`)
+- Writing requires `notices:write` (admin by default); reading is open to every account that may read the docs
+- The **Notices** entry in the top bar marks unread posts (against the last time you looked, kept in the browser)
+- Creating, editing and deleting are audited (`notice.create` / `notice.update` / `notice.remove`)
+- **Not offered in binding mode.** A notice written into a config file would vanish on the next deploy, so the menu is hidden and the API answers `501 store_required`
+- Markdown is HTML-escaped before rendering and only `http(s)`, `mailto:` and relative links survive (the same rule applies to rendered OpenAPI descriptions)
 
 ---
 
@@ -231,6 +243,10 @@ All of these sit behind the same pipeline (§4.4) and need `admin:write` unless 
 | `POST /api/admin/invites` · `DELETE /api/admin/invites/:id` | issue / revoke an invitation |
 | `GET /api/invites/info` · `POST /api/invites/accept` | **public**: the accept screen and setting the password |
 | `GET /api/audit` · `GET /api/audit.csv` | browse / export (`audit:read`, or `audit:read:self` scoped to yourself) |
+| `GET /api/notices` · `GET /api/notices/:id` | read notices (`docs:read`; drafts and role limits filtered) |
+| `POST /api/notices` · `PATCH\|DELETE /api/notices/:id` | write / edit / delete a notice (`notices:write`) |
+
+Independent of any store: `GET /api/spec.json` and `GET /api/spec.yaml` (`docs:read`, served as a file after the role filter).
 
 ---
 

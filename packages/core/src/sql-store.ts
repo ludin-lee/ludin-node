@@ -6,6 +6,7 @@ import type {
   IpRule,
   LudinStore,
   NewUser,
+  Notice,
   Page,
   Session,
   StoredUser,
@@ -26,6 +27,7 @@ export interface SqlTables {
   ipRules: string;
   invites: string;
   sessions: string;
+  notices: string;
   audit: string;
 }
 
@@ -53,6 +55,7 @@ export function createSqlStore(options: SqlStoreOptions): LudinStore {
     ipRules: `${p}ip_rules`,
     invites: `${p}invites`,
     sessions: `${p}sessions`,
+    notices: `${p}notices`,
     audit: `${p}audit`,
   };
   const sqlite = options.dialect === 'sqlite';
@@ -201,6 +204,55 @@ export function createSqlStore(options: SqlStoreOptions): LudinStore {
       },
     },
 
+    notices: {
+      async list() {
+        return (await all(`SELECT * FROM ${T.notices} ORDER BY pinned DESC, created_at DESC`)).map(toNotice) as Notice[];
+      },
+      async get(id) {
+        return toNotice(await one(`SELECT * FROM ${T.notices} WHERE id = ?`, id));
+      },
+      async create(notice) {
+        await run(
+          `INSERT INTO ${T.notices} (id, title, body, status, pinned, visible_to, author_email, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          notice.id,
+          notice.title,
+          notice.body,
+          notice.status,
+          notice.pinned ? 1 : 0,
+          notice.visibleTo?.length ? JSON.stringify(notice.visibleTo) : null,
+          notice.authorEmail ?? null,
+          notice.createdAt,
+          notice.updatedAt,
+        );
+        return notice;
+      },
+      async update(id, patch) {
+        const columns: Record<string, unknown> = {};
+        if (patch.title !== undefined) columns.title = patch.title;
+        if (patch.body !== undefined) columns.body = patch.body;
+        if (patch.status !== undefined) columns.status = patch.status;
+        if (patch.pinned !== undefined) columns.pinned = patch.pinned ? 1 : 0;
+        if (patch.visibleTo !== undefined) {
+          columns.visible_to = patch.visibleTo?.length ? JSON.stringify(patch.visibleTo) : null;
+        }
+        if (patch.updatedAt !== undefined) columns.updated_at = patch.updatedAt;
+        const keys = Object.keys(columns);
+        if (keys.length) {
+          await run(
+            `UPDATE ${T.notices} SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
+            ...keys.map((k) => columns[k]),
+            id,
+          );
+        }
+        const notice = toNotice(await one(`SELECT * FROM ${T.notices} WHERE id = ?`, id));
+        if (!notice) throw new Error(`[ludin] No such notice: ${id}`);
+        return notice;
+      },
+      async remove(id) {
+        await run(`DELETE FROM ${T.notices} WHERE id = ?`, id);
+      },
+    },
     sessions: {
       async create(session) {
         await run(
@@ -355,6 +407,22 @@ function toSession(row: any): Session {
     lastSeenAt: row.last_seen_at ?? undefined,
     ip: row.ip ?? undefined,
     userAgent: row.user_agent ?? undefined,
+  };
+}
+
+function toNotice(row: any): Notice | null {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body ?? '',
+    status: row.status,
+    // sqlite has no boolean type and MySQL returns TINYINT.
+    pinned: !!Number(row.pinned),
+    visibleTo: parseList(row.visible_to),
+    authorEmail: row.author_email ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

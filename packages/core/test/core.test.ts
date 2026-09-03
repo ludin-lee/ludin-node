@@ -186,3 +186,32 @@ test('custom verify hook', async () => {
   assert.equal((await ludin.handle(post('/api/login', { email: 'x', password: 'y' }))).status, 200);
   assert.equal((await ludin.handle(post('/api/login', { email: 'x', password: 'z' }))).status, 401);
 });
+
+test('spec export: JSON and YAML downloads respect visibility and are audited', async () => {
+  const events: AuditEvent[] = [];
+  const ludin = createLudin({
+    spec,
+    auth: { users: [{ email: 'a@x.io', password: 'p', role: 'admin' }, { email: 'v@x.io', password: 'p', role: 'viewer' }], session: { secret: 's' } },
+    visibility: { 'tag:Internal': ['admin'] },
+    audit: { sink: (e) => void events.push(e) },
+  });
+  const cookieFor = async (email: string) => cookieOf(await ludin.handle(post('/api/login', { email, password: 'p' })));
+  const adminCookie = await cookieFor('a@x.io');
+  const viewerCookie = await cookieFor('v@x.io');
+
+  const asAdmin = await ludin.handle(req({ path: '/api/spec.json', headers: { host: 'x', cookie: adminCookie } }));
+  assert.equal(asAdmin.status, 200);
+  assert.match(String(asAdmin.headers['content-disposition']), /attachment; filename="T\.json"/);
+  assert.ok(JSON.parse(String(asAdmin.body)).paths['/admin/reset'], 'admin downloads the internal operation');
+
+  const asViewer = await ludin.handle(req({ path: '/api/spec.json', headers: { host: 'x', cookie: viewerCookie } }));
+  assert.equal(JSON.parse(String(asViewer.body)).paths['/admin/reset'], undefined, 'the download is filtered like the docs');
+
+  const yaml = await ludin.handle(req({ path: '/api/spec.yaml', headers: { host: 'x', cookie: viewerCookie } }));
+  assert.match(String(yaml.headers['content-type']), /application\/yaml/);
+  assert.match(String(yaml.body), /openapi: 3\.0\.3/);
+  assert.ok(!String(yaml.body).includes('/admin/reset'));
+
+  assert.equal((await ludin.handle(req({ path: '/api/spec.json' }))).status, 401, 'no download without a session');
+  assert.equal(events.filter((e) => e.type === 'docs.export').length, 3);
+});
