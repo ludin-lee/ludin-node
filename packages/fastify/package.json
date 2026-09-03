@@ -1,0 +1,24 @@
+{
+  "name": "@ludin/fastify",
+  "version": "0.1.0",
+  "description": "Fastify plugin for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
+    "test": "node --test --import tsx test/*.test.ts"
+  },
+  "dependencies": { "ludin": "workspace:*" },
+  "peerDependencies": { "fastify": ">=4.0.0" },
+  "devDependencies": { "@types/node": "^22.0.0", "fastify": "^4.28.0", "tsx": "^4.19.0" }
+}

@@ -188,7 +188,17 @@ interface LudinStore {
 
 코어는 `(Request 표준 객체) → Response` 형태의 프레임워크 무관 핸들러로 작성하고, 얇은 어댑터로 감싼다.
 
-- Express, Fastify, Koa, NestJS(모듈 제공), Hono / Node 기본 `http`
+| 패키지 | 프레임워크 | 마운트 |
+|---|---|---|
+| `@ludin/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
+| `@ludin/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
+| `@ludin/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
+| `@ludin/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
+| `@ludin/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` 또는 `LudinModule.forRoot({ ... })` |
+| `@ludin/node` | Node 기본 `http`, connect, polka | `docs(req, res, next)` 또는 `createLudinServer({ ... })` |
+
+- 어댑터는 요청/응답 형태 변환만 담당하고, 모든 라우트는 코어 파이프라인(§4.4)을 그대로 거친다. 프레임워크 추가 = 어댑터 패키지 추가, 코어 수정 없음.
+- 피어 주소를 노출하지 않는 런타임(Cloudflare Workers, Vercel Edge 등)은 IP 규칙을 쓰려면 `trustProxy` + 프록시 헤더가 필요하다.
 - 초기 설계에서 확정해야 나중에 갈아엎지 않는 항목
 
 ### 4.4 요청 처리 순서
