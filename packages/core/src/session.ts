@@ -3,6 +3,8 @@ import type { AuthUser } from './types.js';
 
 export interface SessionPayload {
   sub: string;
+  /** Store-mode session id – lets the server revoke this cookie. */
+  sid?: string;
   email: string;
   role: string;
   name?: string;
@@ -41,10 +43,11 @@ export class SessionSigner {
     this.secret = Buffer.from(secret);
   }
 
-  issue(user: AuthUser): { token: string; exp: number } {
+  issue(user: AuthUser, sid?: string): { token: string; exp: number } {
     const now = Math.floor(Date.now() / 1000);
     const payload: SessionPayload = {
       sub: user.id,
+      sid,
       email: user.email,
       role: user.role,
       name: user.name,

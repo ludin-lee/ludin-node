@@ -58,7 +58,16 @@ export interface AuditEvent {
     | 'docs.view'
     | 'docs.try'
     | 'ip.blocked'
-    | 'auth.denied';
+    | 'auth.denied'
+    | 'admin.user.create'
+    | 'admin.user.update'
+    | 'admin.user.remove'
+    | 'admin.ip.create'
+    | 'admin.ip.remove'
+    | 'admin.sessions.revoke'
+    | 'invite.create'
+    | 'invite.accept'
+    | 'invite.revoke';
   user?: { email: string; role: Role } | null;
   ip: string;
   detail?: Record<string, unknown>;
@@ -71,6 +80,8 @@ export interface AuditOptions {
   mask?: string[];
   /** Record request/response bodies of Try-it-out calls. Default: false. */
   recordBodies?: boolean;
+  /** Store mode: delete events older than this many days (needs `store.audit.prune`). */
+  retentionDays?: number;
 }
 
 export interface AuthOptions {
@@ -122,8 +133,15 @@ export interface LudinOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Store adapter (v0.2 will ship DB implementations; v0.1 uses the read-only
-// binding store internally).
+// Store adapter
+//
+// The core only ever touches data through this interface. Binding mode plugs in
+// a read-only in-memory implementation, store mode a database-backed one, so
+// "mode" is nothing more than which adapter is installed.
+//
+// Everything past `users` / `ipRules` is optional: a store advertises what it
+// can do simply by implementing it, and the core reports that back to the UI as
+// capabilities.
 // ---------------------------------------------------------------------------
 
 export interface AuthUser {
@@ -134,9 +152,23 @@ export interface AuthUser {
   ipAllowlist?: string[];
 }
 
+export type UserStatus = 'active' | 'invited' | 'disabled';
+
 export interface StoredUser extends AuthUser {
   passwordHash: string;
-  status: 'active' | 'invited' | 'disabled';
+  status: UserStatus;
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+/** A user to create. `passwordHash` is always hashed by the core first. */
+export interface NewUser {
+  email: string;
+  role: Role;
+  name?: string;
+  passwordHash: string;
+  status: UserStatus;
+  ipAllowlist?: string[];
 }
 
 export interface IpRule {
@@ -145,18 +177,94 @@ export interface IpRule {
   note?: string;
 }
 
+export interface Invite {
+  id: string;
+  email: string;
+  role: Role;
+  /** SHA-256 of the token – the raw token is only ever returned at creation. */
+  tokenHash: string;
+  expiresAt: string;
+  createdAt: string;
+  createdBy?: string;
+  acceptedAt?: string | null;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+  lastSeenAt?: string;
+  ip?: string;
+  userAgent?: string;
+}
+
+export interface AuditFilter {
+  /** Email of the acting user. */
+  user?: string;
+  type?: AuditEvent['type'];
+  /** ISO timestamps (inclusive). */
+  from?: string;
+  to?: string;
+  /** Free text over path / detail. */
+  q?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface Page<T> {
+  items: T[];
+  nextCursor?: string | null;
+}
+
 export interface LudinStore {
+  /** Binding mode's built-in store sets this; the admin UI turns read-only. */
   readonly?: boolean;
   users: {
     findByEmail(email: string): Promise<StoredUser | null>;
+    findById?(id: string): Promise<StoredUser | null>;
     list(): Promise<StoredUser[]>;
+    create?(input: NewUser): Promise<StoredUser>;
+    update?(id: string, patch: Partial<Omit<StoredUser, 'id'>>): Promise<StoredUser>;
+    remove?(id: string): Promise<void>;
   };
   ipRules: {
     list(): Promise<IpRule[]>;
+    upsert?(rule: IpRule): Promise<IpRule>;
+    remove?(id: string): Promise<void>;
+  };
+  invites?: {
+    create(invite: Invite): Promise<Invite>;
+    findByTokenHash(tokenHash: string): Promise<Invite | null>;
+    list(): Promise<Invite[]>;
+    markAccepted(id: string, at: string): Promise<void>;
+    remove(id: string): Promise<void>;
+  };
+  sessions?: {
+    create(session: Session): Promise<Session>;
+    get(id: string): Promise<Session | null>;
+    touch?(id: string, at: string): Promise<void>;
+    listForUser(userId: string): Promise<Session[]>;
+    revoke(id: string): Promise<void>;
+    revokeAllForUser(userId: string): Promise<void>;
   };
   audit?: {
     append(event: AuditEvent): Promise<void>;
+    query?(filter: AuditFilter): Promise<Page<AuditEvent>>;
+    /** Delete events older than the given ISO timestamp (retention). */
+    prune?(before: string): Promise<number>;
   };
+  /** Release DB handles. Called by nothing in the core – yours to use. */
+  close?(): Promise<void> | void;
+}
+
+/** What the installed store can actually do – surfaced to the admin UI. */
+export interface StoreCapabilities {
+  users: boolean;
+  invites: boolean;
+  ipRules: boolean;
+  sessions: boolean;
+  auditQuery: boolean;
 }
 
 // ---------------------------------------------------------------------------

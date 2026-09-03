@@ -1,7 +1,7 @@
 {
   "name": "@ludin/express",
-  "version": "0.1.0",
-  "description": "Express adapter for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
+  "version": "0.2.0",
+  "description": "Express adapter for ludin \u2013 Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -9,13 +9,31 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
-  "scripts": { "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18" },
-  "dependencies": { "ludin": "workspace:*" },
-  "peerDependencies": { "express": ">=4.17.0" },
-  "devDependencies": { "@types/express": "^4.17.21", "@types/node": "^22.0.0", "express": "^4.21.0" }
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18"
+  },
+  "dependencies": {
+    "ludin": "workspace:*"
+  },
+  "peerDependencies": {
+    "express": ">=4.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "express": "^4.21.0"
+  }
 }

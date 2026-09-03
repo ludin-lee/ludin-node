@@ -58,7 +58,7 @@ await page.screenshot({ path: 'shots/04-dark.png' });
 
 // sign out → login again as admin → admin page
 await page.click('.menu > button');
-await page.click('.menu-pop button:has-text("Sign out")');
+await page.click('.menu-pop button:text-is("Sign out")');
 await page.waitForSelector('form.login');
 await page.fill('#email', 'admin@example.com');
 await page.fill('#pw', 'admin');
@@ -74,7 +74,7 @@ await page.screenshot({ path: 'shots/05-admin.png' });
 
 // viewer cannot try
 await page.click('.menu > button');
-await page.click('.menu-pop button:has-text("Sign out")');
+await page.click('.menu-pop button:text-is("Sign out")');
 await page.fill('#email', 'viewer@example.com');
 await page.fill('#pw', 'viewer');
 await page.click('button.btn-primary');

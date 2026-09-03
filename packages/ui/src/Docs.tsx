@@ -5,13 +5,20 @@ import { groupOperations, type Doc, type Operation, type TagGroup } from './open
 import { Brand } from './Brand';
 import { OperationView } from './Operation';
 import { Admin } from './Admin';
+import { Audit } from './Audit';
 import { Overview } from './Overview';
 
-type Route = { kind: 'overview' } | { kind: 'op'; id: string } | { kind: 'admin' } | { kind: 'schema'; name: string };
+type Route =
+  | { kind: 'overview' }
+  | { kind: 'op'; id: string }
+  | { kind: 'admin' }
+  | { kind: 'audit' }
+  | { kind: 'schema'; name: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   if (h === 'admin') return { kind: 'admin' };
+  if (h === 'audit') return { kind: 'audit' };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
@@ -132,6 +139,11 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </select>
         )}
         <span class="spacer" />
+        {me.capabilities?.auditQuery && (can('audit:read') || can('audit:read:self')) && (
+          <a href="#/audit" class={`btn btn-sm ${route.kind === 'audit' ? 'btn-primary' : 'btn-ghost'}`}>
+            Audit
+          </a>
+        )}
         {can('admin:read') && (
           <a href="#/admin" class={`btn btn-sm ${route.kind === 'admin' ? 'btn-primary' : 'btn-ghost'}`}>
             Admin
@@ -163,6 +175,16 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   ))}
                 </span>
               </div>
+              {me.authEnabled && !me.anonymous && me.capabilities?.sessions && (
+                <button
+                  onClick={async () => {
+                    await api.revokeOwnSessions();
+                    location.reload();
+                  }}
+                >
+                  Sign out everywhere
+                </button>
+              )}
               {me.authEnabled && !me.anonymous && <button onClick={onLogout}>Sign out</button>}
             </div>
           )}
@@ -226,6 +248,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <div class="content">
           {route.kind === 'admin' && can('admin:read') ? (
             <Admin />
+          ) : route.kind === 'audit' && (can('audit:read') || can('audit:read:self')) ? (
+            <Audit canReadAll={can('audit:read')} />
           ) : route.kind === 'op' ? (
             doc && current ? (
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} />

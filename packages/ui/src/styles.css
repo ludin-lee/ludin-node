@@ -960,3 +960,73 @@ kbd {
     transform: rotate(360deg);
   }
 }
+
+/* --- store mode: dialogs, filter bars, pagination -------------------------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, #000 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+.modal-card {
+  width: min(460px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.modal-card > .card-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+}
+.modal-card > .card-b {
+  padding: 14px;
+}
+.modal-card .btn-primary {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.row > input {
+  flex: 1;
+  min-width: 0;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.toolbar > input,
+.toolbar > select {
+  width: auto;
+  flex: 0 1 auto;
+  font-size: 12.5px;
+  padding: 5px 8px;
+}
+.toolbar > input:first-child {
+  flex: 1 1 220px;
+}
+.pager {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}

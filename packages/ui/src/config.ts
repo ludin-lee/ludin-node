@@ -18,6 +18,13 @@ export interface Boot {
   authEnabled: boolean;
   theme: Theme;
   readonly: boolean;
+  capabilities?: {
+    users: boolean;
+    invites: boolean;
+    ipRules: boolean;
+    sessions: boolean;
+    auditQuery: boolean;
+  };
   version?: string;
 }
 
