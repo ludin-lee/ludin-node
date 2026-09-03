@@ -188,7 +188,17 @@ Binding mode internally uses a **read-only in-memory implementation** of this in
 
 The core is written as a framework-agnostic handler of the form `(standard Request object) → Response`, wrapped by thin adapters.
 
-- Express, Fastify, Koa, NestJS (module provided), Hono / plain Node `http`
+| Package | Framework | Mount |
+|---|---|---|
+| `@ludin/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
+| `@ludin/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
+| `@ludin/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
+| `@ludin/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
+| `@ludin/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` or `LudinModule.forRoot({ ... })` |
+| `@ludin/node` | plain `node:http`, connect, polka | `docs(req, res, next)` or `createLudinServer({ ... })` |
+
+- Adapters only translate request / response shapes; every route still goes through the core pipeline (§4.4). Adding a framework means adding an adapter package, never touching the core.
+- Runtimes that do not expose the peer address (Cloudflare Workers, Vercel Edge …) need `trustProxy` plus a proxy header for the IP rules to work.
 - This must be settled in the initial design so it never has to be ripped out later
 
 ### 4.4 Request processing order

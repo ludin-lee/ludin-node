@@ -1,6 +1,6 @@
 # ludin
 
-**API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express or NestJS.
+**API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`.
 
 📄 Feature spec: [English](docs/FEATURE_SPEC.en.md) · [한국어](docs/FEATURE_SPEC.md)
 
@@ -60,6 +60,31 @@ setupLudin(app, '/docs', document, {
 
 Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth: {...} })`.
 
+## Other frameworks
+
+Same options everywhere — only the mount differs. Every adapter is a thin wrapper around the same core handler, so login, IP rules, visibility filtering and the audit log behave identically.
+
+```ts
+// Fastify — npm i ludin @ludin/fastify
+import { ludin } from '@ludin/fastify';
+await app.register(ludin({ spec, auth }), { prefix: '/docs' });
+
+// Koa — npm i ludin @ludin/koa
+import { ludin } from '@ludin/koa';
+app.use(ludin({ spec, auth, basePath: '/docs' }));   // other paths fall through to next()
+
+// Hono — npm i ludin @ludin/hono
+import { mountLudin } from '@ludin/hono';
+mountLudin(app, { spec, auth, basePath: '/docs' });
+
+// plain node:http / connect / polka — npm i ludin @ludin/node
+import { ludin } from '@ludin/node';
+const docs = ludin({ spec, auth, basePath: '/docs' });
+http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);
+```
+
+On runtimes that do not expose the client address (Cloudflare Workers, Vercel Edge …) set `trustProxy` so IP rules can read `X-Forwarded-For`; without it every request looks address-less and is blocked.
+
 ## Two modes
 
 | | Binding mode (default) | Store mode (v0.2) |
@@ -115,6 +140,10 @@ Requests go through a server-side proxy (`POST /docs/api/try`) so that every cal
 ```
 packages/core      ludin – framework-agnostic handler, auth, IP, audit, embedded UI
 packages/express   @ludin/express
+packages/fastify   @ludin/fastify
+packages/koa       @ludin/koa
+packages/hono      @ludin/hono
+packages/node      @ludin/node   (plain node:http, connect, polka)
 packages/nestjs    @ludin/nestjs
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
@@ -124,7 +153,7 @@ examples/nest      @nestjs/swagger demo on :3001
 ```bash
 pnpm install
 pnpm build            # ui → core → adapters
-pnpm test             # core unit tests
+pnpm test             # core + adapter tests
 pnpm dev:express      # http://localhost:3000/docs  (admin@example.com / admin)
 pnpm dev:nest         # http://localhost:3001/docs
 CHROMIUM_PATH=... node scripts/e2e.mjs   # browser test + screenshots (needs dev:express running)
@@ -133,7 +162,7 @@ CHROMIUM_PATH=... node scripts/e2e.mjs   # browser test + screenshots (needs dev
 ## Roadmap
 
 - **v0.2** store mode: SQLite & Postgres adapters, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser
-- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Fastify & Koa adapters, CSV export & retention
+- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), CSV export & retention
 - **v1.0** stable API
 
 MIT
