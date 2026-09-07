@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Petstore · Guide</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #16181d;
+        --muted: #5b6270;
+        --line: #e3e6ec;
+        --brand: #0f766e;
+        --code-bg: #f4f6f9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e6e8ee;
+          --muted: #9aa3b2;
+          --line: #262b35;
+          --brand: #5eead4;
+          --code-bg: #171a21;
+        }
+      }
+      body {
+        margin: 0;
+        padding: 40px 24px 80px;
+        font: 15px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: var(--ink);
+      }
+      main { max-width: 68ch; margin: 0 auto; }
+      h1 { font-size: 26px; margin: 0 0 6px; }
+      h2 { font-size: 17px; margin: 32px 0 8px; }
+      p, li { color: var(--ink); }
+      .lede { color: var(--muted); margin-top: 0; }
+      code {
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow: auto;
+      }
+      pre code { background: none; padding: 0; }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+      a { color: var(--brand); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Petstore API · Guide</h1>
+      <p class="lede">This page is a plain HTML file on disk. ludin serves it behind the same login and IP rules as the reference.</p>
+
+      <h2>Getting a key</h2>
+      <p>Ask your account manager, then send it on every call:</p>
+      <pre><code>curl https://api.example.com/pets \
+  -H "Authorization: Bearer &lt;your key&gt;"</code></pre>
+
+      <h2>Rate limits</h2>
+      <ul>
+        <li><code>600</code> requests per minute per key</li>
+        <li>Bursts above that answer <code>429</code> with a <code>Retry-After</code> header</li>
+      </ul>
+
+      <h2>Editing this page</h2>
+      <p>
+        Point <code>readme.path</code> at any HTML file. It is re-read when it changes, so a save is enough — no restart, no
+        redeploy of the docs.
+      </p>
+
+      <hr />
+      <p style="color: var(--muted); font-size: 13px">Rendered inside a sandboxed frame: this page brings its own CSS and scripts.</p>
+    </main>
+  </body>
+</html>

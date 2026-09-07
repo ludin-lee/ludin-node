@@ -18,6 +18,6 @@ mountLudin(app, {
 
 On runtimes that do not expose the client address (Cloudflare Workers, Vercel Edge …) set `trustProxy` so IP rules can read `X-Forwarded-For`; without it every request looks address-less and is blocked.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT

@@ -26,7 +26,11 @@ app.use('/docs', ludin({
 }));
 ```
 
-Add a store — [`@ludin/store-sqlite`](https://www.npmjs.com/package/@ludin/store-sqlite) or [`@ludin/store-mysql`](https://www.npmjs.com/package/@ludin/store-mysql) — and the admin screen turns editable: invitations, roles, IP rules, revocable sessions, a browsable audit log.
+Point `readme` at an HTML file of your own — a guide, onboarding steps, release notes — and it appears next to the reference, behind the same login:
+
+```ts
+readme: { enabled: true, path: './docs/guide.html', label: 'Guide' }
+```
 
 `npx ludin hash` prints a password hash to use in `auth.users`.
 

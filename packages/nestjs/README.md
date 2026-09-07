@@ -19,6 +19,6 @@ setupLudin(app, '/docs', document, {
 
 Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth: { ... } })`.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT

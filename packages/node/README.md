@@ -16,6 +16,6 @@ http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res
 
 Also works with connect and polka. `createLudinServer(options)` returns a ready-made server when the docs are all you serve.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT

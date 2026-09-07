@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createLudin, createIpMatcher, hashPassword, resolveClientIp, applyVisibility } from '../src/index.js';
 import type { LudinRequest, AuditEvent } from '../src/index.js';
 
@@ -120,7 +123,6 @@ test('login flow: html served, spec locked until login, cookie grants access', a
 
   const adminRes = await ludin.handle(req({ path: '/api/admin', headers: { host: 'x', cookie } }));
   const admin = JSON.parse(String(adminRes.body));
-  assert.equal(admin.readonly, true);
   assert.equal(admin.users.length, 2);
   assert.equal(admin.users[0].hashed, true);
   assert.equal(admin.users[1].hashed, false);
@@ -214,4 +216,77 @@ test('spec export: JSON and YAML downloads respect visibility and are audited', 
 
   assert.equal((await ludin.handle(req({ path: '/api/spec.json' }))).status, 401, 'no download without a session');
   assert.equal(events.filter((e) => e.type === 'docs.export').length, 3);
+});
+
+// --- readme page -----------------------------------------------------------
+function readmeFixture(html: string): string {
+  const file = join(mkdtempSync(join(tmpdir(), 'ludin-readme-')), 'readme.html');
+  writeFileSync(file, html);
+  return file;
+}
+
+async function loginAs(ludin: ReturnType<typeof createLudin>, email: string, password: string) {
+  return cookieOf(await ludin.handle(post('/api/login', { email, password })));
+}
+
+test('readme: served sandboxed to anyone who can read the docs, audited', async () => {
+  const events: AuditEvent[] = [];
+  const file = readmeFixture('<!doctype html><h1>Getting started</h1>');
+  const ludin = createLudin({
+    spec,
+    readme: { enabled: true, path: file, label: 'Guide' },
+    auth: { users: [{ email: 'v@x.io', password: 'plain', role: 'viewer' }], session: { secret: 's' } },
+    audit: { sink: (e) => void events.push(e) },
+  });
+
+  // The button is advertised to the UI…
+  const page = String((await ludin.handle(req({ path: '/' }))).body);
+  assert.match(page, /"label":"Guide"/);
+  assert.match(page, /"url":"\/docs\/readme"/);
+
+  // …but the file itself still needs a session.
+  assert.equal((await ludin.handle(req({ path: '/readme' }))).status, 401);
+
+  const cookie = await loginAs(ludin, 'v@x.io', 'plain');
+  const me = JSON.parse(String((await ludin.handle(req({ path: '/api/me', headers: { cookie } }))).body));
+  assert.deepEqual(me.readme, { label: 'Guide' });
+
+  const res = await ludin.handle(req({ path: '/readme', headers: { cookie } }));
+  assert.equal(res.status, 200);
+  assert.match(String(res.body), /Getting started/);
+  assert.equal(res.headers['content-security-policy'], 'sandbox allow-scripts allow-popups allow-forms allow-modals');
+  assert.equal(res.headers['x-frame-options'], 'SAMEORIGIN');
+  assert.ok(events.some((e) => e.type === 'docs.readme' && e.user?.email === 'v@x.io'));
+
+  // Trailing slashes reach the same page.
+  assert.equal((await ludin.handle(req({ path: '/readme/', headers: { cookie } }))).status, 200);
+});
+
+test('readme: visibleTo narrows it, enabled:false and a missing file hide it', async () => {
+  const file = readmeFixture('<p>internal</p>');
+  const users = [
+    { email: 'a@x.io', password: 'adminpw', role: 'admin' },
+    { email: 'v@x.io', password: 'viewerpw', role: 'viewer' },
+  ];
+  const restricted = createLudin({
+    spec,
+    readme: { path: file, visibleTo: ['admin'] },
+    auth: { users, session: { secret: 's' } },
+    audit: { sink: false },
+  });
+  const viewer = await loginAs(restricted, 'v@x.io', 'viewerpw');
+  const admin = await loginAs(restricted, 'a@x.io', 'adminpw');
+  assert.equal((await restricted.handle(req({ path: '/readme', headers: { cookie: viewer } }))).status, 403);
+  assert.equal((await restricted.handle(req({ path: '/readme', headers: { cookie: admin } }))).status, 200);
+  const viewerMe = JSON.parse(String((await restricted.handle(req({ path: '/api/me', headers: { cookie: viewer } }))).body));
+  assert.equal(viewerMe.readme, null);
+
+  const off = createLudin({ spec, readme: { path: file, enabled: false }, auth: { users, session: { secret: 's' } }, audit: { sink: false } });
+  const offCookie = await loginAs(off, 'a@x.io', 'adminpw');
+  assert.equal((await off.handle(req({ path: '/readme', headers: { cookie: offCookie } }))).status, 404);
+  assert.match(String((await off.handle(req({ path: '/' }))).body), /"readme":null/);
+
+  const missing = createLudin({ spec, readme: join(tmpdir(), 'ludin-no-such-readme.html'), auth: { users, session: { secret: 's' } }, audit: { sink: false } });
+  const missingCookie = await loginAs(missing, 'a@x.io', 'adminpw');
+  assert.equal((await missing.handle(req({ path: '/readme', headers: { cookie: missingCookie } }))).status, 404);
 });

@@ -20,6 +20,6 @@ app.use('/docs', ludin({
 
 The mount path is read from `req.baseUrl`, so `basePath` is optional.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT

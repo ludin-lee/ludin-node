@@ -18,15 +18,8 @@ export interface Boot {
   basePath: string;
   authEnabled: boolean;
   theme: Theme;
-  readonly: boolean;
-  capabilities?: {
-    users: boolean;
-    invites: boolean;
-    ipRules: boolean;
-    sessions: boolean;
-    auditQuery: boolean;
-    notices: boolean;
-  };
+  /** The configured HTML page, if any – label for the button, url for the frame. */
+  readme?: { label: string; url: string } | null;
   version?: string;
 }
 

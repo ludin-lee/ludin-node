@@ -8,46 +8,43 @@ versioned together.
 
 ### Added
 
-- **Store mode.** Point ludin at a database and the admin screen becomes
-  editable: invitations, account and role editing, IP rules, revocable
-  sessions and a browsable audit log. Binding mode is unchanged and still the
-  default.
-  - `@ludin/store-sqlite` — a file, through the built-in `node:sqlite`
-    (Node 22.5+) or `better-sqlite3`.
-  - `@ludin/store-mysql` — MySQL 8 / MariaDB through `mysql2`.
-  - `createMemoryStore()` — the same feature set without persistence, for
-    development and tests.
-  - `createSqlStore()` — the shared SQL implementation both adapters build on;
-    an adapter supplies only a driver and its DDL.
-- **Notice board** (store mode). Markdown posts next to the docs — release
-  notes, onboarding steps, the README a client should read first. Pinnable,
-  draftable and restrictable to certain roles through the new `notices:write`
-  permission. Bodies and OpenAPI descriptions now render as Markdown, escaped
-  before decoration so a document cannot inject markup.
+- **Your own HTML page.** `readme: { enabled, path, label, visibleTo }` (or
+  just `readme: './guide.html'`) puts a file of yours behind a button in the
+  top bar — a guide, onboarding steps, release notes. It is served under the
+  same IP, login and role checks as the reference, re-read whenever it changes
+  on disk, and recorded as a `docs.readme` audit event. The file goes out into
+  a sandboxed frame in an opaque origin (`Content-Security-Policy: sandbox`),
+  so its own CSS and scripts work while staying walled off from the docs UI and
+  the session cookie.
 - **Spec download.** `GET /docs/api/spec.json` and `.yaml` hand out the
   document filtered for the caller's role, as a file, recorded as a
   `docs.export` audit event.
 - `theme.logoDark` for a dark-mode logo, and the top-left logo falls back to
   the letter mark when the image fails to load.
-- **Invitations.** Admins issue a single-use link; the invitee sets their own
-  password. Only a SHA-256 hash of the token is stored.
-- **Sessions.** In store mode the cookie is a pointer: disabling an account,
-  changing its role or resetting its password invalidates live cookies, and
-  admins can force a sign-out. Users can sign out of every device.
-- **Audit log browser** with filters, pagination, CSV export and a retention
-  setting (`audit.retentionDays`).
+- OpenAPI descriptions render as Markdown, escaped before decoration so a
+  document cannot inject markup.
 - **Framework adapters**: `@ludin/fastify`, `@ludin/koa`, `@ludin/hono` and
   `@ludin/node` (plain `node:http`, connect, polka).
-- Lockout guards: the last active admin cannot be demoted or deleted, you
-  cannot change your own role or status, and an IP rule that would shut you out
-  is refused unless forced.
-- CI on every pull request (build, typecheck, tests, MySQL integration tests,
-  browser e2e) and a tag-triggered npm release workflow.
+- CI on every pull request (build, typecheck, tests, browser e2e) and a
+  tag-triggered npm release workflow.
 
 ### Changed
 
-- `auth.users` / `ipAllowlist` act as a one-time seed when a store is attached
-  and still empty; plain-text passwords are hashed on the way in.
+- The Administration screen is a read-only view of the running configuration:
+  accounts, IP rules, roles, visibility rules and the configured readme page.
+
+### Removed
+
+- The database-backed store mode, before it ever shipped: `@ludin/store-sqlite`,
+  `@ludin/store-mysql`, `createSqlStore()`, `createMemoryStore()`, the `store`
+  option and everything that depended on it — invitations, editable accounts,
+  server-side sessions and the audit log browser. Accounts, IP rules and roles
+  come from your code again, which is all ludin needs to guard a document.
+- The notice board, along with the `notices:write` permission. A `readme` page
+  covers the same ground without a database behind it.
+- `audit.retentionDays` (there is no stored log to prune) and the `audit:read`
+  / `audit:read:self` permissions. Audit events still go to stdout or your own
+  `audit.sink`.
 
 ## [0.1.0] — 2026-09-02
 

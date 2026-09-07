@@ -4,14 +4,7 @@
 
 export type Role = 'viewer' | 'developer' | 'admin' | (string & {});
 
-export type Permission =
-  | 'docs:read'
-  | 'docs:try'
-  | 'audit:read'
-  | 'audit:read:self'
-  | 'admin:read'
-  | 'admin:write'
-  | 'notices:write';
+export type Permission = 'docs:read' | 'docs:try' | 'admin:read';
 
 export interface BoundUser {
   email: string;
@@ -52,6 +45,24 @@ export interface ThemeOptions {
   loginDescription?: string;
 }
 
+/**
+ * An HTML page of your own – a README, an onboarding guide, release notes –
+ * served next to the reference under the same access rules.
+ *
+ * The file is served as-is into a sandboxed frame, so its own CSS and scripts
+ * work while staying walled off from the docs UI and its session cookie.
+ */
+export interface ReadmeOptions {
+  /** `false` hides the button without removing the config. Default true. */
+  enabled?: boolean;
+  /** Path to an `.html` file, absolute or relative to `process.cwd()`. */
+  path: string;
+  /** Button label in the top bar. Default 'README'. */
+  label?: string;
+  /** Roles that may open it. Default: everyone who can read the docs. */
+  visibleTo?: Role[];
+}
+
 export interface AuditEvent {
   ts: string;
   type:
@@ -60,21 +71,10 @@ export interface AuditEvent {
     | 'logout'
     | 'docs.view'
     | 'docs.export'
+    | 'docs.readme'
     | 'docs.try'
     | 'ip.blocked'
-    | 'auth.denied'
-    | 'admin.user.create'
-    | 'admin.user.update'
-    | 'admin.user.remove'
-    | 'admin.ip.create'
-    | 'admin.ip.remove'
-    | 'admin.sessions.revoke'
-    | 'invite.create'
-    | 'invite.accept'
-    | 'invite.revoke'
-    | 'notice.create'
-    | 'notice.update'
-    | 'notice.remove';
+    | 'auth.denied';
   user?: { email: string; role: Role } | null;
   ip: string;
   detail?: Record<string, unknown>;
@@ -87,12 +87,10 @@ export interface AuditOptions {
   mask?: string[];
   /** Record request/response bodies of Try-it-out calls. Default: false. */
   recordBodies?: boolean;
-  /** Store mode: delete events older than this many days (needs `store.audit.prune`). */
-  retentionDays?: number;
 }
 
 export interface AuthOptions {
-  /** Static users (binding mode). Ignored for auth when `verify` is set. */
+  /** Static users. Ignored for auth when `verify` is set. */
   users?: BoundUser[];
   /** Custom verifier – hook into your own auth system. */
   verify?: (email: string, password: string) => Promise<AuthUser | null> | AuthUser | null;
@@ -130,175 +128,23 @@ export interface LudinOptions {
   roles?: Record<string, Permission[]>;
   /** Tag or path visibility: `{ 'tag:Internal': ['admin'], '/admin/*': ['admin'] }`. */
   visibility?: Record<string, Role[]>;
+  /** Your own HTML page, shown behind a button in the top bar. */
+  readme?: string | ReadmeOptions;
   audit?: AuditOptions;
   theme?: ThemeOptions;
   /** Mount path (used for cookie path and asset links). Adapters usually set this. */
   basePath?: string;
   /** Extra hosts Try-it-out proxy may call, besides the spec's `servers`. */
   allowedTargets?: string[];
-  store?: LudinStore;
 }
 
-// ---------------------------------------------------------------------------
-// Store adapter
-//
-// The core only ever touches data through this interface. Binding mode plugs in
-// a read-only in-memory implementation, store mode a database-backed one, so
-// "mode" is nothing more than which adapter is installed.
-//
-// Everything past `users` / `ipRules` is optional: a store advertises what it
-// can do simply by implementing it, and the core reports that back to the UI as
-// capabilities.
-// ---------------------------------------------------------------------------
-
+/** The identity behind a session, however it was established. */
 export interface AuthUser {
   id: string;
   email: string;
   role: Role;
   name?: string;
   ipAllowlist?: string[];
-}
-
-export type UserStatus = 'active' | 'invited' | 'disabled';
-
-export interface StoredUser extends AuthUser {
-  passwordHash: string;
-  status: UserStatus;
-  createdAt?: string;
-  lastLoginAt?: string;
-}
-
-/** A user to create. `passwordHash` is always hashed by the core first. */
-export interface NewUser {
-  email: string;
-  role: Role;
-  name?: string;
-  passwordHash: string;
-  status: UserStatus;
-  ipAllowlist?: string[];
-}
-
-export interface IpRule {
-  id: string;
-  cidr: string;
-  note?: string;
-}
-
-export interface Invite {
-  id: string;
-  email: string;
-  role: Role;
-  /** SHA-256 of the token – the raw token is only ever returned at creation. */
-  tokenHash: string;
-  expiresAt: string;
-  createdAt: string;
-  createdBy?: string;
-  acceptedAt?: string | null;
-}
-
-export interface Session {
-  id: string;
-  userId: string;
-  createdAt: string;
-  expiresAt: string;
-  lastSeenAt?: string;
-  ip?: string;
-  userAgent?: string;
-}
-
-/**
- * A post on the notice board – release notes, onboarding instructions, the
- * README you want a client to read before they call anything. Store mode only:
- * a notice written into a binding-mode config would be lost on the next deploy.
- */
-export interface Notice {
-  id: string;
-  title: string;
-  /** Markdown. Rendered read-only in the docs UI. */
-  body: string;
-  status: 'draft' | 'published';
-  pinned: boolean;
-  /** Roles that may read it. Empty / undefined = everyone who can read the docs. */
-  visibleTo?: Role[];
-  authorEmail?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AuditFilter {
-  /** Email of the acting user. */
-  user?: string;
-  type?: AuditEvent['type'];
-  /** ISO timestamps (inclusive). */
-  from?: string;
-  to?: string;
-  /** Free text over path / detail. */
-  q?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface Page<T> {
-  items: T[];
-  nextCursor?: string | null;
-}
-
-export interface LudinStore {
-  /** Binding mode's built-in store sets this; the admin UI turns read-only. */
-  readonly?: boolean;
-  users: {
-    findByEmail(email: string): Promise<StoredUser | null>;
-    findById?(id: string): Promise<StoredUser | null>;
-    list(): Promise<StoredUser[]>;
-    create?(input: NewUser): Promise<StoredUser>;
-    update?(id: string, patch: Partial<Omit<StoredUser, 'id'>>): Promise<StoredUser>;
-    remove?(id: string): Promise<void>;
-  };
-  ipRules: {
-    list(): Promise<IpRule[]>;
-    upsert?(rule: IpRule): Promise<IpRule>;
-    remove?(id: string): Promise<void>;
-  };
-  invites?: {
-    create(invite: Invite): Promise<Invite>;
-    findByTokenHash(tokenHash: string): Promise<Invite | null>;
-    list(): Promise<Invite[]>;
-    markAccepted(id: string, at: string): Promise<void>;
-    remove(id: string): Promise<void>;
-  };
-  sessions?: {
-    create(session: Session): Promise<Session>;
-    get(id: string): Promise<Session | null>;
-    touch?(id: string, at: string): Promise<void>;
-    listForUser(userId: string): Promise<Session[]>;
-    revoke(id: string): Promise<void>;
-    revokeAllForUser(userId: string): Promise<void>;
-  };
-  notices?: {
-    list(): Promise<Notice[]>;
-    get(id: string): Promise<Notice | null>;
-    create(notice: Notice): Promise<Notice>;
-    update(id: string, patch: Partial<Omit<Notice, 'id'>>): Promise<Notice>;
-    remove(id: string): Promise<void>;
-  };
-  audit?: {
-    append(event: AuditEvent): Promise<void>;
-    query?(filter: AuditFilter): Promise<Page<AuditEvent>>;
-    /** Delete events older than the given ISO timestamp (retention). */
-    prune?(before: string): Promise<number>;
-  };
-  /** Release DB handles. Called by nothing in the core – yours to use. */
-  close?(): Promise<void> | void;
-}
-
-/** What the installed store can actually do – surfaced to the admin UI. */
-export interface StoreCapabilities {
-  users: boolean;
-  invites: boolean;
-  ipRules: boolean;
-  sessions: boolean;
-  auditQuery: boolean;
-  notices: boolean;
 }
 
 // ---------------------------------------------------------------------------

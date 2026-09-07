@@ -17,6 +17,6 @@ await app.register(ludin({
 
 The mount path comes from the register prefix. Body parsing is replaced **inside the plugin scope only**, so the rest of your app is untouched.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT

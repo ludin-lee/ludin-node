@@ -18,6 +18,6 @@ app.use(ludin({
 
 Requests outside `basePath` are passed to `next()`. Works under `koa-mount` too, and reuses a body already read by a body parser.
 
-All options, roles and store modes are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
+All options and roles are documented in the [main README](https://github.com/ludin-lee/ludin-node#readme).
 
 MIT
