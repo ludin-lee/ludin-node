@@ -38,6 +38,9 @@ export interface Me {
   permissions: string[];
   /** Present when a readme page is configured and visible to this role. */
   readme: { label: string } | null;
+  /** Set when the viewer arrived through a share link. */
+  share: { canTry: boolean; expiresAt: string } | null;
+  shareEnabled?: boolean;
   authEnabled: boolean;
 }
 
@@ -61,6 +64,14 @@ export interface SearchEntry {
   summary?: string;
   tags: string[];
   fields: string[];
+}
+
+export interface DiffInfo {
+  spec: string;
+  changes: Array<{ kind: string; breaking: boolean; at: string; detail: string; params?: Record<string, string> }>;
+  breaking: number;
+  nonBreaking: number;
+  versions: { before?: string; after?: string };
 }
 
 export interface LintInfo {
@@ -99,7 +110,7 @@ export const api = {
   me: () => call<Me>('/me'),
   login: (email: string, password: string) => send<Me>('POST', '/login', { email, password }),
   logout: () => send<{ ok: true }>('POST', '/logout'),
-  specs: () => call<{ specs: Array<{ name: string }> }>('/specs'),
+  specs: () => call<{ specs: Array<{ name: string; hasBaseline?: boolean }> }>('/specs'),
   spec: (name: string) => call<any>(`/spec?name=${encodeURIComponent(name)}`),
   try: (payload: {
     method: string;
@@ -116,9 +127,12 @@ export const api = {
     ),
   searchIndex: (spec: string) => call<{ index: SearchEntry[] }>(`/search-index?name=${encodeURIComponent(spec)}`),
   lint: (spec: string) => call<LintInfo>(`/lint?name=${encodeURIComponent(spec)}`),
+  diff: (spec: string) => call<DiffInfo>(`/diff?name=${encodeURIComponent(spec)}`),
 
   specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
     `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,
 
   admin: () => call<AdminInfo>('/admin'),
+  createShare: (body: { role: string; ttl?: string; spec?: string; canTry?: boolean; label?: string }) =>
+    send<{ url: string; expiresAt: string; role: string; canTry: boolean; spec: string | null }>('POST', '/share', body),
 };

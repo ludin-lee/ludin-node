@@ -155,7 +155,44 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 - **코드 샘플** — 오퍼레이션마다 여섯 가지(cURL, fetch, axios, Python, Go, `.http`)의 붙여넣기 가능한 스니펫을 코어가 생성한다. 경로 파라미터, 필수 쿼리/헤더 파라미터, 유효한 보안 스킴의 인증 헤더, 요청 바디 예시까지 채워진 상태로. **역할 필터링된** 문서에서 만들기 때문에 숨겨진 오퍼레이션은 샘플이 아니라 404가 나간다. `GET /api/samples?method=&path=`
 - **⌘K 커맨드 팰릿** — 경로·요약·operationId·태그에 더해 **스키마 필드명**(요청·응답, `$ref` 해석 포함)까지 검색한다. 인덱스는 `GET /api/search-index`로 코어가 필터링된 문서에서 만들어 내려주고, UI는 퍼지 매칭만 한다. 필드 매칭은 `field:` 배지로 표시되며 해당 오퍼레이션으로 이동한다.
 - **Try it out 응답 검증** — 프록시를 거친 모든 JSON 응답을 해당 상태 코드의 문서화된 스키마(정확한 코드 → `2XX` 클래스 → `default` 순)와 대조하고, 결과를 `/api/try` 응답의 `validation` 필드로 함께 내려준다. 검사 항목: type, required, enum, nullable, format(date-time·date·email·uuid·uri), oneOf/anyOf. 의도적으로 자체 최소 검증기다 — 의존성 0 원칙(§7) — 적합성을 보증하는 게 아니라 어긋남을 보고한다. 숨겨진 오퍼레이션은 `checked: false`로 돌아와 아무것도 누설하지 않는다.
-- **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다.
+- **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다. 팀이 의도적으로 안 지키는 규칙은 옵션 `lint: { ignore: ['param-description'] }` 또는 CLI `--ignore`로 끌 수 있다 — 점수와 CI 게이트가 실제로 중요한 규칙만 반영하도록.
+
+### 3.9 변경을 따라갈 수 있게 (v0.4)
+
+이전 버전 문서를 가리키게 하면 무엇이 바뀌었는지, 그리고 더 중요하게 **무엇이 호출자를 깨뜨리는지** 알려준다.
+
+```ts
+ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
+// 스펙별 지정: { name: 'Partner', spec: current, baseline: previous }
+```
+
+- `GET /api/diff`가 분류된 변경 목록을 반환하고, 기준 문서가 설정되면 상단 바에 **변경 사항** 버튼이 나타난다
+- `ludin diff before.yaml after.yaml [--fail-on-breaking] [--json]`으로 CI에서 같은 검사를 돌린다
+- **방향이 파괴 여부를 결정한다.** 요청은 호출자가 보내던 것을 계속 받아줘야 하고, 응답은 호출자가 읽던 것을 계속 줘야 한다. 그래서 필수 속성 추가는 요청을 깨고, 속성 삭제는 응답을 깨며, enum 축소는 요청을, 확장은 응답을 깬다
+- 호환성 파괴로 분류: 경로·오퍼레이션 삭제, 필수 파라미터·속성 추가, 파라미터 필수화, 타입 변경, 2xx 응답 삭제, 요청 바디 필수화, 인증 요구 추가
+- 양쪽 문서 모두 역할 필터를 거치므로, diff가 볼 수 없는 오퍼레이션을 드러내는 일은 없다
+- 기준 문서는 주입받을 뿐 루딘이 쓰지 않는다 — "영구 상태를 두지 않는다"는 제약(§6) 유지
+### 3.10 만료되는 공유 링크 (v0.4)
+
+파트너사에게 3일 뒤 자동으로 막히는 링크를 건넨다 — 계정을 만들어주지 않고도.
+
+```ts
+ludin({ spec: './openapi.yaml', share: { enabled: true, maxTtl: '30d' }, auth: { ... } })
+```
+
+관리자가 관리 화면(또는 `POST /api/share`)에서 역할, 유효 기간, 선택적으로 특정 스펙 하나, Try it out 허용 여부를 정해 발급한다.
+
+**링크는 우회로가 아니라 하나의 신원이다.** 파이프라인(§4.4) *안에서*, IP 검사 뒤 역할 검사 앞에 해석된다. 따라서:
+
+- **IP 화이트리스트가 그대로 적용된다** — 화이트리스트 밖의 파트너는 여전히 못 들어온다. 그게 목적이라면 화이트리스트를 의도적으로 넓혀야 한다
+- `visibility`가 링크의 역할 기준으로 문서를 계속 필터링한다
+- 링크는 **관리 화면에 절대 도달할 수 없다**. 관리 권한이 있는 역할은 발급 시점에 거부되고, 요청마다 다시 검사된다
+- Try it out은 **그렇게 만든 링크가 아니면 꺼져 있다** — 공유 링크는 읽는 용도다
+- 링크를 **스펙 하나에 묶을 수 있고**, 그러면 다른 스펙은 목록에도 뜨지 않는다
+
+토큰은 자체 HMAC 네임스페이스로 서명되어, 공유 토큰을 세션 쿠키로도, 세션을 공유 토큰으로도 쓸 수 없다. 첫 사용 시 URL에서 HttpOnly 쿠키로 옮겨가므로 리퍼러·기록·화면 공유에 계속 실려 다니지 않는다.
+
+**솔직한 한계**: 저장소를 두지 않기 때문에(§6) 이 권한은 무상태다. 따라서 개별 링크는 취소할 수 없고, 세션 시크릿을 교체하면 전부 한 번에 무효화된다. 발급은 `share.created` 감사 이벤트로 남고, 링크로 들어온 모든 요청은 `share:<라벨>`로 귀속된다.
 
 ---
 
@@ -231,6 +268,8 @@ interface BoundUser {
 | `GET /api/samples` | 오퍼레이션 하나의 코드 샘플, 필터링된 문서 기준 (`docs:read`) |
 | `GET /api/search-index` | ⌘K 인덱스: 오퍼레이션 + 스키마 필드명, 필터링됨 (`docs:read`) |
 | `GET /api/lint` | 필터링된 문서의 건강 점수 (`docs:read`) |
+| `GET /api/diff` | 기준 문서 대비 분류된 변경 목록 (`docs:read`) |
+| `POST /api/share` | 만료되는 공유 링크 발급 (`admin:read`) |
 | `GET /api/admin` | 현재 설정 조회 (`admin:read`, 읽기 전용) |
 
 상태 변경 요청은 `X-Requested-With: ludin` 헤더를 요구한다(CSRF 방어).
@@ -258,6 +297,9 @@ interface LudinOptions {
   visibility?: Record<string, string[]>; // tag/path → roles
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
+  lint?: { ignore?: string[] };
+  diff?: { baseline?: SpecSource };
+  share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;

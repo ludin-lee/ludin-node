@@ -8,6 +8,7 @@ import { Admin } from './Admin';
 import { Readme } from './Readme';
 import { Overview } from './Overview';
 import { Palette } from './Palette';
+import { Changes } from './Changes';
 import { LOCALES, getLang, setLang, t } from './i18n';
 
 type Route =
@@ -15,19 +16,21 @@ type Route =
   | { kind: 'op'; id: string }
   | { kind: 'admin' }
   | { kind: 'readme' }
+  | { kind: 'changes' }
   | { kind: 'schema'; name: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   if (h === 'admin') return { kind: 'admin' };
   if (h === 'readme') return { kind: 'readme' };
+  if (h === 'changes') return { kind: 'changes' };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
 }
 
 export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
-  const [specs, setSpecs] = useState<Array<{ name: string }>>([]);
+  const [specs, setSpecs] = useState<Array<{ name: string; hasBaseline?: boolean }>>([]);
   const [specName, setSpecName] = useState<string>(() => {
     try {
       return localStorage.getItem('ludin.spec') || '';
@@ -46,6 +49,15 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
   const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
   const [sortMethod, setSortMethod] = useState(false);
+  const [pins, setPins] = useState<string[]>([]);
+  useEffect(() => {
+    try { setPins(JSON.parse(localStorage.getItem(`ludin.pins:${specName}`) ?? '[]')); } catch { setPins([]); }
+  }, [specName]);
+  function togglePin(id: string) {
+    const next = pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id];
+    setPins(next);
+    try { localStorage.setItem(`ludin.pins:${specName}`, JSON.stringify(next)); } catch { /* ignore */ }
+  }
   const [sideW, setSideW] = useState(() => {
     try {
       const n = parseInt(localStorage.getItem('ludin.sidebar-w') ?? '', 10);
@@ -54,6 +66,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   });
   const [server, setServerState] = useState('');
   const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
+  const hasBaseline = specs.find((s) => s.name === specName)?.hasBaseline ?? false;
 
   const servers = useMemo(() => (doc ? serverUrls(doc) : []), [doc]);
   useEffect(() => {
@@ -165,6 +178,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     }));
   }, [filtered, sortMethod]);
 
+  const pinnedOps = useMemo(() => pins.map((id) => allOps.find((o) => o.id === id)).filter(Boolean) as Operation[], [pins, allOps]);
+
   const current: Operation | undefined = route.kind === 'op' ? allOps.find((o) => o.id === route.id) : undefined;
   const can = (p: string) => me.permissions.includes(p);
   const schemas = doc?.components?.schemas ?? {};
@@ -172,6 +187,29 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   function changeMode(m: Mode) {
     setMode(m);
     setModeState(m);
+  }
+
+  function navItem(o: Operation) {
+    const pinned = pins.includes(o.id);
+    return (
+      <a
+        href={`#/op/${encodeURIComponent(o.id)}`}
+        class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
+        title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
+      >
+        <span class={`method ${o.method}`}>{o.method}</span>
+        <span class="path">
+          {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
+        </span>
+        <span
+          class={`pin ${pinned ? 'on' : ''}`}
+          title={pinned ? t('unpin') : t('pin')}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(o.id); }}
+        >
+          {pinned ? '★' : '☆'}
+        </span>
+      </a>
+    );
   }
 
   return (
@@ -210,6 +248,11 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
             {readme.label}
           </a>
         )}
+        {hasBaseline && (
+          <a href="#/changes" class={`btn btn-sm ${route.kind === 'changes' ? 'btn-primary' : 'btn-ghost'}`}>
+            {t('changes')}
+          </a>
+        )}
         {can('admin:read') && (
           <a href="#/admin" class={`btn btn-sm ${route.kind === 'admin' ? 'btn-primary' : 'btn-ghost'}`}>
             {t('admin')}
@@ -219,7 +262,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <button class="btn btn-sm" onClick={() => setMenu(!menu)}>
             <span class="chip" style="padding:0 6px;border:0;background:none">
               <span class="dot" />
-              {me.anonymous ? t('ipAccess') : me.user?.name || me.user?.email}
+              {me.share ? t('shareViewer') : me.anonymous ? t('ipAccess') : me.user?.name || me.user?.email}
             </span>
             <span class="role-badge">{me.user?.role}</span>
           </button>
@@ -283,6 +326,15 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <span class="spin" />
             </div>
           )}
+          {pinnedOps.length > 0 && (
+            <details class="nav-group" open>
+              <summary>
+                <span class="caret">▸</span>★ {t('pinned')}
+                <span class="count">{pinnedOps.length}</span>
+              </summary>
+              {pinnedOps.map(navItem)}
+            </details>
+          )}
           {sorted.map((g) => (
             <details class="nav-group" open>
               <summary>
@@ -290,18 +342,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 {g.name}
                 <span class="count">{g.operations.length}</span>
               </summary>
-              {g.operations.map((o) => (
-                <a
-                  href={`#/op/${encodeURIComponent(o.id)}`}
-                  class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
-                  title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
-                >
-                  <span class={`method ${o.method}`}>{o.method}</span>
-                  <span class="path">
-                    {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
-                  </span>
-                </a>
-              ))}
+              {g.operations.map(navItem)}
             </details>
           ))}
           {doc && Object.keys(schemas).length > 0 && (
@@ -333,8 +374,10 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <Readme label={readme.label} url={readme.url} />
         ) : (
         <div class="content">
-          {route.kind === 'admin' && can('admin:read') ? (
-            <Admin />
+          {route.kind === 'changes' ? (
+            specName ? <Changes specName={specName} /> : null
+          ) : route.kind === 'admin' && can('admin:read') ? (
+            <Admin me={me} />
           ) : route.kind === 'op' ? (
             doc && current ? (
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} server={server} />

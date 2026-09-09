@@ -1,4 +1,5 @@
 import { Auditor } from './audit.js';
+import { diffSpecs } from './diff.js';
 import { createIpMatcher, isLocalhost, resolveClientIp } from './ip.js';
 import { lintSpec } from './lint.js';
 import { Lockout } from './lockout.js';
@@ -9,6 +10,7 @@ import { verifyPassword, isHashed } from './password.js';
 import { Readme, ReadmeError } from './readme.js';
 import { RoleRegistry } from './roles.js';
 import { SessionSigner, parseCookies, parseDuration, serializeCookie } from './session.js';
+import { ShareSigner, type SharePayload } from './share.js';
 import { SpecLoader, applyVisibility, serverOrigins, toYaml } from './spec.js';
 import { Directory } from './users.js';
 import { UI_HTML } from './ui-bundle.js';
@@ -35,6 +37,8 @@ interface Ctx {
   user: AuthUser | null;
   /** true when access is granted by IP (ipPolicy 'or') or auth is disabled */
   anonymous: boolean;
+  /** Set when the caller arrived through a share link – a restricted identity. */
+  share?: SharePayload;
 }
 
 export function createLudin(options: LudinOptions): LudinHandler {
@@ -47,10 +51,21 @@ export function createLudin(options: LudinOptions): LudinHandler {
   const roles = new RoleRegistry(options.roles);
   const specs = new SpecLoader(options.spec);
   const readme = Readme.from(options.readme);
+  // Baselines for the changes view: per-spec `baseline`, else the shared `diff.baseline`.
+  const baselineEntries = specs.entries
+    .map((e) => ({ name: e.name, spec: e.baseline ?? options.diff?.baseline }))
+    .filter((e): e is { name: string; spec: NonNullable<typeof e.spec> } => !!e.spec);
+  const baselines = baselineEntries.length ? new SpecLoader(baselineEntries) : null;
   const auditor = new Auditor(options.audit);
   const ttlSec = parseDuration(auth?.session?.ttl, 12 * 3600);
   const signer = new SessionSigner(auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET, ttlSec);
   const cookieName = auth?.session?.cookieName ?? 'ludin_session';
+  const shareEnabled = options.share?.enabled === true;
+  const shareSigner = shareEnabled
+    ? new ShareSigner(auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET)
+    : null;
+  const shareCookieName = `${cookieName}_share`;
+  const shareMaxTtl = parseDuration(options.share?.maxTtl, 30 * 86400);
   const lockout = new Lockout(auth?.lockout?.attempts ?? 5, parseDuration(auth?.lockout?.window, 15 * 60) * 1000);
   const ipPolicy = options.ipPolicy ?? 'and';
   const allowLocalhost = options.allowLocalhost ?? true;
@@ -91,6 +106,18 @@ export function createLudin(options: LudinOptions): LudinHandler {
         ? { id: session.sub, email: session.email, role: session.role, name: session.name, ipAllowlist: session.ipAllowlist }
         : null;
 
+      // A share link is an identity, not a bypass: it is resolved after the IP
+      // check above and before any role check below.
+      let share: SharePayload | undefined;
+      if (!user && shareSigner) {
+        const presented = req.query.share || cookies[shareCookieName];
+        const payload = shareSigner.verify(presented);
+        if (payload && roles.exists(payload.role) && !grantsAdmin(payload.role)) {
+          share = payload;
+          user = { id: 'share', email: `share:${payload.label || payload.role}`, role: payload.role };
+        }
+      }
+
       let anonymous = false;
       if (!user && (!authEnabled || (ipPolicy === 'or' && ipMatcher && ipMatched))) {
         user = { id: 'anonymous', email: 'anonymous', role: anonymousRole };
@@ -103,7 +130,24 @@ export function createLudin(options: LudinOptions): LudinHandler {
           throw new HttpError(403, 'Your IP address is not allowed for this account.', 'ip_blocked');
         }
       }
-      const ctx: Ctx = { req, ip, user, anonymous };
+      const ctx: Ctx = { req, ip, user, anonymous, share };
+
+      // Move the token out of the URL into a cookie, so it stops travelling in
+      // referrers, history and shared screenshots after the first click.
+      if (share && req.query.share && !req.path.startsWith('/api/')) {
+        return {
+          status: 302,
+          headers: {
+            location: basePath === '/' ? '/' : `${basePath}/`,
+            'set-cookie': serializeCookie(shareCookieName, req.query.share, {
+              path: basePath,
+              secure: isSecure(req),
+              maxAge: Math.max(0, share.exp - Math.floor(Date.now() / 1000)),
+            }),
+            'cache-control': 'no-store',
+          },
+        };
+      }
 
       // 3. Routing ------------------------------------------------------------
       const path = req.path.replace(/\/+$/, '') || '/';
@@ -204,7 +248,15 @@ export function createLudin(options: LudinOptions): LudinHandler {
     switch (path) {
       case '/api/specs':
         require(ctx, 'docs:read');
-        return json(200, { specs: specs.listFor(ctx.user!.role) });
+        return json(200, {
+          specs: specs
+            .listFor(ctx.user!.role)
+            .filter((s) => !ctx.share?.spec || s.name === ctx.share.spec)
+            .map((s) => ({
+              ...s,
+              hasBaseline: !!baselines?.entries.some((b) => b.name === s.name),
+            })),
+        });
       case '/api/spec': {
         require(ctx, 'docs:read');
         const visible = await visibleSpec(ctx);
@@ -227,13 +279,29 @@ export function createLudin(options: LudinOptions): LudinHandler {
         const { doc } = await visibleSpec(ctx);
         return json(200, { index: buildSearchIndex(doc) });
       }
+      case '/api/diff': {
+        require(ctx, 'docs:read');
+        requireMethod(ctx, 'GET');
+        const { name, doc } = await visibleSpec(ctx);
+        if (!baselines?.entries.some((b) => b.name === name)) {
+          throw new HttpError(404, 'No baseline is configured for this spec.', 'no_baseline');
+        }
+        const raw = await baselines.load(name);
+        if (!raw) throw new HttpError(404, 'Baseline not found', 'no_baseline');
+        // The baseline is filtered too – a hidden operation must not surface in the diff.
+        const baseline = applyVisibility(raw, options.visibility, ctx.user!.role);
+        return json(200, { spec: name, ...diffSpecs(baseline, doc) });
+      }
       case '/api/lint': {
         require(ctx, 'docs:read');
         requireMethod(ctx, 'GET');
         const { name, doc } = await visibleSpec(ctx);
-        const result = lintSpec(doc);
+        const result = lintSpec(doc, options.lint);
         return json(200, { spec: name, ...result, issues: result.issues.slice(0, 200) });
       }
+      case '/api/share':
+        require(ctx, 'admin:read');
+        return createShare(ctx);
       case '/api/admin':
         require(ctx, 'admin:read');
         return admin(ctx);
@@ -260,7 +328,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
 
   /** Loads the requested spec, already filtered for the caller's role. */
   async function visibleSpec(ctx: Ctx): Promise<{ name: string; doc: Record<string, any> }> {
-    const name = ctx.req.query.name || specs.entries[0].name;
+    const name = ctx.req.query.name || ctx.share?.spec || specs.entries[0].name;
+    if (ctx.share?.spec && name !== ctx.share.spec) throw new HttpError(404, 'Spec not found');
     if (!specs.listFor(ctx.user!.role).some((s) => s.name === name)) throw new HttpError(404, 'Spec not found');
     const doc = await specs.load(name);
     if (!doc) throw new HttpError(404, 'Spec not found');
@@ -290,7 +359,19 @@ export function createLudin(options: LudinOptions): LudinHandler {
 
   function require(ctx: Ctx, perm: Permission) {
     if (!ctx.user) throw new HttpError(401, 'Login required', 'unauthenticated');
+    if (ctx.share) {
+      // Restrictions carried by the token, re-checked on every request.
+      if (perm.startsWith('admin:')) throw new HttpError(403, 'Share links cannot administer.', 'forbidden');
+      if (perm === 'docs:try' && !ctx.share.canTry) {
+        throw new HttpError(403, 'This share link is read-only.', 'forbidden');
+      }
+    }
     if (!roles.has(ctx.user.role, perm)) throw new HttpError(403, `Missing permission: ${perm}`, 'forbidden');
+  }
+
+  /** True when a role can reach the admin surface – never allowed for a share link. */
+  function grantsAdmin(role: string): boolean {
+    return roles.permissions(role).some((p) => p.startsWith('admin:'));
   }
 
   function requireMethod(ctx: Ctx, ...methods: string[]) {
@@ -304,6 +385,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
       user: ctx.user ? { email: ctx.user.email, name: ctx.user.name, role: ctx.user.role } : null,
       permissions: ctx.user ? roles.permissions(ctx.user.role) : [],
       readme: readme && ctx.user && readme.visibleFor(ctx.user.role) ? { label: readme.label } : null,
+      share: ctx.share ? { canTry: ctx.share.canTry, expiresAt: new Date(ctx.share.exp * 1000).toISOString() } : null,
+      shareEnabled,
       authEnabled,
     };
   }
@@ -392,6 +475,43 @@ export function createLudin(options: LudinOptions): LudinHandler {
       visibility: options.visibility ?? {},
       readme: readme ? { label: readme.label, path: readme.path, visibleTo: readme.visibleTo ?? [] } : null,
       audit: { sink: options.audit?.sink === false ? 'disabled' : options.audit?.sink ? 'custom' : 'stdout' },
+    });
+  }
+
+  /**
+   * Mint a share link. Everything the link may do is decided here and sealed
+   * into the token: an admin-capable role is refused outright, Try it out is
+   * off unless asked for, and the lifetime is capped by `share.maxTtl`.
+   */
+  async function createShare(ctx: Ctx): Promise<LudinResponse> {
+    requireMethod(ctx, 'POST');
+    if (!shareSigner) throw new HttpError(400, 'Share links are not enabled.', 'share_disabled');
+    const body = parseJson(ctx.req.body) as { role?: string; ttl?: string | number; spec?: string; canTry?: boolean; label?: string };
+
+    const role = body.role || 'viewer';
+    if (!roles.exists(role)) throw new HttpError(400, `Unknown role "${role}"`, 'bad_role');
+    if (grantsAdmin(role)) throw new HttpError(400, 'Share links cannot grant an admin role.', 'bad_role');
+    if (body.spec && !specs.entries.some((e) => e.name === body.spec)) throw new HttpError(400, 'Unknown spec', 'bad_spec');
+
+    const ttl = Math.min(parseDuration(body.ttl, 3 * 86400), shareMaxTtl);
+    const { token, exp } = shareSigner.issue(
+      { role, canTry: body.canTry === true, spec: body.spec, label: body.label?.slice(0, 60) },
+      ttl,
+    );
+    await auditor.emit({
+      type: 'share.created',
+      ip: ctx.ip,
+      user: pick(ctx.user),
+      detail: { role, canTry: body.canTry === true, spec: body.spec, label: body.label, expiresAt: new Date(exp * 1000).toISOString() },
+    });
+    const origin = requestOrigin(ctx.req);
+    return json(200, {
+      token,
+      url: `${origin}${basePath === '/' ? '' : basePath}/?share=${encodeURIComponent(token)}`,
+      expiresAt: new Date(exp * 1000).toISOString(),
+      role,
+      canTry: body.canTry === true,
+      spec: body.spec ?? null,
     });
   }
 

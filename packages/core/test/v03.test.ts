@@ -5,6 +5,7 @@ import {
   validateAgainstSchema, responseSchemaFor, lintSpec, createLudin, hashPassword,
 } from '../src/index.js';
 import type { LudinRequest } from '../src/index.js';
+import { ShareSigner } from '../src/share.js';
 
 const spec = {
   openapi: '3.0.3',
@@ -158,4 +159,213 @@ test('routes: samples / search-index / lint respect roles and visibility', async
   const lint = JSON.parse(String((await get('/api/lint')).body));
   assert.ok(lint.score > 0);
   assert.ok(!lint.issues.some((i: any) => i.path.includes('/internal/flags')));
+});
+
+test('lint: ignored rules count neither as checks nor issues', () => {
+  const full = lintSpec(spec);
+  const trimmed = lintSpec(spec, { ignore: ['op-summary', 'op-tags'] });
+  assert.ok(trimmed.checks < full.checks);
+  assert.ok(!trimmed.issues.some((i) => i.rule === 'op-summary' || i.rule === 'op-tags'));
+  assert.ok(trimmed.score >= full.score);
+});
+
+// --- share links -----------------------------------------------------------
+
+function shareLudin(extra: Record<string, any> = {}) {
+  return createLudin({
+    spec: [
+      { name: 'Public', spec },
+      { name: 'Partner', spec: { openapi: '3.0.3', info: { title: 'P', version: '1' }, paths: {} } },
+    ],
+    auth: { users: [{ email: 'a@x.io', password: 'pw', role: 'admin' }], session: { secret: 'test-secret' } },
+    share: { enabled: true },
+    ...extra,
+  });
+}
+
+async function adminCookie(ludin: ReturnType<typeof createLudin>, from = '203.0.113.10') {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/login', body: JSON.stringify({ email: 'a@x.io', password: 'pw' }),
+    remoteAddress: from,
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  const sc = res.headers['set-cookie'];
+  return String(Array.isArray(sc) ? sc[0] : sc).split(';')[0];
+}
+
+async function mintShare(ludin: ReturnType<typeof createLudin>, cookie: string, body: Record<string, unknown>, from = '203.0.113.10') {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/share', body: JSON.stringify(body),
+    remoteAddress: from,
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', cookie },
+  }));
+  return { status: res.status, data: JSON.parse(String(res.body)) };
+}
+
+test('share: read-only by default, never admin, spec-locked', async () => {
+  const ludin = shareLudin();
+  const cookie = await adminCookie(ludin);
+
+  const { data } = await mintShare(ludin, cookie, { role: 'viewer', spec: 'Public', label: 'Acme' });
+  assert.ok(data.token && data.url.includes('share='));
+  const withShare = (path: string, query: Record<string, string> = {}) =>
+    ludin.handle(req({ path, query: { share: data.token, ...query }, headers: { host: 'localhost:3000' } }));
+
+  // reads the document it was scoped to
+  assert.equal((await withShare('/api/spec')).status, 200);
+  // but only that spec – the other one is not even listed
+  assert.deepEqual(JSON.parse(String((await withShare('/api/specs')).body)).specs.map((s: any) => s.name), ['Public']);
+  assert.equal((await withShare('/api/spec', { name: 'Partner' })).status, 404);
+  // cannot execute requests…
+  assert.equal((await ludin.handle(req({
+    method: 'POST', path: '/api/try', query: { share: data.token },
+    body: JSON.stringify({ method: 'GET', url: 'http://api.example.com/pets' }),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }))).status, 403);
+  // …and can never administer
+  assert.equal((await withShare('/api/admin')).status, 403);
+  assert.equal((await withShare('/api/share')).status, 403);
+});
+
+test('share: an admin-capable role is refused at creation', async () => {
+  const ludin = shareLudin();
+  const cookie = await adminCookie(ludin);
+  const { status, data } = await mintShare(ludin, cookie, { role: 'admin' });
+  assert.equal(status, 400);
+  assert.equal(data.code, 'bad_role');
+});
+
+test('share: canTry opens Try it out explicitly', async () => {
+  const ludin = shareLudin();
+  const cookie = await adminCookie(ludin);
+  const { data } = await mintShare(ludin, cookie, { role: 'developer', canTry: true });
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/try', query: { share: data.token },
+    body: JSON.stringify({ method: 'GET', url: 'http://api.example.com/pets' }),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  assert.notEqual(res.status, 403);   // reaches the proxy instead of being refused
+});
+
+test('share: tokens and session cookies are not interchangeable', async () => {
+  const ludin = shareLudin();
+  const cookie = await adminCookie(ludin);
+  const { data } = await mintShare(ludin, cookie, { role: 'viewer' });
+  const sessionToken = cookie.split('=')[1];
+
+  // a session token presented as a share grant is ignored
+  assert.equal((await ludin.handle(req({ path: '/api/spec', query: { share: sessionToken }, headers: { host: 'localhost:3000' } }))).status, 401);
+  // a share token presented as a session cookie is ignored
+  assert.equal((await ludin.handle(req({ path: '/api/spec', headers: { host: 'localhost:3000', cookie: `ludin_session=${data.token}` } }))).status, 401);
+  // a tampered share token is rejected
+  assert.equal((await ludin.handle(req({ path: '/api/spec', query: { share: data.token.slice(0, -2) + 'xx' }, headers: { host: 'localhost:3000' } }))).status, 401);
+});
+
+test('share: expiry is enforced and capped by maxTtl', async () => {
+  const ludin = shareLudin({ share: { enabled: true, maxTtl: '1h' } });
+  const cookie = await adminCookie(ludin);
+  const { data } = await mintShare(ludin, cookie, { role: 'viewer', ttl: '30d' });
+  const capped = (new Date(data.expiresAt).getTime() - Date.now()) / 1000;
+  assert.ok(capped <= 3600 + 5, `ttl should be capped, got ${capped}s`);
+
+  // an already-expired token is refused
+  const expired = new ShareSigner('test-secret').issue({ role: 'viewer', canTry: false }, -10);
+  assert.equal((await ludin.handle(req({ path: '/api/spec', query: { share: expired.token }, headers: { host: 'localhost:3000' } }))).status, 401);
+});
+
+test('share: the IP allowlist still applies', async () => {
+  const ludin = shareLudin({ ipAllowlist: ['10.0.0.0/8'], allowLocalhost: false });
+  const cookie = await adminCookie(ludin, '10.1.2.3');
+  const { data } = await mintShare(ludin, cookie, { role: 'viewer' }, '10.1.2.3');
+  const outside = await ludin.handle(req({ path: '/api/spec', query: { share: data.token }, remoteAddress: '203.0.113.9', headers: { host: 'localhost:3000' } }));
+  assert.equal(outside.status, 403);
+  const inside = await ludin.handle(req({ path: '/api/spec', query: { share: data.token }, remoteAddress: '10.1.2.3', headers: { host: 'localhost:3000' } }));
+  assert.equal(inside.status, 200);
+});
+
+test('share: disabled by default', async () => {
+  const ludin = createLudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'pw', role: 'admin' }], session: { secret: 's' } } });
+  const cookie = await adminCookie(ludin);
+  const { status } = await mintShare(ludin, cookie, { role: 'viewer' });
+  assert.equal(status, 400);
+});
+
+// --- spec diff -------------------------------------------------------------
+
+import { diffSpecs } from '../src/index.js';
+
+const v1 = {
+  openapi: '3.0.3',
+  info: { title: 'T', version: '1.0.0' },
+  components: {
+    schemas: {
+      Pet: { type: 'object', required: ['id'], properties: {
+        id: { type: 'integer' }, name: { type: 'string' }, status: { type: 'string', enum: ['available', 'sold'] } } },
+    },
+  },
+  paths: {
+    '/pets': {
+      get: { operationId: 'list', parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }],
+        responses: { 200: { description: 'ok', content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } } },
+      post: { operationId: 'create',
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } },
+        responses: { 201: { description: 'made' } } },
+    },
+    '/legacy': { get: { operationId: 'legacy', responses: { 200: { description: 'ok' } } } },
+  },
+};
+
+function v2(): any {
+  const d = structuredClone(v1) as any;
+  d.info.version = '2.0.0';
+  delete d.paths['/legacy'];                                            // breaking: path removed
+  d.paths['/pets'].get.parameters.push({ name: 'cursor', in: 'query', required: true, schema: { type: 'string' } }); // breaking
+  d.paths['/pets'].delete = { operationId: 'wipe', responses: { 204: { description: 'gone' } } };                    // additive
+  d.components.schemas.Pet.required.push('name');                       // breaking for the request body
+  d.components.schemas.Pet.properties.tag = { type: 'string' };         // additive
+  return d;
+}
+
+test('diff: classifies breaking vs compatible changes', () => {
+  const r = diffSpecs(v1, v2());
+  const kinds = r.changes.map((c) => c.kind);
+  assert.ok(kinds.includes('path-removed'));
+  assert.ok(kinds.includes('param-added-required'));
+  assert.ok(kinds.includes('operation-added'));
+  assert.equal(r.versions.before, '1.0.0');
+  assert.equal(r.versions.after, '2.0.0');
+  assert.ok(r.breaking >= 2 && r.nonBreaking >= 2);
+  // the additive ones must not be flagged
+  assert.equal(r.changes.find((c) => c.kind === 'operation-added')!.breaking, false);
+  assert.equal(r.changes.find((c) => c.kind === 'path-removed')!.breaking, true);
+});
+
+test('diff: direction decides – requests and responses break differently', () => {
+  const before = {
+    openapi: '3.0.3', info: { title: 'T', version: '1' },
+    paths: { '/x': { post: {
+      requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { a: { type: 'string' }, s: { type: 'string', enum: ['x', 'y'] } } } } } },
+      responses: { 200: { description: 'ok', content: { 'application/json': { schema: { type: 'object', properties: { b: { type: 'string' }, t: { type: 'string', enum: ['p'] } } } } } } },
+    } } },
+  };
+  const after = structuredClone(before) as any;
+  after.paths['/x'].requestBody = undefined;
+  const req = after.paths['/x'].post.requestBody.content['application/json'].schema;
+  req.required = ['a'];                      // request: newly required → breaking
+  req.properties.s.enum = ['x'];             // request: enum narrowed → breaking
+  const res = after.paths['/x'].post.responses[200].content['application/json'].schema;
+  delete res.properties.b;                   // response: property removed → breaking
+  res.properties.t.enum = ['p', 'q'];        // response: enum widened → breaking
+  const r = diffSpecs(before, after);
+  const byKind = (k: string) => r.changes.filter((c) => c.kind === k);
+  assert.equal(byKind('property-added-required')[0]?.breaking, true);
+  assert.equal(byKind('enum-value-removed')[0]?.breaking, true);   // request side
+  assert.equal(byKind('property-removed')[0]?.breaking, true);     // response side
+  assert.equal(byKind('enum-value-added')[0]?.breaking, true);     // response side
+});
+
+test('diff: identical documents produce no changes', () => {
+  const r = diffSpecs(v1, structuredClone(v1));
+  assert.deepEqual(r.changes, []);
+  assert.equal(r.breaking, 0);
 });
