@@ -1,7 +1,7 @@
 {
   "name": "@ludin/express",
-  "version": "0.2.0",
-  "description": "Express adapter for ludin \u2013 Swagger UI with login, accounts, IP allowlist and a themeable UI.",
+  "version": "0.3.0",
+  "description": "Express adapter for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
