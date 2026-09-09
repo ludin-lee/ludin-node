@@ -232,6 +232,29 @@ function CodeSamples({ specName, op }: { specName: string; op: Operation }) {
 }
 
 // ----------------------------------------------------------------- Try it out
+interface TryDraft {
+  values: Record<string, string>;
+  bodyText: string;
+  ct: string;
+  extra: Array<[string, string]>;
+}
+
+interface HistoryEntry extends TryDraft {
+  status: number;
+  ms: number;
+  at: number;
+}
+
+const draftKey = (spec: string, op: Operation) => `ludin.try:${spec}:${op.method} ${op.path}`;
+const historyKey = (spec: string, op: Operation) => `ludin.history:${spec}:${op.method} ${op.path}`;
+
+function loadJson<T>(key: string): T | null {
+  try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; }
+}
+function saveJson(key: string, v: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* ignore */ }
+}
+
 function TryIt({
   doc,
   op,
@@ -251,7 +274,10 @@ function TryIt({
 }) {
   // The base URL is picked once, in the top bar, and applies to every operation.
   const server = globalServer ?? serverUrls(doc)[0];
+  // Inputs survive navigation: the last draft for this operation wins over spec examples.
+  const draft = loadJson<TryDraft>(draftKey(specName, op));
   const [values, setValues] = useState<Record<string, string>>(() => {
+    if (draft?.values) return draft.values;
     const v: Record<string, string> = {};
     for (const p of op.parameters) {
       const ex = p.example ?? p.schema?.example ?? p.schema?.default;
@@ -259,8 +285,9 @@ function TryIt({
     }
     return v;
   });
-  const [ct, setCt] = useState(contentTypes[0] ?? 'application/json');
+  const [ct, setCt] = useState(draft?.ct ?? contentTypes[0] ?? 'application/json');
   const [bodyText, setBodyText] = useState(() => {
+    if (draft?.bodyText !== undefined && draft.bodyText !== '') return draft.bodyText;
     const body = op.op.requestBody ? deref(doc, op.op.requestBody) : null;
     const media = body?.content?.[contentTypes[0]];
     if (!media) return '';
@@ -268,7 +295,19 @@ function TryIt({
     return ex === undefined ? '' : typeof ex === 'string' ? ex : JSON.stringify(ex, null, 2);
   });
   const [auth, setAuth] = useState<Record<string, string>>(() => loadAuth());
-  const [extra, setExtra] = useState<Array<[string, string]>>([]);
+  const [extra, setExtra] = useState<Array<[string, string]>>(draft?.extra ?? []);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => loadJson<HistoryEntry[]>(historyKey(specName, op)) ?? []);
+
+  useEffect(() => {
+    saveJson(draftKey(specName, op), { values, bodyText, ct, extra } satisfies TryDraft);
+  }, [values, bodyText, ct, extra]);
+
+  function restore(h: HistoryEntry) {
+    setValues(h.values);
+    setBodyText(h.bodyText);
+    setCt(h.ct);
+    setExtra(h.extra);
+  }
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<TryResult | null>(null);
   const [tab, setTab] = useState<'body' | 'headers' | 'curl'>('body');
@@ -320,6 +359,10 @@ function TryIt({
       });
       setResult(r);
       setTab('body');
+      const entry: HistoryEntry = { values, bodyText, ct, extra, status: r.status, ms: r.ms, at: Date.now() };
+      const next = [entry, ...history].slice(0, 20);
+      setHistory(next);
+      saveJson(historyKey(specName, op), next);
     } catch (e: any) {
       setResult({ status: 0, ms: 0, error: e.message });
     } finally {
@@ -434,6 +477,20 @@ function TryIt({
         </div>
         {!canTry && <div class="notice info" style="margin-top:10px">{t('roleCannotTry')}</div>}
 
+        {history.length > 0 && (
+          <details class="try-history">
+            <summary>{t('history')} <span class="count">{history.length}</span></summary>
+            {history.map((h) => (
+              <button class="try-history-item" title={t('historyRestore')} onClick={() => restore(h)}>
+                <span class={`status-pill s${String(h.status)[0] || '0'}`}>{h.status || 'ERR'}</span>
+                <span class="mono" style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  {Object.values(h.values).join(' · ') || h.bodyText.slice(0, 40) || '—'}
+                </span>
+                <span style="margin-left:auto;color:var(--text-3);font-size:11px">{new Date(h.at).toLocaleTimeString()}</span>
+              </button>
+            ))}
+          </details>
+        )}
         {result && (
           <div>
             <div class="result-h">
