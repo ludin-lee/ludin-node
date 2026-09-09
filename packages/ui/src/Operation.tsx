@@ -6,7 +6,7 @@ import { buildUrl, deref, exampleFor, securityRequirements, serverUrls, toCurl, 
 import { Schema } from './Schema';
 import { t } from './i18n';
 
-export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Operation; canTry: boolean; specName: string }) {
+export function OperationView({ doc, op, canTry, specName, server }: { doc: Doc; op: Operation; canTry: boolean; specName: string; server?: string }) {
   const body = op.op.requestBody ? deref(doc, op.op.requestBody) : null;
   const contentTypes = Object.keys(body?.content ?? {});
   const responses = Object.entries<any>(op.op.responses ?? {});
@@ -119,7 +119,7 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
         </div>
 
         <div class="sticky">
-          <TryIt doc={doc} op={op} canTry={canTry} specName={specName} contentTypes={contentTypes} security={security} />
+          <TryIt doc={doc} op={op} canTry={canTry} specName={specName} contentTypes={contentTypes} security={security} server={server} />
         </div>
       </div>
     </div>
@@ -239,6 +239,7 @@ function TryIt({
   specName,
   contentTypes,
   security,
+  server: globalServer,
 }: {
   doc: Doc;
   op: Operation;
@@ -246,9 +247,10 @@ function TryIt({
   specName: string;
   contentTypes: string[];
   security: Array<{ name: string; scheme: any }>;
+  server?: string;
 }) {
-  const servers = serverUrls(doc);
-  const [server, setServer] = useState(servers[0]);
+  // The base URL is picked once, in the top bar, and applies to every operation.
+  const server = globalServer ?? serverUrls(doc)[0];
   const [values, setValues] = useState<Record<string, string>>(() => {
     const v: Record<string, string> = {};
     for (const p of op.parameters) {
@@ -344,16 +346,6 @@ function TryIt({
         {!canTry && <span class="tag">{t('readOnlyRole')}</span>}
       </div>
       <div class="card-b">
-        {servers.length > 1 && (
-          <div class="field">
-            <label>{t('serverField')}</label>
-            <select value={server} onChange={(e) => setServer((e.target as HTMLSelectElement).value)}>
-              {servers.map((s) => (
-                <option value={s}>{s || '(relative)'}</option>
-              ))}
-            </select>
-          </div>
-        )}
         {security.map((s) => (
           <div class="field">
             <label>

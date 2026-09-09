@@ -115,14 +115,6 @@ export function Overview({
             <div class="l">{t('schemas')}</div>
           </div>
         </div>
-        {doc.servers?.length > 0 && (
-          <div class="card">
-            <div class="card-b">
-              <div class="v" style="font-size:14px;font-family:var(--mono);word-break:break-all">{doc.servers[0].url}</div>
-              <div class="l">{t('server')}{doc.servers.length > 1 ? ` (+${doc.servers.length - 1})` : ''}</div>
-            </div>
-          </div>
-        )}
         {health.card}
       </div>
       {health.issues}
