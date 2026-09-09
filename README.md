@@ -18,7 +18,8 @@
 - ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
 - ✅ **Response validation** – every *Try it out* response is checked against the documented schema
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
-- 🎨 **Beautiful UI** – 65 KB total (21 KB gzip), light/dark, your logo and brand colors, custom CSS
+- 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS
+- 🌍 **9 languages** – the UI ships in English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português and Русский; auto-detected, switchable in the menu, or forced with `theme.language`
 - ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
 ## Quick start (Express)
@@ -145,7 +146,7 @@ interface LudinOptions {
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
-  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
+  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }
 ```
