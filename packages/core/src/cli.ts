@@ -25,19 +25,21 @@ async function main() {
   console.log(`ludin – commands:
   ludin hash [password]        Print a $scrypt$ hash to use in auth.users[].password / env
   ludin lint <spec> [options]  Check an OpenAPI document and print a health score
-      --min <n>   Exit 1 when the score is below n
-      --json      Machine-readable output`);
+      --min <n>          Exit 1 when the score is below n
+      --ignore <rules>   Comma-separated rule names to skip (e.g. param-description,op-tags)
+      --json             Machine-readable output`);
 }
 
 async function lint(args: string[]) {
   const file = args.find((a) => !a.startsWith('--'));
   if (!file) {
-    console.error('Usage: ludin lint <spec.json|spec.yaml> [--min <score>] [--json]');
+    console.error('Usage: ludin lint <spec.json|spec.yaml> [--min <score>] [--ignore <rules>] [--json]');
     process.exit(1);
   }
   const min = Number(args[args.indexOf('--min') + 1] ?? NaN);
+  const ignore = args.includes('--ignore') ? (args[args.indexOf('--ignore') + 1] ?? '').split(',').filter(Boolean) : undefined;
   const doc = parseSpecText(await readFile(file, 'utf8'), file);
-  const result = lintSpec(doc);
+  const result = lintSpec(doc, { ignore });
 
   if (args.includes('--json')) {
     console.log(JSON.stringify(result, null, 2));

@@ -146,6 +146,7 @@ interface LudinOptions {
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
+  lint?: { ignore?: string[] };     // rules the health score should skip, e.g. ['param-description']
   theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }

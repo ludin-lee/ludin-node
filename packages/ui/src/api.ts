@@ -69,7 +69,7 @@ export interface LintInfo {
   checks: number;
   passed: number;
   counts: { error: number; warn: number; info: number };
-  issues: Array<{ rule: string; severity: 'error' | 'warn' | 'info'; path: string; message: string }>;
+  issues: Array<{ rule: string; severity: 'error' | 'warn' | 'info'; path: string; message: string; params?: Record<string, string> }>;
 }
 
 export interface AdminUser {

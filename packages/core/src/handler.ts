@@ -129,7 +129,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       authEnabled,
       theme: options.theme ?? {},
       readme: readme ? { label: readme.label, url: `${basePath === '/' ? '' : basePath}/readme` } : null,
-      version: '0.3.0',
+      version: '0.3.2',
     };
     const page = UI_HTML.replace(
       '<!--LUDIN_CONFIG-->',
@@ -231,7 +231,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
         require(ctx, 'docs:read');
         requireMethod(ctx, 'GET');
         const { name, doc } = await visibleSpec(ctx);
-        const result = lintSpec(doc);
+        const result = lintSpec(doc, options.lint);
         return json(200, { spec: name, ...result, issues: result.issues.slice(0, 200) });
       }
       case '/api/admin':
