@@ -20,6 +20,7 @@
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
 - 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS
 - 🌍 **9 languages** – the UI ships in English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português and Русский; auto-detected, switchable in the menu, or forced with `theme.language`
+- 🔗 **Expiring share links** – hand a partner a read-only link that stops working on its own; never admin, IP rules still apply
 - ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
 ## Quick start (Express)
@@ -147,6 +148,7 @@ interface LudinOptions {
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };     // rules the health score should skip, e.g. ['param-description']
+  share?: { enabled?: boolean; maxTtl?: '30d' };   // expiring share links (opt-in)
   theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }

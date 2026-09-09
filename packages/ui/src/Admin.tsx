@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { api, type AdminInfo } from './api';
+import { api, type AdminInfo, type Me } from './api';
 import { t } from './i18n';
 
 /**
@@ -7,7 +7,96 @@ import { t } from './i18n';
  * allowed, what each role can do. All of it comes from the code that mounted
  * ludin, so this screen explains the configuration instead of editing it.
  */
-export function Admin() {
+/**
+ * Mint an expiring share link. What the link may do is decided server-side and
+ * sealed into the token; this form only asks. Admin-capable roles are not
+ * offered, because the core refuses them anyway.
+ */
+function ShareCard({ roles }: { roles: AdminInfo['roles'] }) {
+  const [specs, setSpecs] = useState<string[]>([]);
+  const [role, setRole] = useState('viewer');
+  const [ttl, setTtl] = useState('3d');
+  const [spec, setSpec] = useState('');
+  const [canTry, setCanTry] = useState(false);
+  const [label, setLabel] = useState('');
+  const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.specs().then((r) => setSpecs(r.specs.map((s) => s.name))).catch(() => setSpecs([]));
+  }, []);
+
+  const shareable = roles.filter((r) => !r.permissions.some((p) => p.startsWith('admin:')));
+
+  async function create() {
+    setErr(null);
+    setLink(null);
+    try {
+      const r = await api.createShare({ role, ttl, canTry, spec: spec || undefined, label: label || undefined });
+      setLink({ url: r.url, expiresAt: r.expiresAt });
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  }
+
+  return (
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-h">{t('shareLink')}</div>
+      <div class="card-b">
+        <div class="notice info" style="margin-bottom:12px">{t('shareNotice')}</div>
+        <div class="share-form">
+          <label>
+            {t('role')}
+            <select value={role} onChange={(e) => setRole((e.target as HTMLSelectElement).value)}>
+              {shareable.map((r) => <option value={r.name}>{r.name}</option>)}
+            </select>
+          </label>
+          <label>
+            {t('shareExpires')}
+            <select value={ttl} onChange={(e) => setTtl((e.target as HTMLSelectElement).value)}>
+              {['1d', '3d', '7d', '30d'].map((v) => <option value={v}>{v}</option>)}
+            </select>
+          </label>
+          {specs.length > 1 && (
+            <label>
+              {t('shareSpec')}
+              <select value={spec} onChange={(e) => setSpec((e.target as HTMLSelectElement).value)}>
+                <option value="">{t('shareAllSpecs')}</option>
+                {specs.map((n) => <option value={n}>{n}</option>)}
+              </select>
+            </label>
+          )}
+          <label>
+            {t('shareLabel')}
+            <input placeholder="Acme Inc." value={label} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} />
+          </label>
+        </div>
+        <label class="auto-capture" style="margin-top:10px">
+          <input type="checkbox" checked={canTry} onChange={() => setCanTry(!canTry)} />
+          {t('shareCanTry')}
+        </label>
+        <div class="row2" style="margin-top:10px">
+          <button class="btn btn-primary" onClick={create}>{t('shareCreate')}</button>
+        </div>
+        {err && <div class="notice err" style="margin-top:10px">{err}</div>}
+        {link && (
+          <div class="notice ok" style="margin-top:10px">
+            <div class="mono" style="word-break:break-all;font-size:11.5px">{link.url}</div>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+              <button class="btn btn-sm" onClick={() => { navigator.clipboard?.writeText(link.url); setCopied(true); setTimeout(() => setCopied(false), 1400); }}>
+                {copied ? t('copied') : t('copy')}
+              </button>
+              <span style="font-size:12px;color:var(--text-2)">{t('shareExpiresAt', { at: new Date(link.expiresAt).toLocaleString() })}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function Admin({ me }: { me?: Me }) {
   const [info, setInfo] = useState<AdminInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -132,6 +221,8 @@ export function Admin() {
             </table>
           </div>
         </div>
+
+        {me?.shareEnabled && <ShareCard roles={info.roles} />}
 
         <div class="card" style="grid-column:1/-1">
           <div class="card-h">{t('readmePage')}</div>

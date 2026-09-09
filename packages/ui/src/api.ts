@@ -38,6 +38,9 @@ export interface Me {
   permissions: string[];
   /** Present when a readme page is configured and visible to this role. */
   readme: { label: string } | null;
+  /** Set when the viewer arrived through a share link. */
+  share: { canTry: boolean; expiresAt: string } | null;
+  shareEnabled?: boolean;
   authEnabled: boolean;
 }
 
@@ -121,4 +124,6 @@ export const api = {
     `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,
 
   admin: () => call<AdminInfo>('/admin'),
+  createShare: (body: { role: string; ttl?: string; spec?: string; canTry?: boolean; label?: string }) =>
+    send<{ url: string; expiresAt: string; role: string; canTry: boolean; spec: string | null }>('POST', '/share', body),
 };

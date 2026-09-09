@@ -157,6 +157,28 @@ Four features that make the reference something a reader can rely on. All the he
 - **Response validation for Try it out** — every proxied JSON response is compared with the documented schema for its status code (exact code, `2XX` class, then `default`), and the result rides along in the `/api/try` response (`validation`). Checks: type, required, enum, nullable, format (date-time, date, email, uuid, uri), oneOf/anyOf. A deliberate minimal validator of our own — the zero-dependency rule (§7) — that reports drift rather than certifying conformance. Hidden operations come back `checked: false`, leaking nothing.
 - **`ludin lint` + health score** — `npx ludin lint spec.yaml [--min 80] [--json]` checks the document (missing summaries, operationIds, descriptions, untagged operations, bodies and responses without schemas, no 2xx, no servers) and prints a health score: the percentage of checks passing, stable across spec sizes. The same result is served at `GET /api/lint` on the filtered document, and the overview screen shows it as a scorecard with the issue list a click away. Rules a team deliberately does not follow can be skipped — `lint: { ignore: ['param-description'] }` in the options, or `--ignore` on the CLI — so the score and the CI gate reflect only the rules that matter.
 
+### 3.10 Expiring share links (v0.4)
+
+Hand a partner a link that opens the documentation for three days and then stops working — without creating an account for them.
+
+```ts
+ludin({ spec: './openapi.yaml', share: { enabled: true, maxTtl: '30d' }, auth: { ... } })
+```
+
+An admin mints one from the administration screen (or `POST /api/share`), choosing the role, the lifetime, optionally a single spec, and whether *Try it out* is allowed.
+
+**A link is an identity, not a bypass.** It resolves *inside* the pipeline (§4.4), after the IP check and before the role check, so:
+
+- the **IP allowlist still applies** — a partner outside it still cannot get in; widen the allowlist deliberately if that is the intent
+- `visibility` still filters the document for the link's role
+- the link **can never reach the admin surface**, and an admin-capable role is refused when the link is minted *and* re-checked on every request
+- *Try it out* is **off unless the link was created with it on** — a share link reads
+- a link may be **locked to one spec**, and then the other specs are not even listed
+
+The token is signed in its own HMAC namespace, so a share token can never be presented as a session cookie, nor a session as a share. On first use it moves from the URL into an HttpOnly cookie, so it stops travelling in referrers, history and screenshots.
+
+**The honest limitation**: the grant is stateless, because there is no store to keep it in (§6). A single link therefore cannot be revoked — rotating the session secret invalidates all of them at once. Creation is recorded as a `share.created` audit event, and every request made through a link is attributed to `share:<label>`.
+
 ---
 
 ## 4. Architecture
@@ -231,6 +253,7 @@ Everything goes through the same pipeline (§4.4). No route bypasses it.
 | `GET /api/samples` | Code samples for one operation, from the filtered document (`docs:read`) |
 | `GET /api/search-index` | ⌘K index: operations + schema field names, filtered (`docs:read`) |
 | `GET /api/lint` | Documentation health score for the filtered document (`docs:read`) |
+| `POST /api/share` | Mint an expiring share link (`admin:read`) |
 | `GET /api/admin` | The current configuration (`admin:read`, read-only) |
 
 Mutating requests require the `X-Requested-With: ludin` header (CSRF protection).
@@ -259,6 +282,7 @@ interface LudinOptions {
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
+  share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;
@@ -295,6 +319,6 @@ Two constraints run across the whole roadmap:
 - Whether `readme.path` should also accept a Markdown (`.md`) file (HTML only today)
 - Default for recording Try-it-out request/response bodies in the audit log (off recommended)
 - Where the baseline snapshot for a spec diff comes from: a file path / URL passed in the config vs a `.ludin/` directory the core writes itself
-- How a share link passes the request pipeline: treated exactly like a session (the token carries role and scope, the IP check still applies) vs a separate route — the latter breaks the §4.4 invariant, so we lean against it
+- ~~How a share link passes the request pipeline~~ → resolved as an identity inside the pipeline, never a separate route (2026-09-09)
 - Authentication for the MCP endpoint: a service account / API key header vs reusing share-link tokens
 - Whether to bring store mode back: hold until demand for comments and read receipts actually accumulates vs ship it as a separate opt-in package
