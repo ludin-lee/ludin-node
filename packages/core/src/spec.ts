@@ -51,6 +51,11 @@ export class SpecLoader {
   }
 }
 
+/** Serialise a document back to YAML (for the download button). */
+export function toYaml(doc: OpenApiDoc): string {
+  return YAML.stringify(doc);
+}
+
 export function parseSpecText(text: string, hint = ''): OpenApiDoc {
   const trimmed = text.trimStart();
   let doc: OpenApiDoc;

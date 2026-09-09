@@ -1,20 +1,30 @@
 {
   "name": "ludin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Swagger UI, but with login, accounts, IP allowlist, audit log and a beautiful themeable UI. Framework-agnostic core.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": { "ludin": "./dist/cli.js" },
+  "bin": {
+    "ludin": "./dist/cli.js"
+  },
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "node --test --import tsx test/*.test.ts"
@@ -27,12 +37,38 @@
     "argon2": ">=0.40.0"
   },
   "peerDependenciesMeta": {
-    "bcryptjs": { "optional": true },
-    "argon2": { "optional": true }
+    "bcryptjs": {
+      "optional": true
+    },
+    "argon2": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0"
   },
-  "keywords": ["openapi", "swagger", "api-docs", "documentation", "auth", "ip-allowlist"]
+  "keywords": [
+    "openapi",
+    "swagger",
+    "api-docs",
+    "documentation",
+    "auth",
+    "ip-allowlist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ludin-lee/ludin-node.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ludin-lee/ludin-node#readme",
+  "bugs": {
+    "url": "https://github.com/ludin-lee/ludin-node/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

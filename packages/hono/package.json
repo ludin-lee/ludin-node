@@ -1,0 +1,55 @@
+{
+  "name": "@ludin/hono",
+  "version": "0.2.0",
+  "description": "Hono handler for ludin \u2013 OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
+    "test": "node --test --import tsx test/*.test.ts"
+  },
+  "dependencies": {
+    "ludin": "workspace:*"
+  },
+  "peerDependencies": {
+    "hono": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "hono": "^4.6.0",
+    "tsx": "^4.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ludin-lee/ludin-node.git",
+    "directory": "packages/hono"
+  },
+  "homepage": "https://github.com/ludin-lee/ludin-node#readme",
+  "bugs": {
+    "url": "https://github.com/ludin-lee/ludin-node/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

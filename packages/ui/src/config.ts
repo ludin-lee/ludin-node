@@ -1,6 +1,7 @@
 export interface Theme {
   title?: string;
   logo?: string;
+  logoDark?: string;
   favicon?: string;
   primary?: string;
   accent?: string;
@@ -17,7 +18,8 @@ export interface Boot {
   basePath: string;
   authEnabled: boolean;
   theme: Theme;
-  readonly: boolean;
+  /** The configured HTML page, if any – label for the button, url for the frame. */
+  readme?: { label: string; url: string } | null;
   version?: string;
 }
 

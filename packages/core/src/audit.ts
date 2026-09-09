@@ -1,11 +1,11 @@
-import type { AuditEvent, AuditOptions, LudinStore } from './types.js';
+import type { AuditEvent, AuditOptions } from './types.js';
 
 const DEFAULT_MASK = ['authorization', 'cookie', 'set-cookie', 'x-api-key', 'password', 'token', 'secret'];
 
 export class Auditor {
   private readonly mask: Set<string>;
   private readonly sink: AuditOptions['sink'];
-  constructor(private readonly opts: AuditOptions = {}, private readonly store?: LudinStore) {
+  constructor(private readonly opts: AuditOptions = {}) {
     this.mask = new Set([...DEFAULT_MASK, ...(opts.mask ?? [])].map((s) => s.toLowerCase()));
     this.sink = opts.sink === undefined ? defaultSink : opts.sink;
   }
@@ -27,7 +27,6 @@ export class Auditor {
     const full: AuditEvent = { ts: new Date().toISOString(), ...event };
     try {
       if (this.sink) await this.sink(full);
-      if (this.store?.audit) await this.store.audit.append(full);
     } catch (err) {
       console.error('[ludin] audit sink failed', err);
     }

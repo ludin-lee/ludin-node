@@ -28,12 +28,16 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+const send = <T>(method: string, path: string, body?: unknown) =>
+  call<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
 export interface Me {
   authenticated: boolean;
   anonymous: boolean;
   user: { email: string; name?: string; role: string } | null;
   permissions: string[];
-  readonly: boolean;
+  /** Present when a readme page is configured and visible to this role. */
+  readme: { label: string } | null;
   authEnabled: boolean;
 }
 
@@ -46,27 +50,75 @@ export interface TryResult {
   body?: string | null;
   bodyBase64?: string | null;
   error?: string;
+  /** Comparison against the documented response schema (core-side). */
+  validation?: { checked: boolean; reason?: string; issues?: Array<{ path: string; message: string }> };
+}
+
+export interface SearchEntry {
+  method: string;
+  path: string;
+  operationId?: string;
+  summary?: string;
+  tags: string[];
+  fields: string[];
+}
+
+export interface LintInfo {
+  spec: string;
+  score: number;
+  checks: number;
+  passed: number;
+  counts: { error: number; warn: number; info: number };
+  issues: Array<{ rule: string; severity: 'error' | 'warn' | 'info'; path: string; message: string }>;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  ipAllowlist: string[];
+  hashed: boolean;
 }
 
 export interface AdminInfo {
-  readonly: boolean;
-  users: Array<{ email: string; name?: string; role: string; status: string; ipAllowlist: string[]; hashed: boolean }>;
-  ipRules: Array<{ id: string; cidr: string; note?: string }>;
+  users: AdminUser[];
+  /** Accounts are checked by your own `auth.verify`, so the list may be empty. */
+  customVerifier: boolean;
+  ipRules: string[];
   ipPolicy: 'and' | 'or';
   allowLocalhost: boolean;
   trustProxy: boolean | number;
   roles: Array<{ name: string; permissions: string[] }>;
   visibility: Record<string, string[]>;
+  readme: { label: string; path: string; visibleTo: string[] } | null;
   audit: { sink: string };
 }
 
 export const api = {
   me: () => call<Me>('/me'),
-  login: (email: string, password: string) => call<Me>('/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  logout: () => call<{ ok: true }>('/logout', { method: 'POST' }),
+  login: (email: string, password: string) => send<Me>('POST', '/login', { email, password }),
+  logout: () => send<{ ok: true }>('POST', '/logout'),
   specs: () => call<{ specs: Array<{ name: string }> }>('/specs'),
   spec: (name: string) => call<any>(`/spec?name=${encodeURIComponent(name)}`),
-  try: (payload: { method: string; url: string; headers: Record<string, string>; body: string | null; spec: string }) =>
-    call<TryResult>('/try', { method: 'POST', body: JSON.stringify(payload) }),
+  try: (payload: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body: string | null;
+    spec: string;
+    op?: { method: string; path: string };
+  }) => send<TryResult>('POST', '/try', payload),
+
+  samples: (spec: string, method: string, path: string) =>
+    call<{ request: { method: string; url: string }; samples: Record<string, string> }>(
+      `/samples?name=${encodeURIComponent(spec)}&method=${encodeURIComponent(method)}&path=${encodeURIComponent(path)}`,
+    ),
+  searchIndex: (spec: string) => call<{ index: SearchEntry[] }>(`/search-index?name=${encodeURIComponent(spec)}`),
+  lint: (spec: string) => call<LintInfo>(`/lint?name=${encodeURIComponent(spec)}`),
+
+  specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
+    `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,
+
   admin: () => call<AdminInfo>('/admin'),
 };

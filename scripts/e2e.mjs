@@ -27,6 +27,15 @@ await page.waitForSelector('.shell');
 await page.waitForSelector('.nav-item');
 await page.screenshot({ path: 'shots/02-overview.png' });
 
+// the configured readme page, framed and sandboxed
+await page.click('a[href="#/readme"]');
+await page.waitForSelector('iframe.readme-frame');
+const frame = page.frameLocator('iframe.readme-frame');
+await frame.locator('h1:has-text("Petstore API")').waitFor({ timeout: 5000 });
+await page.screenshot({ path: 'shots/03-readme.png' });
+await page.click('a[href="#/"] >> nth=0');
+await page.waitForSelector('.nav-item');
+
 const navText = await page.locator('.nav').innerText();
 if (navText.includes('/admin/reset')) throw new Error('developer should not see Admin tag');
 if (await page.locator('a[href="#/admin"]').count()) throw new Error('developer should not see Admin button');
@@ -38,7 +47,7 @@ await page.click('button:has-text("Send request")');
 await page.waitForSelector('.result-h');
 const status = await page.locator('.result-h .status-pill').innerText();
 if (status !== '200') throw new Error(`expected 200 from try-it-out, got ${status}`);
-await page.screenshot({ path: 'shots/03-operation.png' });
+await page.screenshot({ path: 'shots/04-operation.png' });
 
 // POST with body
 await page.click('a.nav-item:has-text("/pets") >> nth=1');
@@ -54,11 +63,11 @@ await page.click('.seg button:has-text("dark")');
 await page.keyboard.press('Escape');
 await page.click('a.nav-item:has-text("/secure/me")');
 await page.waitForSelector('.try');
-await page.screenshot({ path: 'shots/04-dark.png' });
+await page.screenshot({ path: 'shots/05-dark.png' });
 
 // sign out → login again as admin → admin page
 await page.click('.menu > button');
-await page.click('.menu-pop button:has-text("Sign out")');
+await page.click('.menu-pop button:text-is("Sign out")');
 await page.waitForSelector('form.login');
 await page.fill('#email', 'admin@example.com');
 await page.fill('#pw', 'admin');
@@ -70,11 +79,11 @@ await page.waitForSelector('table');
 await page.click('.menu > button');
 await page.click('.seg button:has-text("light")');
 await page.keyboard.press('Escape');
-await page.screenshot({ path: 'shots/05-admin.png' });
+await page.screenshot({ path: 'shots/06-admin.png' });
 
 // viewer cannot try
 await page.click('.menu > button');
-await page.click('.menu-pop button:has-text("Sign out")');
+await page.click('.menu-pop button:text-is("Sign out")');
 await page.fill('#email', 'viewer@example.com');
 await page.fill('#pw', 'viewer');
 await page.click('button.btn-primary');
@@ -85,7 +94,7 @@ if (!(await page.locator('button:has-text("Send request")').isDisabled())) throw
 
 // mobile
 await page.setViewportSize({ width: 390, height: 800 });
-await page.screenshot({ path: 'shots/06-mobile.png' });
+await page.screenshot({ path: 'shots/07-mobile.png' });
 
 await browser.close();
 if (errors.length) {

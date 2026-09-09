@@ -1,0 +1,28 @@
+# deps
+node_modules/
+
+# build outputs
+dist/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+
+# e2e screenshots (scripts/e2e.mjs)
+shots/
+
+# example store-mode DB
+ludin.db
+*.db
+
+# logs
+*.log
+
+# OS
+.DS_Store
+
+# Claude Code — 개인 로컬 오버라이드만 무시 (settings.json / rules / commands / skills는 커밋 대상)
+.claude/settings.local.json
+.claude/*
+CLAUDE.md

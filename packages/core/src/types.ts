@@ -4,13 +4,7 @@
 
 export type Role = 'viewer' | 'developer' | 'admin' | (string & {});
 
-export type Permission =
-  | 'docs:read'
-  | 'docs:try'
-  | 'audit:read'
-  | 'audit:read:self'
-  | 'admin:read'
-  | 'admin:write';
+export type Permission = 'docs:read' | 'docs:try' | 'admin:read';
 
 export interface BoundUser {
   email: string;
@@ -36,8 +30,10 @@ export type SpecSource =
 
 export interface ThemeOptions {
   title?: string;
-  logo?: string; // URL or data URI
-  favicon?: string;
+  logo?: string; // URL or data URI, shown top-left
+  /** Alternate logo for dark mode (a light-background logo vanishes otherwise). */
+  logoDark?: string;
+  favicon?: string; // URL or data URI
   primary?: string; // any CSS color
   accent?: string;
   font?: string; // CSS font-family
@@ -49,6 +45,24 @@ export interface ThemeOptions {
   loginDescription?: string;
 }
 
+/**
+ * An HTML page of your own – a README, an onboarding guide, release notes –
+ * served next to the reference under the same access rules.
+ *
+ * The file is served as-is into a sandboxed frame, so its own CSS and scripts
+ * work while staying walled off from the docs UI and its session cookie.
+ */
+export interface ReadmeOptions {
+  /** `false` hides the button without removing the config. Default true. */
+  enabled?: boolean;
+  /** Path to an `.html` file, absolute or relative to `process.cwd()`. */
+  path: string;
+  /** Button label in the top bar. Default 'README'. */
+  label?: string;
+  /** Roles that may open it. Default: everyone who can read the docs. */
+  visibleTo?: Role[];
+}
+
 export interface AuditEvent {
   ts: string;
   type:
@@ -56,6 +70,8 @@ export interface AuditEvent {
     | 'login.failure'
     | 'logout'
     | 'docs.view'
+    | 'docs.export'
+    | 'docs.readme'
     | 'docs.try'
     | 'ip.blocked'
     | 'auth.denied';
@@ -74,7 +90,7 @@ export interface AuditOptions {
 }
 
 export interface AuthOptions {
-  /** Static users (binding mode). Ignored for auth when `verify` is set. */
+  /** Static users. Ignored for auth when `verify` is set. */
   users?: BoundUser[];
   /** Custom verifier – hook into your own auth system. */
   verify?: (email: string, password: string) => Promise<AuthUser | null> | AuthUser | null;
@@ -112,51 +128,23 @@ export interface LudinOptions {
   roles?: Record<string, Permission[]>;
   /** Tag or path visibility: `{ 'tag:Internal': ['admin'], '/admin/*': ['admin'] }`. */
   visibility?: Record<string, Role[]>;
+  /** Your own HTML page, shown behind a button in the top bar. */
+  readme?: string | ReadmeOptions;
   audit?: AuditOptions;
   theme?: ThemeOptions;
   /** Mount path (used for cookie path and asset links). Adapters usually set this. */
   basePath?: string;
   /** Extra hosts Try-it-out proxy may call, besides the spec's `servers`. */
   allowedTargets?: string[];
-  store?: LudinStore;
 }
 
-// ---------------------------------------------------------------------------
-// Store adapter (v0.2 will ship DB implementations; v0.1 uses the read-only
-// binding store internally).
-// ---------------------------------------------------------------------------
-
+/** The identity behind a session, however it was established. */
 export interface AuthUser {
   id: string;
   email: string;
   role: Role;
   name?: string;
   ipAllowlist?: string[];
-}
-
-export interface StoredUser extends AuthUser {
-  passwordHash: string;
-  status: 'active' | 'invited' | 'disabled';
-}
-
-export interface IpRule {
-  id: string;
-  cidr: string;
-  note?: string;
-}
-
-export interface LudinStore {
-  readonly?: boolean;
-  users: {
-    findByEmail(email: string): Promise<StoredUser | null>;
-    list(): Promise<StoredUser[]>;
-  };
-  ipRules: {
-    list(): Promise<IpRule[]>;
-  };
-  audit?: {
-    append(event: AuditEvent): Promise<void>;
-  };
 }
 
 // ---------------------------------------------------------------------------
