@@ -220,7 +220,7 @@ textarea {
 /* ------------------------------------------------------------------ layout */
 .shell {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr);
   grid-template-rows: 56px minmax(0, 1fr);
   height: 100%;
 }
@@ -279,6 +279,7 @@ textarea {
 }
 
 .sidebar {
+  position: relative;
   border-right: 1px solid var(--border);
   background: var(--bg-elev);
   display: flex;
@@ -286,8 +287,37 @@ textarea {
   min-height: 0;
 }
 .sidebar .search {
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px 12px 12px;
   border-bottom: 1px solid var(--border);
+}
+.sidebar .search input {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar .search .btn {
+  flex: 0 0 auto;
+  padding: 0 7px;
+}
+.nav-label-toggle.on {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 15;
+  touch-action: none;
+}
+.sidebar-resize:hover,
+.sidebar-resize:active {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
 }
 .sidebar .search input {
   background: var(--bg-sunken);
@@ -443,6 +473,9 @@ textarea {
     position: fixed;
     inset: 56px 0 0 0;
     z-index: 20;
+  }
+  .sidebar-resize {
+    display: none;
   }
   .menu-btn {
     display: inline-flex !important;
@@ -1148,3 +1181,16 @@ kbd {
   padding: 7px 12px; border-top: 1px solid var(--border);
   color: var(--text-3); font-size: 11.5px;
 }
+
+/* ----- collapsible JSON tree ----- */
+.json-tree { line-height: 1.55; }
+.j-key { color: var(--primary); }
+.j-str { color: var(--post); }
+.j-num { color: var(--put); }
+.j-bool { color: var(--patch); }
+.j-null { color: var(--text-3); }
+.j-punct { color: var(--text-2); }
+.j-hint { color: var(--text-3); font-style: italic; }
+.j-fold { cursor: pointer; border-radius: 4px; }
+.j-fold:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.j-arrow { display: inline-block; width: 13px; color: var(--text-3); font-size: 10px; user-select: none; }

@@ -1,9 +1,9 @@
-import { createLudin } from 'ludin';
-import type { LudinHandler, LudinOptions, LudinRequest } from 'ludin';
+import { createLudin } from '@ludin-docs/core';
+import type { LudinHandler, LudinOptions, LudinRequest } from '@ludin-docs/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-export type { LudinOptions, LudinHandler } from 'ludin';
-export { hashPassword } from 'ludin';
+export type { LudinOptions, LudinHandler } from '@ludin-docs/core';
+export { hashPassword } from '@ludin-docs/core';
 
 export interface LudinPlugin {
   (fastify: FastifyInstance, opts: unknown): Promise<void>;

@@ -14,7 +14,7 @@ This is the framework-agnostic core: a `Request → Response` handler plus the a
 | plain `node:http` | [`@ludin-docs/node`](https://www.npmjs.com/package/@ludin-docs/node) |
 
 ```bash
-npm i ludin @ludin-docs/express
+npm i @ludin-docs/core @ludin-docs/express
 ```
 
 ```ts

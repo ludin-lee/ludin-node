@@ -86,7 +86,7 @@ importers:
 
   packages/express:
     dependencies:
-      ludin:
+      '@ludin-docs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -102,7 +102,7 @@ importers:
 
   packages/fastify:
     dependencies:
-      ludin:
+      '@ludin-docs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -118,7 +118,7 @@ importers:
 
   packages/hono:
     dependencies:
-      ludin:
+      '@ludin-docs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -134,7 +134,7 @@ importers:
 
   packages/koa:
     dependencies:
-      ludin:
+      '@ludin-docs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -153,12 +153,12 @@ importers:
 
   packages/nestjs:
     dependencies:
+      '@ludin-docs/core':
+        specifier: workspace:*
+        version: link:../core
       '@ludin-docs/express':
         specifier: workspace:*
         version: link:../express
-      ludin:
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       '@nestjs/common':
         specifier: ^10.4.0
@@ -178,7 +178,7 @@ importers:
 
   packages/node:
     dependencies:
-      ludin:
+      '@ludin-docs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

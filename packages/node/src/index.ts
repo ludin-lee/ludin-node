@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { createLudin } from 'ludin';
-import type { LudinHandler, LudinOptions, LudinRequest } from 'ludin';
+import { createLudin } from '@ludin-docs/core';
+import type { LudinHandler, LudinOptions, LudinRequest } from '@ludin-docs/core';
 
-export type { LudinOptions, LudinHandler } from 'ludin';
-export { hashPassword } from 'ludin';
+export type { LudinOptions, LudinHandler } from '@ludin-docs/core';
+export { hashPassword } from '@ludin-docs/core';
 
 export interface LudinNodeHandler {
   /** Connect-style: serves the docs, or calls `next()` / 404s for other URLs. */

@@ -3,7 +3,7 @@
 Nestjs module for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin-docs/express @ludin-docs/nestjs
+npm i @ludin-docs/core @ludin-docs/express @ludin-docs/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Markdown } from './Markdown';
+import { JsonView, parseForTree } from './Json';
 import { api, type TryResult } from './api';
 import { buildUrl, deref, exampleFor, securityRequirements, serverUrls, toCurl, type Doc, type Operation } from './openapi';
 import { Schema } from './Schema';
+import { t } from './i18n';
 
 export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Operation; canTry: boolean; specName: string }) {
   const body = op.op.requestBody ? deref(doc, op.op.requestBody) : null;
@@ -15,7 +17,7 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
     <div>
       <div class="op-head">
         <h1>
-          {op.summary} {op.deprecated && <span class="deprecated-badge">deprecated</span>}
+          {op.summary} {op.deprecated && <span class="deprecated-badge">{t('deprecated')}</span>}
         </h1>
         <div class="op-path">
           <span class={`method lg ${op.method}`}>{op.method}</span>
@@ -37,7 +39,7 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
           {(['path', 'query', 'header', 'cookie'] as const).map((kind) =>
             byIn(kind).length ? (
               <>
-                <h3 class="sec">{kind} parameters</h3>
+                <h3 class="sec">{t(kind === 'path' ? 'paramsPath' : kind === 'query' ? 'paramsQuery' : kind === 'header' ? 'paramsHeader' : 'paramsCookie')}</h3>
                 <div class="card">
                   <div class="card-b" style="padding:4px 14px">
                     {byIn(kind).map((p) => (
@@ -66,7 +68,7 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
           {body && (
             <>
               <h3 class="sec">
-                Request body {body.required && <span class="tag req">required</span>}
+                {t('requestBody')} {body.required && <span class="tag req">{t('required')}</span>}
               </h3>
               <div class="card">
                 <div class="card-b">
@@ -81,10 +83,10 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
             </>
           )}
 
-          <h3 class="sec">Responses</h3>
+          <h3 class="sec">{t('responses')}</h3>
           <div class="card">
             <div class="card-b" style="padding:4px 14px">
-              {responses.length === 0 && <div class="param">No responses documented.</div>}
+              {responses.length === 0 && <div class="param">{t('noResponses')}</div>}
               {responses.map(([code, r]) => {
                 const res = deref(doc, r);
                 const content = res.content ?? {};
@@ -98,7 +100,7 @@ export function OperationView({ doc, op, canTry, specName }: { doc: Doc; op: Ope
                       <div class="desc">{res.description}</div>
                       {res.headers && (
                         <div style="margin-top:6px;font-size:12px;color:var(--text-3)">
-                          headers: {Object.keys(res.headers).join(', ')}
+                          {t('responseHeaders')}: {Object.keys(res.headers).join(', ')}
                         </div>
                       )}
                       {has && (
@@ -149,10 +151,10 @@ function BodyTabs({ doc, content }: { doc: Doc; content: Record<string, any> }) 
     <div>
       <div class="tabs">
         <button class={view === 'schema' ? 'active' : ''} onClick={() => setView('schema')}>
-          Schema
+          {t('schemaTab')}
         </button>
         <button class={view === 'example' ? 'active' : ''} onClick={() => setView('example')}>
-          Example
+          {t('exampleTab')}
         </button>
         <span class="spacer" />
         {types.length > 1 ? (
@@ -168,7 +170,9 @@ function BodyTabs({ doc, content }: { doc: Doc; content: Record<string, any> }) 
         )}
       </div>
       {view === 'schema' ? (
-        media.schema ? <Schema doc={doc} schema={media.schema} open /> : <div style="color:var(--text-3)">No schema</div>
+        media.schema ? <Schema doc={doc} schema={media.schema} open /> : <div style="color:var(--text-3)">{t('noSchema')}</div>
+      ) : typeof example === 'object' && example !== null ? (
+        <JsonView value={example} />
       ) : (
         <pre>{typeof example === 'string' ? example : JSON.stringify(example, null, 2)}</pre>
       )}
@@ -210,7 +214,7 @@ function CodeSamples({ specName, op }: { specName: string; op: Operation }) {
   if (err) return null; // samples are a convenience – never block the reference
   return (
     <>
-      <h3 class="sec">Code samples</h3>
+      <h3 class="sec">{t('codeSamples')}</h3>
       <div class="card">
         <div class="card-b">
           <div class="tabs">
@@ -218,7 +222,7 @@ function CodeSamples({ specName, op }: { specName: string; op: Operation }) {
               <button class={lang === key ? 'active' : ''} onClick={() => pick(key)}>{label}</button>
             ))}
             <span class="spacer" />
-            <button class="btn btn-sm btn-ghost" style="align-self:center" onClick={copy}>{copied ? '✓ copied' : 'Copy'}</button>
+            <button class="btn btn-sm btn-ghost" style="align-self:center" onClick={copy}>{copied ? t('copied') : t('copy')}</button>
           </div>
           {samples ? <pre>{samples[lang]}</pre> : <div style="padding:14px;text-align:center"><span class="spin" /></div>}
         </div>
@@ -335,14 +339,14 @@ function TryIt({
   return (
     <div class="card try">
       <div class="card-h">
-        Try it out
+        {t('tryItOut')}
         <span class="spacer" />
-        {!canTry && <span class="tag">read-only role</span>}
+        {!canTry && <span class="tag">{t('readOnlyRole')}</span>}
       </div>
       <div class="card-b">
         {servers.length > 1 && (
           <div class="field">
-            <label>server</label>
+            <label>{t('serverField')}</label>
             <select value={server} onChange={(e) => setServer((e.target as HTMLSelectElement).value)}>
               {servers.map((s) => (
                 <option value={s}>{s || '(relative)'}</option>
@@ -393,7 +397,7 @@ function TryIt({
         {op.op.requestBody && (
           <div class="field">
             <label>
-              body{' '}
+              {t('bodyField')}{' '}
               {contentTypes.length > 1 ? (
                 <select style="width:auto;display:inline-block;padding:1px 6px;font-size:11px" value={ct} onChange={(e) => setCt((e.target as HTMLSelectElement).value)}>
                   {contentTypes.map((t) => (
@@ -409,9 +413,9 @@ function TryIt({
         )}
         <div class="field">
           <label>
-            extra headers{' '}
+            {t('extraHeaders')}{' '}
             <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setExtra([...extra, ['', '']])}>
-              + add
+              {t('addHeader')}
             </button>
           </label>
           {extra.map(([k, v], i) => (
@@ -428,15 +432,15 @@ function TryIt({
           <b style="color:var(--text)">{op.method.toUpperCase()}</b> {finalUrl}
         </div>
         <div class="row2" style="margin-top:10px">
-          <button class="btn btn-primary" disabled={!canTry || busy || missing.length > 0} onClick={send} title={missing.length ? `Missing: ${missing.map((m) => m.name).join(', ')}` : ''}>
-            {busy ? <span class="spin" style="border-top-color:#fff" /> : 'Send request'}
+          <button class="btn btn-primary" disabled={!canTry || busy || missing.length > 0} onClick={send} title={missing.length ? t('missingFields', { names: missing.map((m) => m.name).join(', ') }) : ''}>
+            {busy ? <span class="spin" style="border-top-color:#fff" /> : t('sendRequest')}
           </button>
           <button class="btn" onClick={() => navigator.clipboard?.writeText(toCurl(op.method, finalUrl, headers, hasBody ? bodyText : null))}>
-            Copy cURL
+            {t('copyCurl')}
           </button>
-          {missing.length > 0 && <span style="font-size:12px;color:var(--text-3)">fill {missing.map((m) => m.name).join(', ')}</span>}
+          {missing.length > 0 && <span style="font-size:12px;color:var(--text-3)">{t('fillFields', { names: missing.map((m) => m.name).join(', ') })}</span>}
         </div>
-        {!canTry && <div class="notice info" style="margin-top:10px">Your role can view docs but not execute requests.</div>}
+        {!canTry && <div class="notice info" style="margin-top:10px">{t('roleCannotTry')}</div>}
 
         {result && (
           <div>
@@ -453,16 +457,18 @@ function TryIt({
               <>
                 <div class="tabs">
                   <button class={tab === 'body' ? 'active' : ''} onClick={() => setTab('body')}>
-                    Body
+                    {t('bodyTab')}
                   </button>
                   <button class={tab === 'headers' ? 'active' : ''} onClick={() => setTab('headers')}>
-                    Headers
+                    {t('headersTab')}
                   </button>
                   <button class={tab === 'curl' ? 'active' : ''} onClick={() => setTab('curl')}>
                     cURL
                   </button>
                 </div>
-                {tab === 'body' && <pre>{prettyBody(result)}</pre>}
+                {tab === 'body' && (parseForTree(result.body) != null
+                  ? <JsonView value={parseForTree(result.body)} />
+                  : <pre>{prettyBody(result)}</pre>)}
                 {tab === 'headers' && (
                   <pre>
                     {Object.entries(result.headers ?? {})
@@ -484,16 +490,16 @@ function TryIt({
 function ValidationBadge({ v }: { v: TryResult['validation'] }) {
   if (!v?.checked) return null;
   if (!v.issues?.length) {
-    return <div class="notice ok" style="margin-top:8px">✓ Response matches the documented schema</div>;
+    return <div class="notice ok" style="margin-top:8px">{t('validationOk')}</div>;
   }
   return (
     <div class="notice warn" style="margin-top:8px">
-      <b>Response differs from the documented schema</b>
+      <b>{t('validationDiff')}</b>
       <ul style="margin:6px 0 0;padding-left:18px">
         {v.issues.slice(0, 8).map((i) => (
           <li><code>{i.path}</code> — {i.message}</li>
         ))}
-        {v.issues.length > 8 && <li>…and {v.issues.length - 8} more</li>}
+        {v.issues.length > 8 && <li>{t('andMore', { n: v.issues.length - 8 })}</li>}
       </ul>
     </div>
   );

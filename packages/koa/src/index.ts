@@ -1,9 +1,9 @@
 import type { IncomingMessage } from 'node:http';
-import { createLudin } from 'ludin';
-import type { LudinHandler, LudinOptions, LudinRequest } from 'ludin';
+import { createLudin } from '@ludin-docs/core';
+import type { LudinHandler, LudinOptions, LudinRequest } from '@ludin-docs/core';
 
-export type { LudinOptions, LudinHandler } from 'ludin';
-export { hashPassword } from 'ludin';
+export type { LudinOptions, LudinHandler } from '@ludin-docs/core';
+export { hashPassword } from '@ludin-docs/core';
 
 /** Structural subset of Koa's context – keeps this package dependency-free. */
 export interface KoaContextLike {

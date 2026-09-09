@@ -18,13 +18,14 @@
 - ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
 - ✅ **Response validation** – every *Try it out* response is checked against the documented schema
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
-- 🎨 **Beautiful UI** – 65 KB total (21 KB gzip), light/dark, your logo and brand colors, custom CSS
+- 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS
+- 🌍 **9 languages** – the UI ships in English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português and Русский; auto-detected, switchable in the menu, or forced with `theme.language`
 - ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
 ## Quick start (Express)
 
 ```bash
-npm i ludin @ludin-docs/express
+npm i @ludin-docs/core @ludin-docs/express
 ```
 
 ```ts
@@ -54,7 +55,7 @@ Passwords may be plain text (quick start) or hashes — generate one with `npx l
 ## Quick start (NestJS)
 
 ```bash
-npm i ludin @ludin-docs/express @ludin-docs/nestjs
+npm i @ludin-docs/core @ludin-docs/express @ludin-docs/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:
@@ -75,19 +76,19 @@ Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth
 Same options everywhere — only the mount differs. Every adapter is a thin wrapper around the same core handler, so login, IP rules, visibility filtering and the audit log behave identically.
 
 ```ts
-// Fastify — npm i ludin @ludin-docs/fastify
+// Fastify — npm i @ludin-docs/core @ludin-docs/fastify
 import { ludin } from '@ludin-docs/fastify';
 await app.register(ludin({ spec, auth }), { prefix: '/docs' });
 
-// Koa — npm i ludin @ludin-docs/koa
+// Koa — npm i @ludin-docs/core @ludin-docs/koa
 import { ludin } from '@ludin-docs/koa';
 app.use(ludin({ spec, auth, basePath: '/docs' }));   // other paths fall through to next()
 
-// Hono — npm i ludin @ludin-docs/hono
+// Hono — npm i @ludin-docs/core @ludin-docs/hono
 import { mountLudin } from '@ludin-docs/hono';
 mountLudin(app, { spec, auth, basePath: '/docs' });
 
-// plain node:http / connect / polka — npm i ludin @ludin-docs/node
+// plain node:http / connect / polka — npm i @ludin-docs/core @ludin-docs/node
 import { ludin } from '@ludin-docs/node';
 const docs = ludin({ spec, auth, basePath: '/docs' });
 http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);
@@ -145,7 +146,7 @@ interface LudinOptions {
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
-  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
+  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }
 ```

@@ -3,10 +3,13 @@ import { api, ApiError, type Me } from './api';
 import { Login } from './Login';
 import { Docs } from './Docs';
 import { Brand } from './Brand';
+import { onLangChange, t } from './i18n';
 
 export function App() {
   const [me, setMe] = useState<Me | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [, bump] = useState(0);
+  useEffect(() => onLangChange(() => bump((x) => x + 1)), []);
 
   const refresh = () =>
     api
@@ -23,7 +26,7 @@ export function App() {
       <div class="login-wrap">
         <div class="login">
           <Brand />
-          <h1>Unavailable</h1>
+          <h1>{t('unavailable')}</h1>
           <p>{error}</p>
         </div>
       </div>
