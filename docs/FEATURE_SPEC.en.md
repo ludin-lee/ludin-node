@@ -123,7 +123,8 @@ Customization is deliberately capped at **theme level**. Swapping components out
 - Options: logo (URL or data URI, with a separate `logoDark` for dark mode), favicon, service name (platform title), primary/accent colors, font, radius/density, light/dark/system mode
 - Custom CSS injection (`customCss`), custom login-screen copy and background
 - Sidebar group order and collapsed state
-- Faster first load than existing documentation UIs (a single 65 KB HTML bundle, 21 KB gzipped)
+- Faster first load than existing documentation UIs (a single ~110 KB HTML bundle, 36 KB gzipped)
+- The UI chrome ships in 9 languages (English default; Korean, Japanese, Chinese, Spanish, French, German, Portuguese, Russian): auto-detected from the browser, switchable in the user menu (persisted per viewer), or forced with `theme.language`. Spec content (summaries, descriptions) is never translated — it belongs to the document
 - Responsive (docs are readable on mobile)
 
 ### 3.7 Readme page (your HTML, directly)

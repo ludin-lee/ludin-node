@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { api, type SearchEntry } from './api';
+import { t } from './i18n';
 
 /**
  * ⌘K command palette. The index (operations + schema field names) comes from
@@ -73,7 +74,7 @@ export function Palette({ specName, onClose }: { specName: string; onClose: () =
       <div class="palette" role="dialog" aria-label="Search">
         <input
           ref={inputRef}
-          placeholder="Search paths, operations, schema fields…"
+          placeholder={t('palettePlaceholder')}
           value={q}
           onInput={(e) => setQ((e.target as HTMLInputElement).value)}
           onKeyDown={onKey}
@@ -81,17 +82,17 @@ export function Palette({ specName, onClose }: { specName: string; onClose: () =
         <div class="palette-list" ref={listRef}>
           {err && <div class="notice err">{err}</div>}
           {!index && !err && <div class="palette-empty"><span class="spin" /></div>}
-          {index && hits.length === 0 && <div class="palette-empty">No matches</div>}
+          {index && hits.length === 0 && <div class="palette-empty">{t('noMatches')}</div>}
           {hits.map((h, i) => (
             <button class={`palette-item ${i === sel ? 'active' : ''}`} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
               <span class={`method ${h.entry.method.toLowerCase()}`}>{h.entry.method}</span>
               <span class="path">{h.entry.path}</span>
-              {h.field && <span class="tag" title="matched a schema field">field: {h.field}</span>}
+              {h.field && <span class="tag" title={t('fieldMatch')}>{t('fieldBadge')}: {h.field}</span>}
               <span class="palette-summary">{h.entry.summary ?? ''}</span>
             </button>
           ))}
         </div>
-        <div class="palette-foot">↑↓ navigate · ↵ open · esc close</div>
+        <div class="palette-foot">{t('paletteHints')}</div>
       </div>
     </div>
   );

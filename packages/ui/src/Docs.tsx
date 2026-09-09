@@ -8,6 +8,7 @@ import { Admin } from './Admin';
 import { Readme } from './Readme';
 import { Overview } from './Overview';
 import { Palette } from './Palette';
+import { LOCALES, getLang, setLang, t } from './i18n';
 
 type Route =
   | { kind: 'overview' }
@@ -173,14 +174,14 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
         )}
         {can('admin:read') && (
           <a href="#/admin" class={`btn btn-sm ${route.kind === 'admin' ? 'btn-primary' : 'btn-ghost'}`}>
-            Admin
+            {t('admin')}
           </a>
         )}
         <div class="menu">
           <button class="btn btn-sm" onClick={() => setMenu(!menu)}>
             <span class="chip" style="padding:0 6px;border:0;background:none">
               <span class="dot" />
-              {me.anonymous ? 'IP access' : me.user?.name || me.user?.email}
+              {me.anonymous ? t('ipAccess') : me.user?.name || me.user?.email}
             </span>
             <span class="role-badge">{me.user?.role}</span>
           </button>
@@ -193,16 +194,24 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 </span>
               </div>
               <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
-                Theme
+                {t('theme')}
                 <span class="seg">
                   {(['light', 'system', 'dark'] as Mode[]).map((m) => (
                     <button class={mode === m ? 'on' : ''} onClick={() => changeMode(m)}>
-                      {m}
+                      {m === 'light' ? t('themeLight') : m === 'dark' ? t('themeDark') : t('themeSystem')}
                     </button>
                   ))}
                 </span>
               </div>
-              {me.authEnabled && !me.anonymous && <button onClick={onLogout}>Sign out</button>}
+              <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
+                {t('language')}
+                <select style="width:auto;padding:3px 8px;font-size:12px" value={getLang()} onChange={(e) => setLang((e.target as HTMLSelectElement).value)}>
+                  {LOCALES.map(([code, name]) => (
+                    <option value={code}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              {me.authEnabled && !me.anonymous && <button onClick={onLogout}>{t('signOut')}</button>}
             </div>
           )}
         </div>
@@ -210,14 +219,14 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
       <aside class={`sidebar ${navOpen ? 'open' : ''}`}>
         <div class="search">
-          <input id="search" placeholder="Filter endpoints…" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
-          <button class="btn btn-sm btn-ghost" onClick={() => setPalette(true)} title="Search everything, including schema fields">
+          <input id="search" placeholder={t('filterEndpoints')} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+          <button class="btn btn-sm btn-ghost" onClick={() => setPalette(true)} title={t('searchTooltip')}>
             ⌘K
           </button>
           <button
             class={`btn btn-sm btn-ghost nav-label-toggle ${navLabel === 'path' ? 'on' : ''}`}
             onClick={toggleNavLabel}
-            title={navLabel === 'path' ? 'Show operation summaries in the sidebar' : 'Show URLs in the sidebar'}
+            title={navLabel === 'path' ? t('showSummaries') : t('showUrls')}
           >
             URL
           </button>
@@ -253,7 +262,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           {doc && Object.keys(schemas).length > 0 && (
             <details class="nav-group">
               <summary>
-                <span class="caret">▸</span>Schemas<span class="count">{Object.keys(schemas).length}</span>
+                <span class="caret">▸</span>{t('schemasGroup')}<span class="count">{Object.keys(schemas).length}</span>
               </summary>
               {Object.keys(schemas)
                 .filter((n) => !q || n.toLowerCase().includes(q.toLowerCase()))
@@ -267,7 +276,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </nav>
         <div class="sidebar-foot">
           <span>
-            {allOps.length} endpoints
+            {t('endpointsCount', { n: allOps.length })}
           </span>
           <span>ludin {boot.version ?? ''}</span>
         </div>
@@ -286,8 +295,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} />
             ) : doc ? (
               <div class="empty">
-                <h2>Endpoint not found</h2>
-                <p>It may be hidden for your role or removed from the spec.</p>
+                <h2>{t('endpointNotFound')}</h2>
+                <p>{t('endpointNotFoundHint')}</p>
               </div>
             ) : null
           ) : route.kind === 'schema' ? (

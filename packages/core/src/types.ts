@@ -41,6 +41,8 @@ export interface ThemeOptions {
   density?: 'compact' | 'comfortable';
   mode?: 'light' | 'dark' | 'system';
   customCss?: string;
+  /** UI language: 'en' | 'ko' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'pt' | 'ru'. Default: the browser language, falling back to English. Viewers can switch in the menu. */
+  language?: string;
   loginHeadline?: string;
   loginDescription?: string;
 }
