@@ -157,6 +157,22 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 - **Try it out 응답 검증** — 프록시를 거친 모든 JSON 응답을 해당 상태 코드의 문서화된 스키마(정확한 코드 → `2XX` 클래스 → `default` 순)와 대조하고, 결과를 `/api/try` 응답의 `validation` 필드로 함께 내려준다. 검사 항목: type, required, enum, nullable, format(date-time·date·email·uuid·uri), oneOf/anyOf. 의도적으로 자체 최소 검증기다 — 의존성 0 원칙(§7) — 적합성을 보증하는 게 아니라 어긋남을 보고한다. 숨겨진 오퍼레이션은 `checked: false`로 돌아와 아무것도 누설하지 않는다.
 - **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다. 팀이 의도적으로 안 지키는 규칙은 옵션 `lint: { ignore: ['param-description'] }` 또는 CLI `--ignore`로 끌 수 있다 — 점수와 CI 게이트가 실제로 중요한 규칙만 반영하도록.
 
+### 3.9 변경을 따라갈 수 있게 (v0.4)
+
+이전 버전 문서를 가리키게 하면 무엇이 바뀌었는지, 그리고 더 중요하게 **무엇이 호출자를 깨뜨리는지** 알려준다.
+
+```ts
+ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
+// 스펙별 지정: { name: 'Partner', spec: current, baseline: previous }
+```
+
+- `GET /api/diff`가 분류된 변경 목록을 반환하고, 기준 문서가 설정되면 상단 바에 **변경 사항** 버튼이 나타난다
+- `ludin diff before.yaml after.yaml [--fail-on-breaking] [--json]`으로 CI에서 같은 검사를 돌린다
+- **방향이 파괴 여부를 결정한다.** 요청은 호출자가 보내던 것을 계속 받아줘야 하고, 응답은 호출자가 읽던 것을 계속 줘야 한다. 그래서 필수 속성 추가는 요청을 깨고, 속성 삭제는 응답을 깨며, enum 축소는 요청을, 확장은 응답을 깬다
+- 호환성 파괴로 분류: 경로·오퍼레이션 삭제, 필수 파라미터·속성 추가, 파라미터 필수화, 타입 변경, 2xx 응답 삭제, 요청 바디 필수화, 인증 요구 추가
+- 양쪽 문서 모두 역할 필터를 거치므로, diff가 볼 수 없는 오퍼레이션을 드러내는 일은 없다
+- 기준 문서는 주입받을 뿐 루딘이 쓰지 않는다 — "영구 상태를 두지 않는다"는 제약(§6) 유지
+
 ---
 
 ## 4. 아키텍처
@@ -231,6 +247,7 @@ interface BoundUser {
 | `GET /api/samples` | 오퍼레이션 하나의 코드 샘플, 필터링된 문서 기준 (`docs:read`) |
 | `GET /api/search-index` | ⌘K 인덱스: 오퍼레이션 + 스키마 필드명, 필터링됨 (`docs:read`) |
 | `GET /api/lint` | 필터링된 문서의 건강 점수 (`docs:read`) |
+| `GET /api/diff` | 기준 문서 대비 분류된 변경 목록 (`docs:read`) |
 | `GET /api/admin` | 현재 설정 조회 (`admin:read`, 읽기 전용) |
 
 상태 변경 요청은 `X-Requested-With: ludin` 헤더를 요구한다(CSRF 방어).
@@ -259,6 +276,7 @@ interface LudinOptions {
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
+  diff?: { baseline?: SpecSource };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;
