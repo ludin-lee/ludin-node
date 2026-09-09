@@ -1,7 +1,7 @@
 import { Inject, Module, RequestMethod } from '@nestjs/common';
 import type { DynamicModule, INestApplication, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { ludin as ludinExpress } from '@ludin/express';
-import type { LudinMiddleware } from '@ludin/express';
+import { ludin as ludinExpress } from '@ludin-docs/express';
+import type { LudinMiddleware } from '@ludin-docs/express';
 import type { LudinOptions } from 'ludin';
 
 export type { LudinOptions } from 'ludin';

@@ -1,6 +1,6 @@
 {
   "name": "ludin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Swagger UI, but with login, accounts, IP allowlist, audit log and a beautiful themeable UI. Framework-agnostic core.",
   "license": "MIT",
   "type": "module",

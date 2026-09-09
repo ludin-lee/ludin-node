@@ -6,15 +6,15 @@ This is the framework-agnostic core: a `Request → Response` handler plus the a
 
 | Framework | Package |
 |---|---|
-| Express | [`@ludin/express`](https://www.npmjs.com/package/@ludin/express) |
-| Fastify | [`@ludin/fastify`](https://www.npmjs.com/package/@ludin/fastify) |
-| Koa | [`@ludin/koa`](https://www.npmjs.com/package/@ludin/koa) |
-| Hono | [`@ludin/hono`](https://www.npmjs.com/package/@ludin/hono) |
-| NestJS | [`@ludin/nestjs`](https://www.npmjs.com/package/@ludin/nestjs) |
-| plain `node:http` | [`@ludin/node`](https://www.npmjs.com/package/@ludin/node) |
+| Express | [`@ludin-docs/express`](https://www.npmjs.com/package/@ludin-docs/express) |
+| Fastify | [`@ludin-docs/fastify`](https://www.npmjs.com/package/@ludin-docs/fastify) |
+| Koa | [`@ludin-docs/koa`](https://www.npmjs.com/package/@ludin-docs/koa) |
+| Hono | [`@ludin-docs/hono`](https://www.npmjs.com/package/@ludin-docs/hono) |
+| NestJS | [`@ludin-docs/nestjs`](https://www.npmjs.com/package/@ludin-docs/nestjs) |
+| plain `node:http` | [`@ludin-docs/node`](https://www.npmjs.com/package/@ludin-docs/node) |
 
 ```bash
-npm i ludin @ludin/express
+npm i ludin @ludin-docs/express
 ```
 
 ```ts

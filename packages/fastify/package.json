@@ -1,7 +1,7 @@
 {
-  "name": "@ludin/fastify",
-  "version": "0.2.0",
-  "description": "Fastify plugin for ludin \u2013 OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
+  "name": "@ludin-docs/fastify",
+  "version": "0.3.0",
+  "description": "Fastify plugin for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",

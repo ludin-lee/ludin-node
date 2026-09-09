@@ -24,12 +24,12 @@
 ## Quick start (Express)
 
 ```bash
-npm i ludin @ludin/express
+npm i ludin @ludin-docs/express
 ```
 
 ```ts
 import express from 'express';
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-docs/express';
 
 const app = express();
 
@@ -54,13 +54,13 @@ Passwords may be plain text (quick start) or hashes — generate one with `npx l
 ## Quick start (NestJS)
 
 ```bash
-npm i ludin @ludin/express @ludin/nestjs
+npm i ludin @ludin-docs/express @ludin-docs/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:
 
 ```ts
-import { setupLudin } from '@ludin/nestjs';
+import { setupLudin } from '@ludin-docs/nestjs';
 
 const document = SwaggerModule.createDocument(app, config);
 setupLudin(app, '/docs', document, {
@@ -75,20 +75,20 @@ Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth
 Same options everywhere — only the mount differs. Every adapter is a thin wrapper around the same core handler, so login, IP rules, visibility filtering and the audit log behave identically.
 
 ```ts
-// Fastify — npm i ludin @ludin/fastify
-import { ludin } from '@ludin/fastify';
+// Fastify — npm i ludin @ludin-docs/fastify
+import { ludin } from '@ludin-docs/fastify';
 await app.register(ludin({ spec, auth }), { prefix: '/docs' });
 
-// Koa — npm i ludin @ludin/koa
-import { ludin } from '@ludin/koa';
+// Koa — npm i ludin @ludin-docs/koa
+import { ludin } from '@ludin-docs/koa';
 app.use(ludin({ spec, auth, basePath: '/docs' }));   // other paths fall through to next()
 
-// Hono — npm i ludin @ludin/hono
-import { mountLudin } from '@ludin/hono';
+// Hono — npm i ludin @ludin-docs/hono
+import { mountLudin } from '@ludin-docs/hono';
 mountLudin(app, { spec, auth, basePath: '/docs' });
 
-// plain node:http / connect / polka — npm i ludin @ludin/node
-import { ludin } from '@ludin/node';
+// plain node:http / connect / polka — npm i ludin @ludin-docs/node
+import { ludin } from '@ludin-docs/node';
 const docs = ludin({ spec, auth, basePath: '/docs' });
 http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);
 ```
@@ -181,12 +181,12 @@ Requests go through a server-side proxy (`POST /docs/api/try`) so that every cal
 
 ```
 packages/core      ludin – framework-agnostic handler, auth, IP, audit, embedded UI
-packages/express   @ludin/express
-packages/fastify   @ludin/fastify
-packages/koa       @ludin/koa
-packages/hono      @ludin/hono
-packages/node      @ludin/node   (plain node:http, connect, polka)
-packages/nestjs    @ludin/nestjs
+packages/express   @ludin-docs/express
+packages/fastify   @ludin-docs/fastify
+packages/koa       @ludin-docs/koa
+packages/hono      @ludin-docs/hono
+packages/node      @ludin-docs/node   (plain node:http, connect, polka)
+packages/nestjs    @ludin-docs/nestjs
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
 examples/nest      @nestjs/swagger demo on :3001
