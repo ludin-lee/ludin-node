@@ -46,6 +46,15 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
   const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
   const [sortMethod, setSortMethod] = useState(false);
+  const [pins, setPins] = useState<string[]>([]);
+  useEffect(() => {
+    try { setPins(JSON.parse(localStorage.getItem(`ludin.pins:${specName}`) ?? '[]')); } catch { setPins([]); }
+  }, [specName]);
+  function togglePin(id: string) {
+    const next = pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id];
+    setPins(next);
+    try { localStorage.setItem(`ludin.pins:${specName}`, JSON.stringify(next)); } catch { /* ignore */ }
+  }
   const [sideW, setSideW] = useState(() => {
     try {
       const n = parseInt(localStorage.getItem('ludin.sidebar-w') ?? '', 10);
@@ -165,6 +174,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     }));
   }, [filtered, sortMethod]);
 
+  const pinnedOps = useMemo(() => pins.map((id) => allOps.find((o) => o.id === id)).filter(Boolean) as Operation[], [pins, allOps]);
+
   const current: Operation | undefined = route.kind === 'op' ? allOps.find((o) => o.id === route.id) : undefined;
   const can = (p: string) => me.permissions.includes(p);
   const schemas = doc?.components?.schemas ?? {};
@@ -172,6 +183,29 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   function changeMode(m: Mode) {
     setMode(m);
     setModeState(m);
+  }
+
+  function navItem(o: Operation) {
+    const pinned = pins.includes(o.id);
+    return (
+      <a
+        href={`#/op/${encodeURIComponent(o.id)}`}
+        class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
+        title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
+      >
+        <span class={`method ${o.method}`}>{o.method}</span>
+        <span class="path">
+          {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
+        </span>
+        <span
+          class={`pin ${pinned ? 'on' : ''}`}
+          title={pinned ? t('unpin') : t('pin')}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(o.id); }}
+        >
+          {pinned ? '★' : '☆'}
+        </span>
+      </a>
+    );
   }
 
   return (
@@ -283,6 +317,15 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <span class="spin" />
             </div>
           )}
+          {pinnedOps.length > 0 && (
+            <details class="nav-group" open>
+              <summary>
+                <span class="caret">▸</span>★ {t('pinned')}
+                <span class="count">{pinnedOps.length}</span>
+              </summary>
+              {pinnedOps.map(navItem)}
+            </details>
+          )}
           {sorted.map((g) => (
             <details class="nav-group" open>
               <summary>
@@ -290,18 +333,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 {g.name}
                 <span class="count">{g.operations.length}</span>
               </summary>
-              {g.operations.map((o) => (
-                <a
-                  href={`#/op/${encodeURIComponent(o.id)}`}
-                  class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
-                  title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
-                >
-                  <span class={`method ${o.method}`}>{o.method}</span>
-                  <span class="path">
-                    {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
-                  </span>
-                </a>
-              ))}
+              {g.operations.map(navItem)}
             </details>
           ))}
           {doc && Object.keys(schemas).length > 0 && (
