@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { api, type Me } from './api';
 import { boot, getMode, setMode, type Mode } from './config';
-import { groupOperations, type Doc, type Operation, type TagGroup } from './openapi';
+import { groupOperations, serverUrls, type Doc, type Operation, type TagGroup } from './openapi';
 import { Brand } from './Brand';
 import { OperationView } from './Operation';
 import { Admin } from './Admin';
@@ -51,7 +51,21 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
       return n >= 220 && n <= 560 ? n : 300;
     } catch { return 300; }
   });
+  const [server, setServerState] = useState('');
   const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
+
+  const servers = useMemo(() => (doc ? serverUrls(doc) : []), [doc]);
+  useEffect(() => {
+    if (!servers.length) return;
+    let saved = '';
+    try { saved = localStorage.getItem(`ludin.server:${specName}`) ?? ''; } catch { /* ignore */ }
+    setServerState(servers.includes(saved) ? saved : servers[0]);
+  }, [servers, specName]);
+
+  function setServer(v: string) {
+    setServerState(v);
+    try { localStorage.setItem(`ludin.server:${specName}`, v); } catch { /* ignore */ }
+  }
 
   function toggleNavLabel() {
     setNavLabel(navLabel === 'summary' ? 'path' : 'summary');
@@ -163,6 +177,19 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <select style="width:auto" value={specName} onChange={(e) => setSpecName((e.target as HTMLSelectElement).value)}>
             {specs.map((s) => (
               <option value={s.name}>{s.name}</option>
+            ))}
+          </select>
+        )}
+        {servers.length > 1 && (
+          <select
+            class="server-select"
+            style="width:auto;max-width:260px;font-family:var(--mono);font-size:12px"
+            title={t('serverField')}
+            value={server}
+            onChange={(e) => setServer((e.target as HTMLSelectElement).value)}
+          >
+            {servers.map((u) => (
+              <option value={u}>{u || '(relative)'}</option>
             ))}
           </select>
         )}
@@ -292,7 +319,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <Admin />
           ) : route.kind === 'op' ? (
             doc && current ? (
-              <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} />
+              <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} server={server} />
             ) : doc ? (
               <div class="empty">
                 <h2>{t('endpointNotFound')}</h2>
