@@ -1226,3 +1226,10 @@ kbd {
   border-color: color-mix(in srgb, var(--err) 35%, transparent);
 }
 .chip.chip-breaking { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+
+/* ----- auth chaining ----- */
+.auto-capture {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px; font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.auto-capture input { width: auto; }
