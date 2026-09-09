@@ -1215,6 +1215,9 @@ kbd {
 }
 .try-history-item:hover { background: var(--bg-sunken); }
 
+/* ----- auth chaining · share link form -----
+   .auto-capture is defined once and reused by both checkboxes. */
+
 /* ----- changes view ----- */
 .chg-kind {
   display: inline-block; padding: 2px 8px; border-radius: 999px;
@@ -1232,4 +1235,6 @@ kbd {
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 10px; font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none;
 }
+.share-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.share-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
 .auto-capture input { width: auto; }

@@ -77,6 +77,7 @@ export interface AuditEvent {
     | 'docs.export'
     | 'docs.readme'
     | 'docs.try'
+    | 'share.created'
     | 'ip.blocked'
     | 'auth.denied';
   user?: { email: string; role: Role } | null;
@@ -137,6 +138,16 @@ export interface LudinOptions {
   audit?: AuditOptions;
   /** Lint tuning for /api/lint and the overview health score, e.g. { ignore: ['param-description'] }. */
   lint?: { ignore?: string[] };
+  /**
+   * Expiring share links. Off unless enabled: it adds a way in, so it is opt-in.
+   * A link is a signed grant that still walks the full pipeline — the IP
+   * allowlist, roles and `visibility` all apply, and it can never reach admin.
+   */
+  share?: {
+    enabled?: boolean;
+    /** Upper bound for a link's lifetime. Default '30d'. */
+    maxTtl?: string | number;
+  };
   /** Baseline document for the changes view, used for every spec without its own `baseline`. */
   diff?: { baseline?: SpecSource };
   theme?: ThemeOptions;

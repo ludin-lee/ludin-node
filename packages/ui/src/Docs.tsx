@@ -262,7 +262,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <button class="btn btn-sm" onClick={() => setMenu(!menu)}>
             <span class="chip" style="padding:0 6px;border:0;background:none">
               <span class="dot" />
-              {me.anonymous ? t('ipAccess') : me.user?.name || me.user?.email}
+              {me.share ? t('shareViewer') : me.anonymous ? t('ipAccess') : me.user?.name || me.user?.email}
             </span>
             <span class="role-badge">{me.user?.role}</span>
           </button>
@@ -377,7 +377,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           {route.kind === 'changes' ? (
             specName ? <Changes specName={specName} /> : null
           ) : route.kind === 'admin' && can('admin:read') ? (
-            <Admin />
+            <Admin me={me} />
           ) : route.kind === 'op' ? (
             doc && current ? (
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} server={server} />

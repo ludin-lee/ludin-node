@@ -172,6 +172,27 @@ ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
 - 호환성 파괴로 분류: 경로·오퍼레이션 삭제, 필수 파라미터·속성 추가, 파라미터 필수화, 타입 변경, 2xx 응답 삭제, 요청 바디 필수화, 인증 요구 추가
 - 양쪽 문서 모두 역할 필터를 거치므로, diff가 볼 수 없는 오퍼레이션을 드러내는 일은 없다
 - 기준 문서는 주입받을 뿐 루딘이 쓰지 않는다 — "영구 상태를 두지 않는다"는 제약(§6) 유지
+### 3.10 만료되는 공유 링크 (v0.4)
+
+파트너사에게 3일 뒤 자동으로 막히는 링크를 건넨다 — 계정을 만들어주지 않고도.
+
+```ts
+ludin({ spec: './openapi.yaml', share: { enabled: true, maxTtl: '30d' }, auth: { ... } })
+```
+
+관리자가 관리 화면(또는 `POST /api/share`)에서 역할, 유효 기간, 선택적으로 특정 스펙 하나, Try it out 허용 여부를 정해 발급한다.
+
+**링크는 우회로가 아니라 하나의 신원이다.** 파이프라인(§4.4) *안에서*, IP 검사 뒤 역할 검사 앞에 해석된다. 따라서:
+
+- **IP 화이트리스트가 그대로 적용된다** — 화이트리스트 밖의 파트너는 여전히 못 들어온다. 그게 목적이라면 화이트리스트를 의도적으로 넓혀야 한다
+- `visibility`가 링크의 역할 기준으로 문서를 계속 필터링한다
+- 링크는 **관리 화면에 절대 도달할 수 없다**. 관리 권한이 있는 역할은 발급 시점에 거부되고, 요청마다 다시 검사된다
+- Try it out은 **그렇게 만든 링크가 아니면 꺼져 있다** — 공유 링크는 읽는 용도다
+- 링크를 **스펙 하나에 묶을 수 있고**, 그러면 다른 스펙은 목록에도 뜨지 않는다
+
+토큰은 자체 HMAC 네임스페이스로 서명되어, 공유 토큰을 세션 쿠키로도, 세션을 공유 토큰으로도 쓸 수 없다. 첫 사용 시 URL에서 HttpOnly 쿠키로 옮겨가므로 리퍼러·기록·화면 공유에 계속 실려 다니지 않는다.
+
+**솔직한 한계**: 저장소를 두지 않기 때문에(§6) 이 권한은 무상태다. 따라서 개별 링크는 취소할 수 없고, 세션 시크릿을 교체하면 전부 한 번에 무효화된다. 발급은 `share.created` 감사 이벤트로 남고, 링크로 들어온 모든 요청은 `share:<라벨>`로 귀속된다.
 
 ---
 
@@ -248,6 +269,7 @@ interface BoundUser {
 | `GET /api/search-index` | ⌘K 인덱스: 오퍼레이션 + 스키마 필드명, 필터링됨 (`docs:read`) |
 | `GET /api/lint` | 필터링된 문서의 건강 점수 (`docs:read`) |
 | `GET /api/diff` | 기준 문서 대비 분류된 변경 목록 (`docs:read`) |
+| `POST /api/share` | 만료되는 공유 링크 발급 (`admin:read`) |
 | `GET /api/admin` | 현재 설정 조회 (`admin:read`, 읽기 전용) |
 
 상태 변경 요청은 `X-Requested-With: ludin` 헤더를 요구한다(CSRF 방어).
@@ -277,6 +299,7 @@ interface LudinOptions {
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
   diff?: { baseline?: SpecSource };
+  share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;
