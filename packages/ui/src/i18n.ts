@@ -77,6 +77,11 @@ const en = {
   copied: '✓ copied',
   history: 'History',
   historyRestore: 'Click to restore these inputs',
+  copyResponse: 'Copy response',
+  copyResponseHint: 'Copy the response body',
+  copyReport: 'Copy report',
+  copyReportHint: 'Copy endpoint, request and response as one report — credentials masked',
+
   tokenCaptured: 'Token from `{key}` is now sent as Authorization on later requests.',
   tokenFound: 'Found a token in `{key}`.',
   tokenUse: 'Use it',
@@ -205,6 +210,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: '헤더', schemaTab: '스키마', exampleTab: '예시', noSchema: '스키마 없음',
     codeSamples: '코드 샘플', copy: '복사', copied: '✓ 복사됨',
     history: '히스토리', historyRestore: '클릭하면 이 입력값으로 복원됩니다',
+    copyResponse: '응답 복사', copyResponseHint: '응답 바디를 복사합니다', copyReport: '리포트 복사', copyReportHint: '엔드포인트·요청·응답을 하나의 리포트로 복사합니다 — 자격 증명은 마스킹됩니다',
+
     tokenCaptured: '`{key}`에서 받은 토큰을 이후 요청의 Authorization으로 보냅니다.', tokenFound: '`{key}`에서 토큰을 찾았습니다.', tokenUse: '사용하기', tokenClear: '해제',
     autoCapture: '토큰 자동 수집', autoCaptureHint: '응답에서 찾은 토큰을 이후 모든 요청에 재사용합니다',
     tryItOut: '실행해 보기', readOnlyRole: '읽기 전용 역할', serverField: '서버', bodyField: '바디',
@@ -297,6 +304,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'ヘッダー', schemaTab: 'スキーマ', exampleTab: '例', noSchema: 'スキーマなし',
     codeSamples: 'コードサンプル', copy: 'コピー', copied: '✓ コピーしました',
     history: '履歴', historyRestore: 'クリックでこの入力内容を復元',
+    copyResponse: 'レスポンスをコピー', copyResponseHint: 'レスポンスボディをコピー', copyReport: 'レポートをコピー', copyReportHint: 'エンドポイント・リクエスト・レスポンスを1つのレポートとしてコピー（認証情報はマスク）',
+
     tokenCaptured: '`{key}` のトークンを以降のリクエストの Authorization に付与します。', tokenFound: '`{key}` にトークンが見つかりました。', tokenUse: '使う', tokenClear: '解除',
     autoCapture: 'トークン自動取得', autoCaptureHint: 'レスポンスで見つけたトークンを以降のリクエストで再利用します',
     tryItOut: '試してみる', readOnlyRole: '読み取り専用ロール', serverField: 'サーバー', bodyField: 'ボディ',
@@ -389,6 +398,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: '响应头', schemaTab: '模式', exampleTab: '示例', noSchema: '无模式',
     codeSamples: '代码示例', copy: '复制', copied: '✓ 已复制',
     history: '历史记录', historyRestore: '点击恢复这些输入',
+    copyResponse: '复制响应', copyResponseHint: '复制响应正文', copyReport: '复制报告', copyReportHint: '将端点、请求与响应复制为一份报告（凭据已脱敏）',
+
     tokenCaptured: '`{key}` 中的令牌将作为 Authorization 用于后续请求。', tokenFound: '在 `{key}` 中找到令牌。', tokenUse: '使用', tokenClear: '清除',
     autoCapture: '自动捕获令牌', autoCaptureHint: '将响应中找到的令牌复用到后续所有请求',
     tryItOut: '在线调试', readOnlyRole: '只读角色', serverField: '服务器', bodyField: '请求体',
@@ -481,6 +492,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'cabeceras', schemaTab: 'Esquema', exampleTab: 'Ejemplo', noSchema: 'Sin esquema',
     codeSamples: 'Ejemplos de código', copy: 'Copiar', copied: '✓ copiado',
     history: 'Historial', historyRestore: 'Haz clic para restaurar estas entradas',
+    copyResponse: 'Copiar respuesta', copyResponseHint: 'Copia el cuerpo de la respuesta', copyReport: 'Copiar informe', copyReportHint: 'Copia endpoint, petición y respuesta como un informe — credenciales enmascaradas',
+
     tokenCaptured: 'El token de `{key}` se enviará como Authorization en las siguientes peticiones.', tokenFound: 'Se encontró un token en `{key}`.', tokenUse: 'Usarlo', tokenClear: 'Limpiar',
     autoCapture: 'Capturar tokens automáticamente', autoCaptureHint: 'Reutiliza un token hallado en una respuesta en las peticiones siguientes',
     tryItOut: 'Probar', readOnlyRole: 'rol de solo lectura', serverField: 'servidor', bodyField: 'cuerpo',
@@ -573,6 +586,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'en-têtes', schemaTab: 'Schéma', exampleTab: 'Exemple', noSchema: 'Pas de schéma',
     codeSamples: 'Exemples de code', copy: 'Copier', copied: '✓ copié',
     history: 'Historique', historyRestore: 'Cliquez pour restaurer ces entrées',
+    copyResponse: 'Copier la réponse', copyResponseHint: 'Copier le corps de la réponse', copyReport: 'Copier le rapport', copyReportHint: 'Copier l’endpoint, la requête et la réponse en un rapport — identifiants masqués',
+
     tokenCaptured: 'Le token de `{key}` sera envoyé comme Authorization sur les requêtes suivantes.', tokenFound: 'Un token a été trouvé dans `{key}`.', tokenUse: 'L’utiliser', tokenClear: 'Effacer',
     autoCapture: 'Capture auto des tokens', autoCaptureHint: 'Réutilise un token trouvé dans une réponse pour les requêtes suivantes',
     tryItOut: 'Essayer', readOnlyRole: 'rôle en lecture seule', serverField: 'serveur', bodyField: 'corps',
@@ -665,6 +680,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'Header', schemaTab: 'Schema', exampleTab: 'Beispiel', noSchema: 'Kein Schema',
     codeSamples: 'Codebeispiele', copy: 'Kopieren', copied: '✓ kopiert',
     history: 'Verlauf', historyRestore: 'Klicken, um diese Eingaben wiederherzustellen',
+    copyResponse: 'Antwort kopieren', copyResponseHint: 'Antwort-Body kopieren', copyReport: 'Bericht kopieren', copyReportHint: 'Endpunkt, Anfrage und Antwort als Bericht kopieren — Zugangsdaten maskiert',
+
     tokenCaptured: 'Das Token aus `{key}` wird künftig als Authorization gesendet.', tokenFound: 'Token in `{key}` gefunden.', tokenUse: 'Verwenden', tokenClear: 'Löschen',
     autoCapture: 'Tokens automatisch übernehmen', autoCaptureHint: 'Ein in einer Antwort gefundenes Token für weitere Anfragen wiederverwenden',
     tryItOut: 'Ausprobieren', readOnlyRole: 'Nur-Lese-Rolle', serverField: 'Server', bodyField: 'Body',
@@ -757,6 +774,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'cabeçalhos', schemaTab: 'Esquema', exampleTab: 'Exemplo', noSchema: 'Sem esquema',
     codeSamples: 'Exemplos de código', copy: 'Copiar', copied: '✓ copiado',
     history: 'Histórico', historyRestore: 'Clique para restaurar estas entradas',
+    copyResponse: 'Copiar resposta', copyResponseHint: 'Copia o corpo da resposta', copyReport: 'Copiar relatório', copyReportHint: 'Copia endpoint, requisição e resposta num relatório — credenciais mascaradas',
+
     tokenCaptured: 'O token de `{key}` será enviado como Authorization nas próximas requisições.', tokenFound: 'Token encontrado em `{key}`.', tokenUse: 'Usar', tokenClear: 'Limpar',
     autoCapture: 'Capturar tokens automaticamente', autoCaptureHint: 'Reutiliza um token encontrado numa resposta nas requisições seguintes',
     tryItOut: 'Testar', readOnlyRole: 'papel somente leitura', serverField: 'servidor', bodyField: 'corpo',
@@ -849,6 +868,8 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     responseHeaders: 'заголовки', schemaTab: 'Схема', exampleTab: 'Пример', noSchema: 'Нет схемы',
     codeSamples: 'Примеры кода', copy: 'Копировать', copied: '✓ скопировано',
     history: 'История', historyRestore: 'Нажмите, чтобы восстановить эти значения',
+    copyResponse: 'Копировать ответ', copyResponseHint: 'Скопировать тело ответа', copyReport: 'Копировать отчёт', copyReportHint: 'Скопировать эндпоинт, запрос и ответ одним отчётом — учётные данные скрыты',
+
     tokenCaptured: 'Токен из `{key}` будет отправляться как Authorization в последующих запросах.', tokenFound: 'Найден токен в `{key}`.', tokenUse: 'Использовать', tokenClear: 'Очистить',
     autoCapture: 'Автозахват токенов', autoCaptureHint: 'Повторно использовать найденный в ответе токен в последующих запросах',
     tryItOut: 'Попробовать', readOnlyRole: 'роль только для чтения', serverField: 'сервер', bodyField: 'тело',
