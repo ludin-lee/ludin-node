@@ -1,5 +1,5 @@
 {
-  "name": "@ludin/node",
+  "name": "@ludin-node/node",
   "version": "0.3.0",
   "description": "Plain node:http adapter for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",

@@ -20,7 +20,7 @@ importers:
 
   examples/express:
     dependencies:
-      '@ludin/express':
+      '@ludin-node/express':
         specifier: workspace:*
         version: link:../../packages/express
       express:
@@ -36,7 +36,7 @@ importers:
 
   examples/nest:
     dependencies:
-      '@ludin/nestjs':
+      '@ludin-node/nestjs':
         specifier: workspace:*
         version: link:../../packages/nestjs
       '@nestjs/common':
@@ -153,7 +153,7 @@ importers:
 
   packages/nestjs:
     dependencies:
-      '@ludin/express':
+      '@ludin-node/express':
         specifier: workspace:*
         version: link:../express
       ludin:

@@ -23,8 +23,8 @@ versioned together.
   the letter mark when the image fails to load.
 - OpenAPI descriptions render as Markdown, escaped before decoration so a
   document cannot inject markup.
-- **Framework adapters**: `@ludin/fastify`, `@ludin/koa`, `@ludin/hono` and
-  `@ludin/node` (plain `node:http`, connect, polka).
+- **Framework adapters**: `@ludin-node/fastify`, `@ludin-node/koa`, `@ludin-node/hono` and
+  `@ludin-node/node` (plain `node:http`, connect, polka).
 - CI on every pull request (build, typecheck, tests, browser e2e) and a
   tag-triggered npm release workflow.
 
@@ -35,8 +35,8 @@ versioned together.
 
 ### Removed
 
-- The database-backed store mode, before it ever shipped: `@ludin/store-sqlite`,
-  `@ludin/store-mysql`, `createSqlStore()`, `createMemoryStore()`, the `store`
+- The database-backed store mode, before it ever shipped: `@ludin-node/store-sqlite`,
+  `@ludin-node/store-mysql`, `createSqlStore()`, `createMemoryStore()`, the `store`
   option and everything that depended on it — invitations, editable accounts,
   server-side sessions and the audit log browser. Accounts, IP rules and roles
   come from your code again, which is all ludin needs to guard a document.
@@ -62,5 +62,5 @@ versioned together.
   the `LUDIN_BYPASS_IP_CHECK` escape hatch.
 - Audit events to stdout or a custom sink, with header/field masking.
 - Themeable UI (logo, colors, fonts, density, light/dark, custom CSS).
-- `ludin` core with the `@ludin/express` and `@ludin/nestjs` adapters, and the
+- `ludin` core with the `@ludin-node/express` and `@ludin-node/nestjs` adapters, and the
   `ludin hash` CLI.

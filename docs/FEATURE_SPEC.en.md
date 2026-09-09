@@ -35,7 +35,7 @@ A single npm middleware. **No database, no build step, no extra service.** Accou
 ### 2.1 Minimal example
 
 ```ts
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-node/express';
 
 app.use('/docs', ludin({
   spec: './openapi.json',
@@ -164,13 +164,13 @@ Four features that make the reference something a reader can rely on. All the he
 
 ```
 ludin                  core (handler, auth, IP, audit, UI bundle) — 1 runtime dependency (yaml)
-@ludin/express         Express 4 / 5                                                 [released]
-@ludin/fastify         Fastify 4 / 5                                                 [released]
-@ludin/koa             Koa 2                                                         [released]
-@ludin/hono            Hono 4 (Node · Bun · Deno · edge)                             [released]
-@ludin/node            plain node:http, connect, polka                               [released]
-@ludin/nestjs          NestJS 9 / 10 / 11                                            [released]
-@ludin/auth-oidc       OAuth2/OIDC adapter                                           [post-v1]
+@ludin-node/express         Express 4 / 5                                                 [released]
+@ludin-node/fastify         Fastify 4 / 5                                                 [released]
+@ludin-node/koa             Koa 2                                                         [released]
+@ludin-node/hono            Hono 4 (Node · Bun · Deno · edge)                             [released]
+@ludin-node/node            plain node:http, connect, polka                               [released]
+@ludin-node/nestjs          NestJS 9 / 10 / 11                                            [released]
+@ludin-node/auth-oidc       OAuth2/OIDC adapter                                           [post-v1]
 ```
 
 The core has exactly one runtime dependency, `yaml`. The UI (`packages/ui`, Preact + Vite) is built into a single HTML string compiled into the core, so nothing static needs to be served after install.
@@ -197,12 +197,12 @@ The core is a framework-agnostic `(standard Request) → Response` handler, wrap
 
 | Package | Framework | Mount |
 |---|---|---|
-| `@ludin/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
-| `@ludin/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
-| `@ludin/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
-| `@ludin/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
-| `@ludin/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` or `LudinModule.forRoot({ ... })` |
-| `@ludin/node` | plain Node `http`, connect, polka | `docs(req, res, next)` or `createLudinServer({ ... })` |
+| `@ludin-node/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
+| `@ludin-node/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
+| `@ludin-node/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
+| `@ludin-node/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
+| `@ludin-node/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` or `LudinModule.forRoot({ ... })` |
+| `@ludin-node/node` | plain Node `http`, connect, polka | `docs(req, res, next)` or `createLudinServer({ ... })` |
 
 - An adapter only converts request/response shapes; every route still goes through the core pipeline (§4.4). Supporting a new framework = a new adapter package, no core changes.
 - Runtimes that do not expose the peer address (Cloudflare Workers, Vercel Edge …) need `trustProxy` plus proxy headers for IP rules to work.

@@ -35,7 +35,7 @@
 ### 2.1 최소 사용 예시
 
 ```ts
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-node/express';
 
 app.use('/docs', ludin({
   spec: './openapi.json',
@@ -164,13 +164,13 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 
 ```
 ludin                  코어 (핸들러, 인증, IP, 감사, UI 번들) — 런타임 의존성 1개(yaml)
-@ludin/express         Express 4 / 5                                                 [출시]
-@ludin/fastify         Fastify 4 / 5                                                 [출시]
-@ludin/koa             Koa 2                                                         [출시]
-@ludin/hono            Hono 4 (Node · Bun · Deno · edge)                             [출시]
-@ludin/node            Node 기본 http, connect, polka                                 [출시]
-@ludin/nestjs          NestJS 9 / 10 / 11                                            [출시]
-@ludin/auth-oidc       OAuth2/OIDC 어댑터                                            [v1 이후]
+@ludin-node/express         Express 4 / 5                                                 [출시]
+@ludin-node/fastify         Fastify 4 / 5                                                 [출시]
+@ludin-node/koa             Koa 2                                                         [출시]
+@ludin-node/hono            Hono 4 (Node · Bun · Deno · edge)                             [출시]
+@ludin-node/node            Node 기본 http, connect, polka                                 [출시]
+@ludin-node/nestjs          NestJS 9 / 10 / 11                                            [출시]
+@ludin-node/auth-oidc       OAuth2/OIDC 어댑터                                            [v1 이후]
 ```
 
 코어의 런타임 의존성은 `yaml` 하나다. UI(`packages/ui`, Preact + Vite)는 단일 HTML 문자열로 빌드되어 코어 안에 컴파일되므로, 설치 후 별도 정적 파일 서빙이 필요 없다.
@@ -197,12 +197,12 @@ interface BoundUser {
 
 | 패키지 | 프레임워크 | 마운트 |
 |---|---|---|
-| `@ludin/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
-| `@ludin/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
-| `@ludin/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
-| `@ludin/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
-| `@ludin/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` 또는 `LudinModule.forRoot({ ... })` |
-| `@ludin/node` | Node 기본 `http`, connect, polka | `docs(req, res, next)` 또는 `createLudinServer({ ... })` |
+| `@ludin-node/express` | Express 4 / 5 | `app.use('/docs', ludin({ ... }))` |
+| `@ludin-node/fastify` | Fastify 4 / 5 | `app.register(ludin({ ... }), { prefix: '/docs' })` |
+| `@ludin-node/koa` | Koa 2 | `app.use(ludin({ basePath: '/docs', ... }))` |
+| `@ludin-node/hono` | Hono 4 (Node · Bun · Deno · edge) | `mountLudin(app, { basePath: '/docs', ... })` |
+| `@ludin-node/nestjs` | NestJS 9 / 10 / 11 | `setupLudin(app, '/docs', document)` 또는 `LudinModule.forRoot({ ... })` |
+| `@ludin-node/node` | Node 기본 `http`, connect, polka | `docs(req, res, next)` 또는 `createLudinServer({ ... })` |
 
 - 어댑터는 요청/응답 형태 변환만 담당하고, 모든 라우트는 코어 파이프라인(§4.4)을 그대로 거친다. 프레임워크 추가 = 어댑터 패키지 추가, 코어 수정 없음.
 - 피어 주소를 노출하지 않는 런타임(Cloudflare Workers, Vercel Edge 등)은 IP 규칙을 쓰려면 `trustProxy` + 프록시 헤더가 필요하다.

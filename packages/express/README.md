@@ -1,14 +1,14 @@
-# @ludin/express
+# @ludin-node/express
 
 Express adapter for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin/express
+npm i ludin @ludin-node/express
 ```
 
 ```ts
 import express from 'express';
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-node/express';
 
 const app = express();
 app.use('/docs', ludin({

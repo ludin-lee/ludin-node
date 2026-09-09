@@ -1,13 +1,13 @@
-# @ludin/fastify
+# @ludin-node/fastify
 
 Fastify plugin for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin/fastify
+npm i ludin @ludin-node/fastify
 ```
 
 ```ts
-import { ludin } from '@ludin/fastify';
+import { ludin } from '@ludin-node/fastify';
 
 await app.register(ludin({
   spec: './openapi.yaml',

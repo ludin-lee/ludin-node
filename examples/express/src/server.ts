@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-node/express';
 import { petstore } from './petstore.js';
 
 const app = express();

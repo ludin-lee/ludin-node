@@ -1,15 +1,15 @@
-# @ludin/nestjs
+# @ludin-node/nestjs
 
 Nestjs module for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin/express @ludin/nestjs
+npm i ludin @ludin-node/express @ludin-node/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:
 
 ```ts
-import { setupLudin } from '@ludin/nestjs';
+import { setupLudin } from '@ludin-node/nestjs';
 
 const document = SwaggerModule.createDocument(app, config);
 setupLudin(app, '/docs', document, {

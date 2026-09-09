@@ -1,5 +1,5 @@
 {
-  "name": "@ludin/hono",
+  "name": "@ludin-node/hono",
   "version": "0.3.0",
   "description": "Hono handler for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
