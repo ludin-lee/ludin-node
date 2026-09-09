@@ -163,7 +163,7 @@ Four features that make the reference something a reader can rely on. All the he
 ### 4.1 Package structure
 
 ```
-ludin                  core (handler, auth, IP, audit, UI bundle) — 1 runtime dependency (yaml)
+@ludin-docs/core            core (handler, auth, IP, audit, UI bundle) — 1 runtime dependency (yaml)
 @ludin-docs/express         Express 4 / 5                                                 [released]
 @ludin-docs/fastify         Fastify 4 / 5                                                 [released]
 @ludin-docs/koa             Koa 2                                                         [released]
@@ -287,7 +287,7 @@ Two constraints run across the whole roadmap:
 
 ## 7. Open decisions
 
-- Confirm whether the `ludin` package name is available on npm
+- ~~Confirm whether the `ludin` package name is available on npm~~ → blocked by the similar-name policy, published as `@ludin-docs/core` (2026-09-09)
 - Passwords: allow plain text from env, or hashes only (ease of adoption vs security)
 - Whether to grow the readme page into several pages (tabs), or keep it single
 - Whether `readme.path` should also accept a Markdown (`.md`) file (HTML only today)

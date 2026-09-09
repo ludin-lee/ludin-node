@@ -3,7 +3,7 @@
 Plain node:http adapter for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin-docs/node
+npm i @ludin-docs/core @ludin-docs/node
 ```
 
 ```ts

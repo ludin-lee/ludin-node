@@ -27,7 +27,7 @@
     "test": "node --test --import tsx test/*.test.ts"
   },
   "dependencies": {
-    "ludin": "workspace:*"
+    "@ludin-docs/core": "workspace:*"
   },
   "peerDependencies": {
     "koa": ">=2.13.0"

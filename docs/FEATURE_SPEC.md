@@ -163,7 +163,7 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 ### 4.1 패키지 구조
 
 ```
-ludin                  코어 (핸들러, 인증, IP, 감사, UI 번들) — 런타임 의존성 1개(yaml)
+@ludin-docs/core            코어 (핸들러, 인증, IP, 감사, UI 번들) — 런타임 의존성 1개(yaml)
 @ludin-docs/express         Express 4 / 5                                                 [출시]
 @ludin-docs/fastify         Fastify 4 / 5                                                 [출시]
 @ludin-docs/koa             Koa 2                                                         [출시]
@@ -287,7 +287,7 @@ v0.2 개발 중 DB 기반 스토어 모드(계정 편집·초대·세션 폐기�
 
 ## 7. 열린 결정 사항
 
-- 패키지 이름 `ludin` npm 확보 여부 확인
+- ~~패키지 이름 `ludin` npm 확보 여부 확인~~ → 유사 이름 정책으로 불가, `@ludin-docs/core`로 발행 (2026-09-09)
 - 비밀번호: 평문 env 허용할지, 해시만 허용할지(도입 편의 vs 보안)
 - README 페이지를 여러 개(탭)로 확장할지, 단일 페이지로 유지할지
 - 마크다운(`.md`) 파일도 `readme.path`로 받을지(현재는 HTML만)

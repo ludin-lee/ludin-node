@@ -24,7 +24,7 @@
 ## Quick start (Express)
 
 ```bash
-npm i ludin @ludin-docs/express
+npm i @ludin-docs/core @ludin-docs/express
 ```
 
 ```ts
@@ -54,7 +54,7 @@ Passwords may be plain text (quick start) or hashes — generate one with `npx l
 ## Quick start (NestJS)
 
 ```bash
-npm i ludin @ludin-docs/express @ludin-docs/nestjs
+npm i @ludin-docs/core @ludin-docs/express @ludin-docs/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:
@@ -75,19 +75,19 @@ Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth
 Same options everywhere — only the mount differs. Every adapter is a thin wrapper around the same core handler, so login, IP rules, visibility filtering and the audit log behave identically.
 
 ```ts
-// Fastify — npm i ludin @ludin-docs/fastify
+// Fastify — npm i @ludin-docs/core @ludin-docs/fastify
 import { ludin } from '@ludin-docs/fastify';
 await app.register(ludin({ spec, auth }), { prefix: '/docs' });
 
-// Koa — npm i ludin @ludin-docs/koa
+// Koa — npm i @ludin-docs/core @ludin-docs/koa
 import { ludin } from '@ludin-docs/koa';
 app.use(ludin({ spec, auth, basePath: '/docs' }));   // other paths fall through to next()
 
-// Hono — npm i ludin @ludin-docs/hono
+// Hono — npm i @ludin-docs/core @ludin-docs/hono
 import { mountLudin } from '@ludin-docs/hono';
 mountLudin(app, { spec, auth, basePath: '/docs' });
 
-// plain node:http / connect / polka — npm i ludin @ludin-docs/node
+// plain node:http / connect / polka — npm i @ludin-docs/core @ludin-docs/node
 import { ludin } from '@ludin-docs/node';
 const docs = ludin({ spec, auth, basePath: '/docs' });
 http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);

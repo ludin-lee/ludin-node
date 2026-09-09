@@ -2,10 +2,10 @@ import { Inject, Module, RequestMethod } from '@nestjs/common';
 import type { DynamicModule, INestApplication, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ludin as ludinExpress } from '@ludin-docs/express';
 import type { LudinMiddleware } from '@ludin-docs/express';
-import type { LudinOptions } from 'ludin';
+import type { LudinOptions } from '@ludin-docs/core';
 
-export type { LudinOptions } from 'ludin';
-export { hashPassword } from 'ludin';
+export type { LudinOptions } from '@ludin-docs/core';
+export { hashPassword } from '@ludin-docs/core';
 
 export const LUDIN_OPTIONS = Symbol('LUDIN_OPTIONS');
 
