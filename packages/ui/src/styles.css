@@ -1214,3 +1214,10 @@ kbd {
   background: none; color: var(--text); cursor: pointer; text-align: left;
 }
 .try-history-item:hover { background: var(--bg-sunken); }
+
+/* ----- auth chaining ----- */
+.auto-capture {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px; font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.auto-capture input { width: auto; }

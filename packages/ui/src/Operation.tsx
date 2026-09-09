@@ -231,6 +231,48 @@ function CodeSamples({ specName, op }: { specName: string; op: Operation }) {
   );
 }
 
+// --------------------------------------------------------------- Auth chaining
+/**
+ * Auth chaining: pull the token out of a login response and reuse it on every
+ * later request. The value never leaves the browser — it goes to sessionStorage
+ * under the security scheme's name, exactly where a hand-typed token would go.
+ */
+const TOKEN_KEYS = ['accesstoken', 'access_token', 'token', 'idtoken', 'id_token', 'jwt', 'authtoken', 'apikey', 'api_key'];
+
+function findToken(v: unknown, depth = 0): { key: string; value: string } | null {
+  if (!v || typeof v !== 'object' || depth > 4) return null;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === 'string' && val && TOKEN_KEYS.includes(k.toLowerCase().replace(/-/g, '_'))) {
+      return { key: k, value: val };
+    }
+  }
+  for (const val of Object.values(v as Record<string, unknown>)) {
+    const found = findToken(val, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Document security schemes that carry a token we can inject. */
+function tokenSchemes(doc: Doc): string[] {
+  return Object.entries<any>(doc.components?.securitySchemes ?? {})
+    .filter(([, raw]) => {
+      const sc = deref(doc, raw);
+      return (
+        (sc?.type === 'http' && sc.scheme === 'bearer') ||
+        sc?.type === 'oauth2' ||
+        sc?.type === 'openIdConnect' ||
+        (sc?.type === 'apiKey' && sc.in === 'header')
+      );
+    })
+    .map(([name]) => name);
+}
+
+const AUTO_CAPTURE_KEY = 'ludin.auth-capture';
+const autoCaptureOn = () => {
+  try { return localStorage.getItem(AUTO_CAPTURE_KEY) !== 'off'; } catch { return true; }
+};
+
 // ----------------------------------------------------------------- Try it out
 interface TryDraft {
   values: Record<string, string>;
@@ -297,6 +339,32 @@ function TryIt({
   const [auth, setAuth] = useState<Record<string, string>>(() => loadAuth());
   const [extra, setExtra] = useState<Array<[string, string]>>(draft?.extra ?? []);
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadJson<HistoryEntry[]>(historyKey(specName, op)) ?? []);
+  const [autoCapture, setAutoCapture] = useState(autoCaptureOn);
+  const [captured, setCaptured] = useState<{ key: string; value: string; applied: boolean } | null>(null);
+  const schemeNames = useMemo(() => tokenSchemes(doc), [doc]);
+
+  /** Store a captured token under every token-bearing scheme, so any operation picks it up. */
+  function applyToken(value: string) {
+    const next = { ...auth };
+    for (const n of schemeNames) next[n] = value;
+    setAuth(next);
+    saveAuth(next);
+    setCaptured((c) => (c ? { ...c, applied: true } : c));
+  }
+
+  function clearToken() {
+    const next = { ...auth };
+    for (const n of schemeNames) delete next[n];
+    setAuth(next);
+    saveAuth(next);
+    setCaptured(null);
+  }
+
+  function toggleAutoCapture() {
+    const next = !autoCapture;
+    setAutoCapture(next);
+    try { localStorage.setItem(AUTO_CAPTURE_KEY, next ? 'on' : 'off'); } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     saveJson(draftKey(specName, op), { values, bodyText, ct, extra } satisfies TryDraft);
@@ -348,6 +416,7 @@ function TryIt({
   async function send() {
     setBusy(true);
     setResult(null);
+    setCaptured(null);
     try {
       const r = await api.try({
         method: op.method,
@@ -359,6 +428,12 @@ function TryIt({
       });
       setResult(r);
       setTab('body');
+      // Auth chaining: harvest a token from the response for later requests.
+      const token = r.status >= 200 && r.status < 300 && schemeNames.length ? findToken(parseForTree(r.body)) : null;
+      if (token) {
+        setCaptured({ ...token, applied: false });
+        if (autoCapture) applyToken(token.value);
+      }
       const entry: HistoryEntry = { values, bodyText, ct, extra, status: r.status, ms: r.ms, at: Date.now() };
       const next = [entry, ...history].slice(0, 20);
       setHistory(next);
@@ -389,6 +464,12 @@ function TryIt({
         {!canTry && <span class="tag">{t('readOnlyRole')}</span>}
       </div>
       <div class="card-b">
+        {schemeNames.length > 0 && (
+          <label class="auto-capture" title={t('autoCaptureHint')}>
+            <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
+            {t('autoCapture')}
+          </label>
+        )}
         {security.map((s) => (
           <div class="field">
             <label>
@@ -502,6 +583,21 @@ function TryIt({
             </div>
             {result.error && <div class="notice err">{result.error}</div>}
             {!result.error && <ValidationBadge v={result.validation} />}
+            {captured && (
+              <div class={`notice ${captured.applied ? 'ok' : 'info'}`} style="margin-top:8px">
+                {captured.applied ? (
+                  <>
+                    {t('tokenCaptured', { key: captured.key })}{' '}
+                    <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={clearToken}>{t('tokenClear')}</button>
+                  </>
+                ) : (
+                  <>
+                    {t('tokenFound', { key: captured.key })}{' '}
+                    <button class="btn btn-sm" style="height:22px;padding:0 8px" onClick={() => applyToken(captured.value)}>{t('tokenUse')}</button>
+                  </>
+                )}
+              </div>
+            )}
             {!result.error && (
               <>
                 <div class="tabs">
