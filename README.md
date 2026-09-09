@@ -1,26 +1,35 @@
 # ludin
 
-**API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`.
+[![CI](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml/badge.svg)](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/ludin.svg)](https://www.npmjs.com/package/ludin)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`. No database, no build step: one middleware and an options object.
 
 📄 Feature spec: [English](docs/FEATURE_SPEC.en.md) · [한국어](docs/FEATURE_SPEC.md)
 
 - 🔐 **Login required** – nobody sees the docs, the spec JSON or *Try it out* without signing in
 - 👥 **Accounts & roles** – `viewer` / `developer` / `admin` (or your own), per-tag / per-path visibility
 - 🌐 **IP allowlist** – CIDR, ranges, IPv6, proxy-aware, lockout-proof
-- 📝 **Audit log** – who logged in, who called what, from where (JSON lines, your own sink, or a browsable table)
-- 🎨 **Beautiful UI** – 78 KB total (23 KB gzip), light/dark, brand colors, logo, custom CSS
-- ⚡ **Zero-config binding mode** – users & IPs from code / `process.env`, no database needed
-- 🗄 **Store mode** – add a database and the admin screen turns editable: invitations, roles, IP rules, forced sign-out, audit browsing
+- 📝 **Audit log** – who logged in, who called what, from where (JSON lines to stdout, or your own sink)
+- 📄 **Your own HTML page** – point `readme` at a file and it appears next to the reference, behind the same login
+- 📤 **Spec download** – hand a customer the JSON/YAML they are allowed to see, and log who took it
+- 🧩 **Code samples** – cURL / fetch / axios / Python / Go / `.http` per operation, auth header and body example filled in
+- ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
+- ✅ **Response validation** – every *Try it out* response is checked against the documented schema
+- 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
+- 🎨 **Beautiful UI** – 65 KB total (21 KB gzip), light/dark, your logo and brand colors, custom CSS
+- ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
 ## Quick start (Express)
 
 ```bash
-npm i ludin @ludin/express
+npm i ludin @ludin-docs/express
 ```
 
 ```ts
 import express from 'express';
-import { ludin } from '@ludin/express';
+import { ludin } from '@ludin-docs/express';
 
 const app = express();
 
@@ -45,13 +54,13 @@ Passwords may be plain text (quick start) or hashes — generate one with `npx l
 ## Quick start (NestJS)
 
 ```bash
-npm i ludin @ludin/express @ludin/nestjs
+npm i ludin @ludin-docs/express @ludin-docs/nestjs
 ```
 
 `setupLudin` is a drop-in for `SwaggerModule.setup`:
 
 ```ts
-import { setupLudin } from '@ludin/nestjs';
+import { setupLudin } from '@ludin-docs/nestjs';
 
 const document = SwaggerModule.createDocument(app, config);
 setupLudin(app, '/docs', document, {
@@ -66,72 +75,60 @@ Or as a module: `LudinModule.forRoot({ path: '/docs', spec: () => document, auth
 Same options everywhere — only the mount differs. Every adapter is a thin wrapper around the same core handler, so login, IP rules, visibility filtering and the audit log behave identically.
 
 ```ts
-// Fastify — npm i ludin @ludin/fastify
-import { ludin } from '@ludin/fastify';
+// Fastify — npm i ludin @ludin-docs/fastify
+import { ludin } from '@ludin-docs/fastify';
 await app.register(ludin({ spec, auth }), { prefix: '/docs' });
 
-// Koa — npm i ludin @ludin/koa
-import { ludin } from '@ludin/koa';
+// Koa — npm i ludin @ludin-docs/koa
+import { ludin } from '@ludin-docs/koa';
 app.use(ludin({ spec, auth, basePath: '/docs' }));   // other paths fall through to next()
 
-// Hono — npm i ludin @ludin/hono
-import { mountLudin } from '@ludin/hono';
+// Hono — npm i ludin @ludin-docs/hono
+import { mountLudin } from '@ludin-docs/hono';
 mountLudin(app, { spec, auth, basePath: '/docs' });
 
-// plain node:http / connect / polka — npm i ludin @ludin/node
-import { ludin } from '@ludin/node';
+// plain node:http / connect / polka — npm i ludin @ludin-docs/node
+import { ludin } from '@ludin-docs/node';
 const docs = ludin({ spec, auth, basePath: '/docs' });
 http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);
 ```
 
 On runtimes that do not expose the client address (Cloudflare Workers, Vercel Edge …) set `trustProxy` so IP rules can read `X-Forwarded-For`; without it every request looks address-less and is blocked.
 
-## Two modes
+## Your own page (`readme`)
 
-| | Binding mode (default) | Store mode |
-|---|---|---|
-| Users / IP rules live in | code + `process.env` | a database (`store: sqliteStore(...)`) |
-| Admin screen | **read-only** view of the config | invite users, edit roles & IP rules |
-| Sessions | signed JWT cookie, stateless | DB sessions, revocable |
-| Audit log | stdout / `audit.sink` callback | stored + browsable + CSV export |
-
-Binding mode is deliberately read-only: settings edited in a UI would be lost on the next deploy. The admin screen shows the effective config and explains what a store unlocks.
-
-### Store mode
-
-```bash
-npm i ludin @ludin/express @ludin/store-sqlite
-```
+An API reference is rarely the whole story: there is a guide, an onboarding
+checklist, release notes. Point `readme` at an HTML file and it shows up as a
+button in the top bar, behind the same login, IP rules and audit log:
 
 ```ts
-import { sqliteStore } from '@ludin/store-sqlite';
-
 app.use('/docs', ludin({
   spec: './openapi.yaml',
-  store: sqliteStore('./ludin.db'),
-  auth: { users: [{ email: 'admin@acme.io', password: process.env.DOCS_ADMIN_PW!, role: 'admin' }] },
-  audit: { retentionDays: 90 },
+  readme: { enabled: true, path: './docs/guide.html', label: 'Guide' },
+  auth: { users: [...] },
 }));
 ```
 
-One line and the same deployment gains:
+| option | |
+|---|---|
+| `enabled` | `false` hides the button without deleting the config. Default `true` |
+| `path` | the HTML file, absolute or relative to `process.cwd()` |
+| `label` | the button's text. Default `README` |
+| `visibleTo` | roles that may open it. Default: everyone who can read the docs |
 
-- **Invitations** – admins create a link, the invitee picks their own password. Only a SHA-256 hash of the token is stored, and the link is single-use.
-- **Editable accounts** – add people, change roles, disable, reset passwords, per-account IP restrictions.
-- **Revocable sessions** – "sign out everywhere", or force-sign-out anyone from the admin screen. Disabling an account or changing its role or password kills its live cookies on the next request.
-- **Audit browser** – filter by event, user, date and free text, paginate, export CSV. `developer` sees only their own trail, `admin` sees everyone's.
-- **Editable IP rules** – with a guard that refuses any change that would lock *you* out (`force: true` overrides).
+`readme: './guide.html'` is shorthand for the same thing with the defaults.
 
-`auth.users` and `ipAllowlist` still work: they are used **once**, as a seed, while the database is empty — after that the store is the truth. Plain-text seed passwords are hashed on the way in.
-
-Storage adapters: `@ludin/store-sqlite` (Node's built-in `node:sqlite`, or `better-sqlite3` if installed). `createMemoryStore()` from `ludin` gives the same feature set without persistence, for dev and tests. Postgres / Prisma / Redis adapters implement the same `LudinStore` interface.
+The file is served as-is — it keeps its own CSS, fonts and scripts — into a
+sandboxed frame in an opaque origin, so nothing in it can read the session
+cookie or reach into the docs UI. It is re-read whenever it changes on disk, so
+editing the page needs no restart, and every view is logged as a `docs.readme`
+audit event.
 
 ## Options
 
 ```ts
 interface LudinOptions {
   spec: string | object | (() => object | Promise<object>) | SpecEntry[];  // multiple specs supported
-  store?: LudinStore;              // store mode: sqliteStore('./ludin.db'), createMemoryStore(), …
   auth?: false | {
     users?: BoundUser[];
     verify?: (email, password) => AuthUser | null;   // plug in your own auth
@@ -146,21 +143,35 @@ interface LudinOptions {
   hideOnBlock?: boolean;           // 404 instead of 403 for blocked IPs
   roles?: Record<string, Permission[]>;
   visibility?: Record<string, Role[]>;  // 'tag:Admin', '/admin/*', 'DELETE /users/{id}'
-  audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean; retentionDays?: number };
-  theme?: { title, logo, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
+  readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
+  audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
+  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
 }
 ```
 
 Roles and permissions (defaults):
 
-| role | docs:read | docs:try | audit:read | admin:read/write |
-|---|---|---|---|---|
-| viewer | ✓ | | | |
-| developer | ✓ | ✓ | self | |
-| admin | ✓ | ✓ | ✓ | ✓ |
+| role | docs:read | docs:try | admin:read |
+|---|---|---|---|
+| viewer | ✓ | | |
+| developer | ✓ | ✓ | |
+| admin | ✓ | ✓ | ✓ |
+
+`admin:read` opens the Administration screen: a read-only view of the accounts,
+IP rules, roles and visibility rules this deployment is running with.
 
 Escape hatch if you lock yourself out: `LUDIN_BYPASS_IP_CHECK=1`.
+
+## Handing the docs to a customer
+
+Everything a client sees is already filtered by their role, and the same is true of what they can take with them:
+
+- **Download** – the Overview screen offers the document as JSON or YAML (`/docs/api/spec.json`, `/docs/api/spec.yaml`). The file goes through the same `visibility` filter as the rendered docs, and each download is recorded as a `docs.export` audit event.
+- **A page of your own** – `readme` puts your guide, onboarding steps or release notes one click away from the reference, for the roles you choose.
+- **Branding** – `theme.title` names the platform, `theme.logo` (any URL or data URI) is the icon in the top-left corner, `theme.logoDark` swaps it in dark mode, `theme.favicon` sets the tab icon.
+
+OpenAPI descriptions are rendered as Markdown; the source is HTML-escaped before decoration and only `http(s)`, `mailto:` and relative links survive, so a document can never inject markup into the page. The `readme` file is the one place your own HTML runs — which is why it runs sandboxed, in a frame of its own.
 
 ## How Try-it-out works
 
@@ -170,13 +181,12 @@ Requests go through a server-side proxy (`POST /docs/api/try`) so that every cal
 
 ```
 packages/core      ludin – framework-agnostic handler, auth, IP, audit, embedded UI
-packages/express   @ludin/express
-packages/fastify   @ludin/fastify
-packages/koa       @ludin/koa
-packages/hono      @ludin/hono
-packages/node      @ludin/node   (plain node:http, connect, polka)
-packages/nestjs    @ludin/nestjs
-packages/store-sqlite  @ludin/store-sqlite – accounts, invites, sessions, audit in a file
+packages/express   @ludin-docs/express
+packages/fastify   @ludin-docs/fastify
+packages/koa       @ludin-docs/koa
+packages/hono      @ludin-docs/hono
+packages/node      @ludin-docs/node   (plain node:http, connect, polka)
+packages/nestjs    @ludin-docs/nestjs
 packages/ui        Preact + Vite, built into a single HTML string in core
 examples/express   Petstore demo on :3000
 examples/nest      @nestjs/swagger demo on :3001
@@ -185,18 +195,31 @@ examples/nest      @nestjs/swagger demo on :3001
 ```bash
 pnpm install
 pnpm build            # ui → core → adapters
+pnpm typecheck        # tsc --noEmit across every package (sources + tests)
 pnpm test             # core + adapter tests
 pnpm dev:express      # http://localhost:3000/docs  (admin@example.com / admin)
-pnpm dev:express:store  # same demo in store mode (./ludin.db)
 pnpm dev:nest         # http://localhost:3001/docs
-CHROMIUM_PATH=... node scripts/e2e.mjs         # browser test + screenshots (needs dev:express running)
-CHROMIUM_PATH=... node scripts/e2e-store.mjs   # store-mode browser test (boots its own server)
+CHROMIUM_PATH=... node scripts/e2e.mjs   # browser test + screenshots (needs dev:express running)
 ```
+
+## Contributing & releases
+
+Every pull request runs the full matrix in GitHub Actions: build and tests on
+Node 20, 22 and 24, `tsc --noEmit` over sources *and* tests, and the browser e2e
+script (screenshots are uploaded as artifacts).
+
+Releases are cut from a tag: bump the package versions, update
+[CHANGELOG.md](CHANGELOG.md), then push `vX.Y.Z`. The release workflow verifies
+the tag matches the version, rebuilds, retests and publishes every public
+package with `pnpm publish -r` (which rewrites the `workspace:*` ranges). It
+needs an `NPM_TOKEN` secret in the `npm` environment.
 
 ## Roadmap
 
-- **v0.2** ✅ store mode: SQLite adapter, invitations, editable roles / IP rules, DB sessions + force logout, audit log browser, CSV export & retention
-- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak), Postgres / Prisma / Redis stores, per-account IP rules in the UI
+- **v0.2** ✅ `readme` pages, spec download, branding, adapters for Fastify / Koa / Hono / `node:http`
+- **v0.3** ✅ code samples, ⌘K palette (schema-field search), *Try it out* response validation, `ludin lint` + health score
+- **v0.4** spec diff & breaking-change classification, generated changelog, environments, expiring share links
+- **v0.5** MCP endpoint, OIDC / OAuth2 (Google, GitHub, Keycloak), collection & TypeScript type export
 - **v1.0** stable API
 
 MIT

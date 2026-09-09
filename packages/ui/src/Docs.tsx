@@ -5,20 +5,21 @@ import { groupOperations, type Doc, type Operation, type TagGroup } from './open
 import { Brand } from './Brand';
 import { OperationView } from './Operation';
 import { Admin } from './Admin';
-import { Audit } from './Audit';
+import { Readme } from './Readme';
 import { Overview } from './Overview';
+import { Palette } from './Palette';
 
 type Route =
   | { kind: 'overview' }
   | { kind: 'op'; id: string }
   | { kind: 'admin' }
-  | { kind: 'audit' }
+  | { kind: 'readme' }
   | { kind: 'schema'; name: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   if (h === 'admin') return { kind: 'admin' };
-  if (h === 'audit') return { kind: 'audit' };
+  if (h === 'readme') return { kind: 'readme' };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
@@ -40,6 +41,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [navOpen, setNavOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [mode, setModeState] = useState<Mode>(getMode());
+  const [palette, setPalette] = useState(false);
+  const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
 
   useEffect(() => {
     api.specs().then((r) => {
@@ -77,7 +80,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        (document.getElementById('search') as HTMLInputElement | null)?.focus();
+        setPalette((p) => !p);
       }
       if (e.key === 'Escape') setMenu(false);
     };
@@ -139,9 +142,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </select>
         )}
         <span class="spacer" />
-        {me.capabilities?.auditQuery && (can('audit:read') || can('audit:read:self')) && (
-          <a href="#/audit" class={`btn btn-sm ${route.kind === 'audit' ? 'btn-primary' : 'btn-ghost'}`}>
-            Audit
+        {readme && (
+          <a href="#/readme" class={`btn btn-sm ${route.kind === 'readme' ? 'btn-primary' : 'btn-ghost'}`}>
+            {readme.label}
           </a>
         )}
         {can('admin:read') && (
@@ -175,16 +178,6 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   ))}
                 </span>
               </div>
-              {me.authEnabled && !me.anonymous && me.capabilities?.sessions && (
-                <button
-                  onClick={async () => {
-                    await api.revokeOwnSessions();
-                    location.reload();
-                  }}
-                >
-                  Sign out everywhere
-                </button>
-              )}
               {me.authEnabled && !me.anonymous && <button onClick={onLogout}>Sign out</button>}
             </div>
           )}
@@ -193,7 +186,10 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
       <aside class={`sidebar ${navOpen ? 'open' : ''}`}>
         <div class="search">
-          <input id="search" placeholder="Search endpoints…   ⌘K" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+          <input id="search" placeholder="Filter endpoints…" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+          <button class="btn btn-sm btn-ghost" onClick={() => setPalette(true)} title="Search everything, including schema fields">
+            ⌘K
+          </button>
         </div>
         <nav class="nav">
           {loadErr && <div class="notice err">{loadErr}</div>}
@@ -245,11 +241,12 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
 
       <main class="main">
+        {route.kind === 'readme' && readme ? (
+          <Readme label={readme.label} url={readme.url} />
+        ) : (
         <div class="content">
           {route.kind === 'admin' && can('admin:read') ? (
             <Admin />
-          ) : route.kind === 'audit' && (can('audit:read') || can('audit:read:self')) ? (
-            <Audit canReadAll={can('audit:read')} />
           ) : route.kind === 'op' ? (
             doc && current ? (
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} />
@@ -260,12 +257,14 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               </div>
             ) : null
           ) : route.kind === 'schema' ? (
-            doc ? <Overview doc={doc} groups={groups} schemaName={route.name} /> : null
+            doc ? <Overview doc={doc} groups={groups} schemaName={route.name} specName={specName} /> : null
           ) : doc ? (
-            <Overview doc={doc} groups={groups} />
+            <Overview doc={doc} groups={groups} specName={specName} />
           ) : null}
         </div>
+        )}
       </main>
+      {palette && specName && <Palette specName={specName} onClose={() => setPalette(false)} />}
     </div>
   );
 }

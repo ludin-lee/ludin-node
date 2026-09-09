@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Controller, Get, Module, Param, Query } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ApiOperation, ApiTags, DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { setupLudin } from '@ludin/nestjs';
+import { setupLudin } from '@ludin-docs/nestjs';
 
 @ApiTags('Users')
 @Controller('users')

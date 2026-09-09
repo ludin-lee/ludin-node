@@ -1,7 +1,7 @@
 {
-  "name": "@ludin/hono",
-  "version": "0.2.0",
-  "description": "Hono handler for ludin \u2013 OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
+  "name": "@ludin-docs/hono",
+  "version": "0.3.0",
+  "description": "Hono handler for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -36,5 +36,20 @@
     "@types/node": "^22.0.0",
     "hono": "^4.6.0",
     "tsx": "^4.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ludin-lee/ludin-node.git",
+    "directory": "packages/hono"
+  },
+  "homepage": "https://github.com/ludin-lee/ludin-node#readme",
+  "bugs": {
+    "url": "https://github.com/ludin-lee/ludin-node/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

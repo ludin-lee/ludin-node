@@ -1,7 +1,55 @@
+import { useEffect, useState } from 'preact/hooks';
 import type { Doc, TagGroup } from './openapi';
+import { api, type LintInfo } from './api';
 import { Schema } from './Schema';
+import { Markdown } from './Markdown';
 
-export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGroup[]; schemaName?: string }) {
+/** Documentation health, linted by the core against the role-filtered spec. */
+function HealthCard({ specName }: { specName: string }) {
+  const [lint, setLint] = useState<LintInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setLint(null);
+    api.lint(specName).then(setLint).catch(() => setLint(null));
+  }, [specName]);
+  if (!lint) return null;
+  const tone = lint.score >= 90 ? 'var(--ok, #3fb950)' : lint.score >= 60 ? 'var(--warn, #d29922)' : 'var(--err, #f85149)';
+  return (
+    <>
+      <div class="card" style="cursor:pointer" onClick={() => setOpen(!open)} title="Click for the issue list (also: npx ludin lint)">
+        <div class="card-b">
+          <div class="v" style={`color:${tone}`}>{lint.score}</div>
+          <div class="l">Docs health · {lint.passed}/{lint.checks} checks</div>
+        </div>
+      </div>
+      {open && lint.issues.length > 0 && (
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-h">Documentation issues <span class="count" style="font-weight:400">{lint.issues.length}</span></div>
+          <div class="card-b" style="padding:6px 14px;max-height:260px;overflow:auto">
+            {lint.issues.map((i) => (
+              <div class="param" style="grid-template-columns:56px 1fr">
+                <span class={`status-pill ${i.severity === 'error' ? 's5' : i.severity === 'warn' ? 's4' : 's2'}`}>{i.severity}</span>
+                <span class="desc"><code>{i.path}</code> — {i.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function Overview({
+  doc,
+  groups,
+  schemaName,
+  specName,
+}: {
+  doc: Doc;
+  groups: TagGroup[];
+  schemaName?: string;
+  specName?: string;
+}) {
   const info = doc.info ?? {};
   if (schemaName) {
     const schema = doc.components?.schemas?.[schemaName];
@@ -27,8 +75,18 @@ export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGro
           {doc.openapi && <span class="chip">OpenAPI {doc.openapi}</span>}
           {doc.swagger && <span class="chip">Swagger {doc.swagger}</span>}
           {info.license?.name && <span class="chip">{info.license.name}</span>}
+          {specName && (
+            <>
+              <a class="btn btn-sm" href={api.specDownloadUrl(specName, 'json')} download title="Download the document you are allowed to see">
+                ↓ JSON
+              </a>
+              <a class="btn btn-sm" href={api.specDownloadUrl(specName, 'yaml')} download title="Download the document you are allowed to see">
+                ↓ YAML
+              </a>
+            </>
+          )}
         </div>
-        {info.description && <div class="op-desc md">{info.description}</div>}
+        {info.description && <Markdown text={info.description} class="op-desc md" />}
       </div>
 
       <div class="kpi">
@@ -58,6 +116,7 @@ export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGro
             </div>
           </div>
         )}
+        {specName && <HealthCard specName={specName} />}
       </div>
 
       {groups.map((g) => (
@@ -69,7 +128,11 @@ export function Overview({ doc, groups, schemaName }: { doc: Doc; groups: TagGro
             </span>
           </div>
           <div class="card-b" style="padding:6px 8px">
-            {g.description && <div class="md" style="padding:6px 8px 10px">{g.description}</div>}
+            {g.description && (
+              <div style="padding:6px 8px 10px">
+                <Markdown text={g.description} />
+              </div>
+            )}
             {g.operations.map((o) => (
               <a href={`#/op/${encodeURIComponent(o.id)}`} class={`nav-item ${o.deprecated ? 'deprecated' : ''}`}>
                 <span class={`method ${o.method}`}>{o.method}</span>

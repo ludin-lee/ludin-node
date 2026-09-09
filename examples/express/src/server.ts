@@ -1,11 +1,7 @@
+import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { ludin } from '@ludin/express';
-import { sqliteStore } from '@ludin/store-sqlite';
+import { ludin } from '@ludin-docs/express';
 import { petstore } from './petstore.js';
-
-// Binding mode by default; set LUDIN_DB=./ludin.db to run in store mode, where
-// the accounts below become a one-time seed and the admin screen turns editable.
-const store = process.env.LUDIN_DB ? sqliteStore(process.env.LUDIN_DB) : undefined;
 
 const app = express();
 app.use(express.json());
@@ -37,7 +33,8 @@ app.use(
   '/docs',
   ludin({
     spec: petstore,
-    store,
+    // Any HTML file of yours, served next to the reference behind a button.
+    readme: { enabled: true, path: fileURLToPath(new URL('../readme.html', import.meta.url)), label: 'Guide' },
     auth: {
       users: [
         { email: 'admin@example.com', password: process.env.LUDIN_ADMIN_PW ?? 'admin', role: 'admin', name: 'Admin' },
@@ -47,10 +44,17 @@ app.use(
       session: { secret: process.env.LUDIN_SESSION_SECRET ?? 'dev-only-secret' },
     },
     ipAllowlist: (process.env.LUDIN_IPS ?? '').split(',').filter(Boolean),
-    audit: { retentionDays: 90 },
     visibility: { 'tag:Admin': ['admin'] },
     theme: {
       title: 'Petstore API',
+      // Any URL or data URI works – this one is inline so the demo needs no network.
+      logo:
+        'data:image/svg+xml;utf8,' +
+        encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0f766e"/>' +
+            '<path d="M9 21c0-4 3-7 7-7s7 3 7 7" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+            '<circle cx="12" cy="11" r="2.2" fill="#fff"/><circle cx="20" cy="11" r="2.2" fill="#fff"/></svg>',
+        ),
       primary: '#0f766e',
       accent: '#f59e0b',
       loginHeadline: 'Petstore developer docs',
@@ -60,6 +64,4 @@ app.use(
 );
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () =>
-  console.log(`▶ http://localhost:${port}/docs  (${store ? `store mode · ${process.env.LUDIN_DB}` : 'binding mode'})`),
-);
+app.listen(port, () => console.log(`▶ http://localhost:${port}/docs`));
