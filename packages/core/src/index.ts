@@ -4,6 +4,7 @@ export { createIpMatcher, resolveClientIp, normalizeIp } from './ip.js';
 export { DEFAULT_ROLES } from './roles.js';
 export { applyVisibility, parseSpecText } from './spec.js';
 export { lintSpec } from './lint.js';
+export { diffSpecs } from './diff.js';
 export { buildSearchIndex } from './search.js';
 export { buildSampleInput, generateSamples, SAMPLE_LANGUAGES } from './samples.js';
 export { validateAgainstSchema, responseSchemaFor } from './validate.js';
