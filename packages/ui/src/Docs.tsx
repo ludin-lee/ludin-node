@@ -42,9 +42,8 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [menu, setMenu] = useState(false);
   const [mode, setModeState] = useState<Mode>(getMode());
   const [palette, setPalette] = useState(false);
-  const [navLabel, setNavLabel] = useState<'summary' | 'path'>(() => {
-    try { return localStorage.getItem('ludin.nav-label') === 'path' ? 'path' : 'summary'; } catch { return 'summary'; }
-  });
+  // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
+  const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
   const [sideW, setSideW] = useState(() => {
     try {
       const n = parseInt(localStorage.getItem('ludin.sidebar-w') ?? '', 10);
@@ -54,9 +53,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
 
   function toggleNavLabel() {
-    const next = navLabel === 'summary' ? 'path' : 'summary';
-    setNavLabel(next);
-    try { localStorage.setItem('ludin.nav-label', next); } catch { /* ignore */ }
+    setNavLabel(navLabel === 'summary' ? 'path' : 'summary');
   }
 
   function startResize(down: PointerEvent) {
@@ -246,7 +243,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
                 >
                   <span class={`method ${o.method}`}>{o.method}</span>
-                  <span class="path">{navLabel === 'summary' ? o.summary || o.path : o.path}</span>
+                  <span class="path">
+                    {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
+                  </span>
                 </a>
               ))}
             </details>
