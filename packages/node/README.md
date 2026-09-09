@@ -1,14 +1,14 @@
-# @ludin-node/node
+# @ludin-docs/node
 
 Plain node:http adapter for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin-node/node
+npm i ludin @ludin-docs/node
 ```
 
 ```ts
 import http from 'node:http';
-import { ludin } from '@ludin-node/node';
+import { ludin } from '@ludin-docs/node';
 
 const docs = ludin({ spec: './openapi.yaml', basePath: '/docs', auth: { users: [...] } });
 http.createServer((req, res) => docs(req, res, () => { res.statusCode = 404; res.end(); })).listen(3000);

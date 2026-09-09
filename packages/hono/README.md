@@ -1,13 +1,13 @@
-# @ludin-node/hono
+# @ludin-docs/hono
 
 Hono handler for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin-node/hono
+npm i ludin @ludin-docs/hono
 ```
 
 ```ts
-import { mountLudin } from '@ludin-node/hono';
+import { mountLudin } from '@ludin-docs/hono';
 
 mountLudin(app, {
   spec: './openapi.yaml',

@@ -1,5 +1,5 @@
 {
-  "name": "@ludin-node/nestjs",
+  "name": "@ludin-docs/nestjs",
   "version": "0.3.0",
   "description": "NestJS module for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "ludin": "workspace:*",
-    "@ludin-node/express": "workspace:*"
+    "@ludin-docs/express": "workspace:*"
   },
   "peerDependencies": {
     "@nestjs/common": ">=9.0.0",

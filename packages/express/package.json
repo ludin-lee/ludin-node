@@ -1,5 +1,5 @@
 {
-  "name": "@ludin-node/express",
+  "name": "@ludin-docs/express",
   "version": "0.3.0",
   "description": "Express adapter for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",

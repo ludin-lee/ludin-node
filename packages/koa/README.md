@@ -1,13 +1,13 @@
-# @ludin-node/koa
+# @ludin-docs/koa
 
 Koa middleware for [ludin](https://github.com/ludin-lee/ludin-node) — API docs with login, accounts & roles, IP allowlist and an audit log.
 
 ```bash
-npm i ludin @ludin-node/koa
+npm i ludin @ludin-docs/koa
 ```
 
 ```ts
-import { ludin } from '@ludin-node/koa';
+import { ludin } from '@ludin-docs/koa';
 
 app.use(ludin({
   spec: './openapi.yaml',
