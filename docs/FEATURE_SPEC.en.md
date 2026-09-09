@@ -172,6 +172,27 @@ ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
 - Classified as breaking: removed path or operation, newly required parameter or property, parameter that became required, changed type, removed 2xx response, request body that became required, newly required authentication
 - Both sides go through the role filter, so a diff never reveals an operation the viewer cannot otherwise see
 - The baseline is passed in, never written by ludin — the "no persistent state" constraint (§6) holds
+### 3.10 Expiring share links (v0.4)
+
+Hand a partner a link that opens the documentation for three days and then stops working — without creating an account for them.
+
+```ts
+ludin({ spec: './openapi.yaml', share: { enabled: true, maxTtl: '30d' }, auth: { ... } })
+```
+
+An admin mints one from the administration screen (or `POST /api/share`), choosing the role, the lifetime, optionally a single spec, and whether *Try it out* is allowed.
+
+**A link is an identity, not a bypass.** It resolves *inside* the pipeline (§4.4), after the IP check and before the role check, so:
+
+- the **IP allowlist still applies** — a partner outside it still cannot get in; widen the allowlist deliberately if that is the intent
+- `visibility` still filters the document for the link's role
+- the link **can never reach the admin surface**, and an admin-capable role is refused when the link is minted *and* re-checked on every request
+- *Try it out* is **off unless the link was created with it on** — a share link reads
+- a link may be **locked to one spec**, and then the other specs are not even listed
+
+The token is signed in its own HMAC namespace, so a share token can never be presented as a session cookie, nor a session as a share. On first use it moves from the URL into an HttpOnly cookie, so it stops travelling in referrers, history and screenshots.
+
+**The honest limitation**: the grant is stateless, because there is no store to keep it in (§6). A single link therefore cannot be revoked — rotating the session secret invalidates all of them at once. Creation is recorded as a `share.created` audit event, and every request made through a link is attributed to `share:<label>`.
 
 ---
 
@@ -248,6 +269,7 @@ Everything goes through the same pipeline (§4.4). No route bypasses it.
 | `GET /api/search-index` | ⌘K index: operations + schema field names, filtered (`docs:read`) |
 | `GET /api/lint` | Documentation health score for the filtered document (`docs:read`) |
 | `GET /api/diff` | Classified changes against the configured baseline (`docs:read`) |
+| `POST /api/share` | Mint an expiring share link (`admin:read`) |
 | `GET /api/admin` | The current configuration (`admin:read`, read-only) |
 
 Mutating requests require the `X-Requested-With: ludin` header (CSRF protection).
@@ -277,6 +299,7 @@ interface LudinOptions {
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
   diff?: { baseline?: SpecSource };
+  share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;
@@ -313,6 +336,6 @@ Two constraints run across the whole roadmap:
 - Whether `readme.path` should also accept a Markdown (`.md`) file (HTML only today)
 - Default for recording Try-it-out request/response bodies in the audit log (off recommended)
 - ~~Where the baseline snapshot for a spec diff comes from~~ → passed in the config (`diff.baseline` / `SpecEntry.baseline`); ludin writes nothing (2026-09-09)
-- How a share link passes the request pipeline: treated exactly like a session (the token carries role and scope, the IP check still applies) vs a separate route — the latter breaks the §4.4 invariant, so we lean against it
+- ~~How a share link passes the request pipeline~~ → resolved as an identity inside the pipeline, never a separate route (2026-09-09)
 - Authentication for the MCP endpoint: a service account / API key header vs reusing share-link tokens
 - Whether to bring store mode back: hold until demand for comments and read receipts actually accumulates vs ship it as a separate opt-in package
