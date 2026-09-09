@@ -81,6 +81,13 @@ const en = {
   copyResponseHint: 'Copy the response body',
   copyReport: 'Copy report',
   copyReportHint: 'Copy endpoint, request and response as one report — credentials masked',
+
+  tokenCaptured: 'Token from `{key}` is now sent as Authorization on later requests.',
+  tokenFound: 'Found a token in `{key}`.',
+  tokenUse: 'Use it',
+  tokenClear: 'Clear',
+  autoCapture: 'Auto-capture tokens',
+  autoCaptureHint: 'Reuse a token found in a response on every later request',
   tryItOut: 'Try it out',
   readOnlyRole: 'read-only role',
   serverField: 'server',
@@ -168,6 +175,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: '코드 샘플', copy: '복사', copied: '✓ 복사됨',
     history: '히스토리', historyRestore: '클릭하면 이 입력값으로 복원됩니다',
     copyResponse: '응답 복사', copyResponseHint: '응답 바디를 복사합니다', copyReport: '리포트 복사', copyReportHint: '엔드포인트·요청·응답을 하나의 리포트로 복사합니다 — 자격 증명은 마스킹됩니다',
+
+    tokenCaptured: '`{key}`에서 받은 토큰을 이후 요청의 Authorization으로 보냅니다.', tokenFound: '`{key}`에서 토큰을 찾았습니다.', tokenUse: '사용하기', tokenClear: '해제',
+    autoCapture: '토큰 자동 수집', autoCaptureHint: '응답에서 찾은 토큰을 이후 모든 요청에 재사용합니다',
     tryItOut: '실행해 보기', readOnlyRole: '읽기 전용 역할', serverField: '서버', bodyField: '바디',
     extraHeaders: '추가 헤더', addHeader: '+ 추가', sendRequest: '요청 보내기', copyCurl: 'cURL 복사',
     fillFields: '{names} 입력 필요', missingFields: '누락: {names}',
@@ -223,6 +233,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'コードサンプル', copy: 'コピー', copied: '✓ コピーしました',
     history: '履歴', historyRestore: 'クリックでこの入力内容を復元',
     copyResponse: 'レスポンスをコピー', copyResponseHint: 'レスポンスボディをコピー', copyReport: 'レポートをコピー', copyReportHint: 'エンドポイント・リクエスト・レスポンスを1つのレポートとしてコピー（認証情報はマスク）',
+
+    tokenCaptured: '`{key}` のトークンを以降のリクエストの Authorization に付与します。', tokenFound: '`{key}` にトークンが見つかりました。', tokenUse: '使う', tokenClear: '解除',
+    autoCapture: 'トークン自動取得', autoCaptureHint: 'レスポンスで見つけたトークンを以降のリクエストで再利用します',
     tryItOut: '試してみる', readOnlyRole: '読み取り専用ロール', serverField: 'サーバー', bodyField: 'ボディ',
     extraHeaders: '追加ヘッダー', addHeader: '+ 追加', sendRequest: 'リクエスト送信', copyCurl: 'cURLをコピー',
     fillFields: '{names} を入力してください', missingFields: '未入力: {names}',
@@ -278,6 +291,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: '代码示例', copy: '复制', copied: '✓ 已复制',
     history: '历史记录', historyRestore: '点击恢复这些输入',
     copyResponse: '复制响应', copyResponseHint: '复制响应正文', copyReport: '复制报告', copyReportHint: '将端点、请求与响应复制为一份报告（凭据已脱敏）',
+
+    tokenCaptured: '`{key}` 中的令牌将作为 Authorization 用于后续请求。', tokenFound: '在 `{key}` 中找到令牌。', tokenUse: '使用', tokenClear: '清除',
+    autoCapture: '自动捕获令牌', autoCaptureHint: '将响应中找到的令牌复用到后续所有请求',
     tryItOut: '在线调试', readOnlyRole: '只读角色', serverField: '服务器', bodyField: '请求体',
     extraHeaders: '额外请求头', addHeader: '+ 添加', sendRequest: '发送请求', copyCurl: '复制 cURL',
     fillFields: '请填写 {names}', missingFields: '缺少: {names}',
@@ -333,6 +349,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'Ejemplos de código', copy: 'Copiar', copied: '✓ copiado',
     history: 'Historial', historyRestore: 'Haz clic para restaurar estas entradas',
     copyResponse: 'Copiar respuesta', copyResponseHint: 'Copia el cuerpo de la respuesta', copyReport: 'Copiar informe', copyReportHint: 'Copia endpoint, petición y respuesta como un informe — credenciales enmascaradas',
+
+    tokenCaptured: 'El token de `{key}` se enviará como Authorization en las siguientes peticiones.', tokenFound: 'Se encontró un token en `{key}`.', tokenUse: 'Usarlo', tokenClear: 'Limpiar',
+    autoCapture: 'Capturar tokens automáticamente', autoCaptureHint: 'Reutiliza un token hallado en una respuesta en las peticiones siguientes',
     tryItOut: 'Probar', readOnlyRole: 'rol de solo lectura', serverField: 'servidor', bodyField: 'cuerpo',
     extraHeaders: 'cabeceras extra', addHeader: '+ añadir', sendRequest: 'Enviar petición', copyCurl: 'Copiar cURL',
     fillFields: 'completa {names}', missingFields: 'Falta: {names}',
@@ -388,6 +407,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'Exemples de code', copy: 'Copier', copied: '✓ copié',
     history: 'Historique', historyRestore: 'Cliquez pour restaurer ces entrées',
     copyResponse: 'Copier la réponse', copyResponseHint: 'Copier le corps de la réponse', copyReport: 'Copier le rapport', copyReportHint: 'Copier l’endpoint, la requête et la réponse en un rapport — identifiants masqués',
+
+    tokenCaptured: 'Le token de `{key}` sera envoyé comme Authorization sur les requêtes suivantes.', tokenFound: 'Un token a été trouvé dans `{key}`.', tokenUse: 'L’utiliser', tokenClear: 'Effacer',
+    autoCapture: 'Capture auto des tokens', autoCaptureHint: 'Réutilise un token trouvé dans une réponse pour les requêtes suivantes',
     tryItOut: 'Essayer', readOnlyRole: 'rôle en lecture seule', serverField: 'serveur', bodyField: 'corps',
     extraHeaders: 'en-têtes supplémentaires', addHeader: '+ ajouter', sendRequest: 'Envoyer la requête', copyCurl: 'Copier cURL',
     fillFields: 'renseignez {names}', missingFields: 'Manquant : {names}',
@@ -443,6 +465,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'Codebeispiele', copy: 'Kopieren', copied: '✓ kopiert',
     history: 'Verlauf', historyRestore: 'Klicken, um diese Eingaben wiederherzustellen',
     copyResponse: 'Antwort kopieren', copyResponseHint: 'Antwort-Body kopieren', copyReport: 'Bericht kopieren', copyReportHint: 'Endpunkt, Anfrage und Antwort als Bericht kopieren — Zugangsdaten maskiert',
+
+    tokenCaptured: 'Das Token aus `{key}` wird künftig als Authorization gesendet.', tokenFound: 'Token in `{key}` gefunden.', tokenUse: 'Verwenden', tokenClear: 'Löschen',
+    autoCapture: 'Tokens automatisch übernehmen', autoCaptureHint: 'Ein in einer Antwort gefundenes Token für weitere Anfragen wiederverwenden',
     tryItOut: 'Ausprobieren', readOnlyRole: 'Nur-Lese-Rolle', serverField: 'Server', bodyField: 'Body',
     extraHeaders: 'Zusätzliche Header', addHeader: '+ hinzufügen', sendRequest: 'Anfrage senden', copyCurl: 'cURL kopieren',
     fillFields: '{names} ausfüllen', missingFields: 'Fehlt: {names}',
@@ -498,6 +523,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'Exemplos de código', copy: 'Copiar', copied: '✓ copiado',
     history: 'Histórico', historyRestore: 'Clique para restaurar estas entradas',
     copyResponse: 'Copiar resposta', copyResponseHint: 'Copia o corpo da resposta', copyReport: 'Copiar relatório', copyReportHint: 'Copia endpoint, requisição e resposta num relatório — credenciais mascaradas',
+
+    tokenCaptured: 'O token de `{key}` será enviado como Authorization nas próximas requisições.', tokenFound: 'Token encontrado em `{key}`.', tokenUse: 'Usar', tokenClear: 'Limpar',
+    autoCapture: 'Capturar tokens automaticamente', autoCaptureHint: 'Reutiliza um token encontrado numa resposta nas requisições seguintes',
     tryItOut: 'Testar', readOnlyRole: 'papel somente leitura', serverField: 'servidor', bodyField: 'corpo',
     extraHeaders: 'cabeçalhos extras', addHeader: '+ adicionar', sendRequest: 'Enviar requisição', copyCurl: 'Copiar cURL',
     fillFields: 'preencha {names}', missingFields: 'Faltando: {names}',
@@ -553,6 +581,9 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
     codeSamples: 'Примеры кода', copy: 'Копировать', copied: '✓ скопировано',
     history: 'История', historyRestore: 'Нажмите, чтобы восстановить эти значения',
     copyResponse: 'Копировать ответ', copyResponseHint: 'Скопировать тело ответа', copyReport: 'Копировать отчёт', copyReportHint: 'Скопировать эндпоинт, запрос и ответ одним отчётом — учётные данные скрыты',
+
+    tokenCaptured: 'Токен из `{key}` будет отправляться как Authorization в последующих запросах.', tokenFound: 'Найден токен в `{key}`.', tokenUse: 'Использовать', tokenClear: 'Очистить',
+    autoCapture: 'Автозахват токенов', autoCaptureHint: 'Повторно использовать найденный в ответе токен в последующих запросах',
     tryItOut: 'Попробовать', readOnlyRole: 'роль только для чтения', serverField: 'сервер', bodyField: 'тело',
     extraHeaders: 'доп. заголовки', addHeader: '+ добавить', sendRequest: 'Отправить запрос', copyCurl: 'Копировать cURL',
     fillFields: 'заполните {names}', missingFields: 'Не заполнено: {names}',
