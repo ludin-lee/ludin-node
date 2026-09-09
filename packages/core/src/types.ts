@@ -21,6 +21,8 @@ export interface SpecEntry {
   spec: SpecSource;
   /** Roles that can see this spec. Default: everyone logged in. */
   visibleTo?: Role[];
+  /** Previous version of this document, for the diff / changes view. */
+  baseline?: SpecSource;
 }
 
 export type SpecSource =
@@ -146,6 +148,8 @@ export interface LudinOptions {
     /** Upper bound for a link's lifetime. Default '30d'. */
     maxTtl?: string | number;
   };
+  /** Baseline document for the changes view, used for every spec without its own `baseline`. */
+  diff?: { baseline?: SpecSource };
   theme?: ThemeOptions;
   /** Mount path (used for cookie path and asset links). Adapters usually set this. */
   basePath?: string;

@@ -8,6 +8,7 @@ import { Admin } from './Admin';
 import { Readme } from './Readme';
 import { Overview } from './Overview';
 import { Palette } from './Palette';
+import { Changes } from './Changes';
 import { LOCALES, getLang, setLang, t } from './i18n';
 
 type Route =
@@ -15,19 +16,21 @@ type Route =
   | { kind: 'op'; id: string }
   | { kind: 'admin' }
   | { kind: 'readme' }
+  | { kind: 'changes' }
   | { kind: 'schema'; name: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   if (h === 'admin') return { kind: 'admin' };
   if (h === 'readme') return { kind: 'readme' };
+  if (h === 'changes') return { kind: 'changes' };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
 }
 
 export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
-  const [specs, setSpecs] = useState<Array<{ name: string }>>([]);
+  const [specs, setSpecs] = useState<Array<{ name: string; hasBaseline?: boolean }>>([]);
   const [specName, setSpecName] = useState<string>(() => {
     try {
       return localStorage.getItem('ludin.spec') || '';
@@ -63,6 +66,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   });
   const [server, setServerState] = useState('');
   const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
+  const hasBaseline = specs.find((s) => s.name === specName)?.hasBaseline ?? false;
 
   const servers = useMemo(() => (doc ? serverUrls(doc) : []), [doc]);
   useEffect(() => {
@@ -244,6 +248,11 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
             {readme.label}
           </a>
         )}
+        {hasBaseline && (
+          <a href="#/changes" class={`btn btn-sm ${route.kind === 'changes' ? 'btn-primary' : 'btn-ghost'}`}>
+            {t('changes')}
+          </a>
+        )}
         {can('admin:read') && (
           <a href="#/admin" class={`btn btn-sm ${route.kind === 'admin' ? 'btn-primary' : 'btn-ghost'}`}>
             {t('admin')}
@@ -365,7 +374,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <Readme label={readme.label} url={readme.url} />
         ) : (
         <div class="content">
-          {route.kind === 'admin' && can('admin:read') ? (
+          {route.kind === 'changes' ? (
+            specName ? <Changes specName={specName} /> : null
+          ) : route.kind === 'admin' && can('admin:read') ? (
             <Admin me={me} />
           ) : route.kind === 'op' ? (
             doc && current ? (

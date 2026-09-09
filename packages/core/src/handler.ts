@@ -1,4 +1,5 @@
 import { Auditor } from './audit.js';
+import { diffSpecs } from './diff.js';
 import { createIpMatcher, isLocalhost, resolveClientIp } from './ip.js';
 import { lintSpec } from './lint.js';
 import { Lockout } from './lockout.js';
@@ -50,6 +51,11 @@ export function createLudin(options: LudinOptions): LudinHandler {
   const roles = new RoleRegistry(options.roles);
   const specs = new SpecLoader(options.spec);
   const readme = Readme.from(options.readme);
+  // Baselines for the changes view: per-spec `baseline`, else the shared `diff.baseline`.
+  const baselineEntries = specs.entries
+    .map((e) => ({ name: e.name, spec: e.baseline ?? options.diff?.baseline }))
+    .filter((e): e is { name: string; spec: NonNullable<typeof e.spec> } => !!e.spec);
+  const baselines = baselineEntries.length ? new SpecLoader(baselineEntries) : null;
   const auditor = new Auditor(options.audit);
   const ttlSec = parseDuration(auth?.session?.ttl, 12 * 3600);
   const signer = new SessionSigner(auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET, ttlSec);
@@ -243,7 +249,13 @@ export function createLudin(options: LudinOptions): LudinHandler {
       case '/api/specs':
         require(ctx, 'docs:read');
         return json(200, {
-          specs: specs.listFor(ctx.user!.role).filter((s) => !ctx.share?.spec || s.name === ctx.share.spec),
+          specs: specs
+            .listFor(ctx.user!.role)
+            .filter((s) => !ctx.share?.spec || s.name === ctx.share.spec)
+            .map((s) => ({
+              ...s,
+              hasBaseline: !!baselines?.entries.some((b) => b.name === s.name),
+            })),
         });
       case '/api/spec': {
         require(ctx, 'docs:read');
@@ -266,6 +278,19 @@ export function createLudin(options: LudinOptions): LudinHandler {
         requireMethod(ctx, 'GET');
         const { doc } = await visibleSpec(ctx);
         return json(200, { index: buildSearchIndex(doc) });
+      }
+      case '/api/diff': {
+        require(ctx, 'docs:read');
+        requireMethod(ctx, 'GET');
+        const { name, doc } = await visibleSpec(ctx);
+        if (!baselines?.entries.some((b) => b.name === name)) {
+          throw new HttpError(404, 'No baseline is configured for this spec.', 'no_baseline');
+        }
+        const raw = await baselines.load(name);
+        if (!raw) throw new HttpError(404, 'Baseline not found', 'no_baseline');
+        // The baseline is filtered too – a hidden operation must not surface in the diff.
+        const baseline = applyVisibility(raw, options.visibility, ctx.user!.role);
+        return json(200, { spec: name, ...diffSpecs(baseline, doc) });
       }
       case '/api/lint': {
         require(ctx, 'docs:read');

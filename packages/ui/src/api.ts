@@ -66,6 +66,14 @@ export interface SearchEntry {
   fields: string[];
 }
 
+export interface DiffInfo {
+  spec: string;
+  changes: Array<{ kind: string; breaking: boolean; at: string; detail: string; params?: Record<string, string> }>;
+  breaking: number;
+  nonBreaking: number;
+  versions: { before?: string; after?: string };
+}
+
 export interface LintInfo {
   spec: string;
   score: number;
@@ -102,7 +110,7 @@ export const api = {
   me: () => call<Me>('/me'),
   login: (email: string, password: string) => send<Me>('POST', '/login', { email, password }),
   logout: () => send<{ ok: true }>('POST', '/logout'),
-  specs: () => call<{ specs: Array<{ name: string }> }>('/specs'),
+  specs: () => call<{ specs: Array<{ name: string; hasBaseline?: boolean }> }>('/specs'),
   spec: (name: string) => call<any>(`/spec?name=${encodeURIComponent(name)}`),
   try: (payload: {
     method: string;
@@ -119,6 +127,7 @@ export const api = {
     ),
   searchIndex: (spec: string) => call<{ index: SearchEntry[] }>(`/search-index?name=${encodeURIComponent(spec)}`),
   lint: (spec: string) => call<LintInfo>(`/lint?name=${encodeURIComponent(spec)}`),
+  diff: (spec: string) => call<DiffInfo>(`/diff?name=${encodeURIComponent(spec)}`),
 
   specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
     `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,

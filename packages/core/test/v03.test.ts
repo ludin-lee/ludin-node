@@ -289,3 +289,83 @@ test('share: disabled by default', async () => {
   const { status } = await mintShare(ludin, cookie, { role: 'viewer' });
   assert.equal(status, 400);
 });
+
+// --- spec diff -------------------------------------------------------------
+
+import { diffSpecs } from '../src/index.js';
+
+const v1 = {
+  openapi: '3.0.3',
+  info: { title: 'T', version: '1.0.0' },
+  components: {
+    schemas: {
+      Pet: { type: 'object', required: ['id'], properties: {
+        id: { type: 'integer' }, name: { type: 'string' }, status: { type: 'string', enum: ['available', 'sold'] } } },
+    },
+  },
+  paths: {
+    '/pets': {
+      get: { operationId: 'list', parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }],
+        responses: { 200: { description: 'ok', content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } } },
+      post: { operationId: 'create',
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } },
+        responses: { 201: { description: 'made' } } },
+    },
+    '/legacy': { get: { operationId: 'legacy', responses: { 200: { description: 'ok' } } } },
+  },
+};
+
+function v2(): any {
+  const d = structuredClone(v1) as any;
+  d.info.version = '2.0.0';
+  delete d.paths['/legacy'];                                            // breaking: path removed
+  d.paths['/pets'].get.parameters.push({ name: 'cursor', in: 'query', required: true, schema: { type: 'string' } }); // breaking
+  d.paths['/pets'].delete = { operationId: 'wipe', responses: { 204: { description: 'gone' } } };                    // additive
+  d.components.schemas.Pet.required.push('name');                       // breaking for the request body
+  d.components.schemas.Pet.properties.tag = { type: 'string' };         // additive
+  return d;
+}
+
+test('diff: classifies breaking vs compatible changes', () => {
+  const r = diffSpecs(v1, v2());
+  const kinds = r.changes.map((c) => c.kind);
+  assert.ok(kinds.includes('path-removed'));
+  assert.ok(kinds.includes('param-added-required'));
+  assert.ok(kinds.includes('operation-added'));
+  assert.equal(r.versions.before, '1.0.0');
+  assert.equal(r.versions.after, '2.0.0');
+  assert.ok(r.breaking >= 2 && r.nonBreaking >= 2);
+  // the additive ones must not be flagged
+  assert.equal(r.changes.find((c) => c.kind === 'operation-added')!.breaking, false);
+  assert.equal(r.changes.find((c) => c.kind === 'path-removed')!.breaking, true);
+});
+
+test('diff: direction decides – requests and responses break differently', () => {
+  const before = {
+    openapi: '3.0.3', info: { title: 'T', version: '1' },
+    paths: { '/x': { post: {
+      requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { a: { type: 'string' }, s: { type: 'string', enum: ['x', 'y'] } } } } } },
+      responses: { 200: { description: 'ok', content: { 'application/json': { schema: { type: 'object', properties: { b: { type: 'string' }, t: { type: 'string', enum: ['p'] } } } } } } },
+    } } },
+  };
+  const after = structuredClone(before) as any;
+  after.paths['/x'].requestBody = undefined;
+  const req = after.paths['/x'].post.requestBody.content['application/json'].schema;
+  req.required = ['a'];                      // request: newly required → breaking
+  req.properties.s.enum = ['x'];             // request: enum narrowed → breaking
+  const res = after.paths['/x'].post.responses[200].content['application/json'].schema;
+  delete res.properties.b;                   // response: property removed → breaking
+  res.properties.t.enum = ['p', 'q'];        // response: enum widened → breaking
+  const r = diffSpecs(before, after);
+  const byKind = (k: string) => r.changes.filter((c) => c.kind === k);
+  assert.equal(byKind('property-added-required')[0]?.breaking, true);
+  assert.equal(byKind('enum-value-removed')[0]?.breaking, true);   // request side
+  assert.equal(byKind('property-removed')[0]?.breaking, true);     // response side
+  assert.equal(byKind('enum-value-added')[0]?.breaking, true);     // response side
+});
+
+test('diff: identical documents produce no changes', () => {
+  const r = diffSpecs(v1, structuredClone(v1));
+  assert.deepEqual(r.changes, []);
+  assert.equal(r.breaking, 0);
+});
