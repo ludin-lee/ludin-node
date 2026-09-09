@@ -45,6 +45,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [palette, setPalette] = useState(false);
   // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
   const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
+  const [sortMethod, setSortMethod] = useState(false);
   const [sideW, setSideW] = useState(() => {
     try {
       const n = parseInt(localStorage.getItem('ludin.sidebar-w') ?? '', 10);
@@ -154,6 +155,16 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
       .filter((g) => g.operations.length);
   }, [groups, q]);
 
+  const METHOD_ORDER = ['get', 'post', 'put', 'patch', 'delete'];
+  const sorted = useMemo(() => {
+    if (!sortMethod) return filtered;
+    const rank = (m: string) => { const i = METHOD_ORDER.indexOf(m); return i === -1 ? METHOD_ORDER.length : i; };
+    return filtered.map((g) => ({
+      ...g,
+      operations: [...g.operations].sort((a, b) => rank(a.method) - rank(b.method) || a.path.localeCompare(b.path)),
+    }));
+  }, [filtered, sortMethod]);
+
   const current: Operation | undefined = route.kind === 'op' ? allOps.find((o) => o.id === route.id) : undefined;
   const can = (p: string) => me.permissions.includes(p);
   const schemas = doc?.components?.schemas ?? {};
@@ -257,6 +268,13 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           >
             URL
           </button>
+          <button
+            class={`btn btn-sm btn-ghost nav-label-toggle ${sortMethod ? 'on' : ''}`}
+            onClick={() => setSortMethod(!sortMethod)}
+            title={sortMethod ? t('sortOriginal') : t('sortByMethod')}
+          >
+            ⇅
+          </button>
         </div>
         <nav class="nav">
           {loadErr && <div class="notice err">{loadErr}</div>}
@@ -265,7 +283,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <span class="spin" />
             </div>
           )}
-          {filtered.map((g) => (
+          {sorted.map((g) => (
             <details class="nav-group" open>
               <summary>
                 <span class="caret">▸</span>
