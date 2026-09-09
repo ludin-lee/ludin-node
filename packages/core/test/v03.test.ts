@@ -159,3 +159,11 @@ test('routes: samples / search-index / lint respect roles and visibility', async
   assert.ok(lint.score > 0);
   assert.ok(!lint.issues.some((i: any) => i.path.includes('/internal/flags')));
 });
+
+test('lint: ignored rules count neither as checks nor issues', () => {
+  const full = lintSpec(spec);
+  const trimmed = lintSpec(spec, { ignore: ['op-summary', 'op-tags'] });
+  assert.ok(trimmed.checks < full.checks);
+  assert.ok(!trimmed.issues.some((i) => i.rule === 'op-summary' || i.rule === 'op-tags'));
+  assert.ok(trimmed.score >= full.score);
+});

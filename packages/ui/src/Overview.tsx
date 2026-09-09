@@ -3,13 +3,32 @@ import type { Doc, TagGroup } from './openapi';
 import { api, type LintInfo } from './api';
 import { Schema } from './Schema';
 import { Markdown } from './Markdown';
-import { t } from './i18n';
+import { t, type MsgKey } from './i18n';
 
 /**
  * Documentation health, linted by the core against the role-filtered spec.
  * The score card lives inside the KPI grid; the issue list renders through
  * `renderIssues` BELOW the grid, so opening it never reflows the KPI cards.
  */
+const LINT_KEYS: Record<string, MsgKey> = {
+  'info-description': 'lintInfoDescription',
+  servers: 'lintServers',
+  'op-summary': 'lintOpSummary',
+  'op-id': 'lintOpId',
+  'op-tags': 'lintOpTags',
+  'param-description': 'lintParamDescription',
+  'body-schema': 'lintBodySchema',
+  'success-response': 'lintSuccessResponse',
+  'response-description': 'lintResponseDescription',
+  'response-schema': 'lintResponseSchema',
+};
+
+/** Translate a lint issue by its stable rule key; unknown rules fall back to the English message. */
+function lintMessage(i: LintInfo['issues'][number]): string {
+  const key = LINT_KEYS[i.rule];
+  return key ? t(key, i.params) : i.message;
+}
+
 function useHealth(specName?: string) {
   const [lint, setLint] = useState<LintInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -36,7 +55,7 @@ function useHealth(specName?: string) {
           {lint.issues.map((i) => (
             <div class="param" style="grid-template-columns:56px 1fr">
               <span class={`status-pill ${i.severity === 'error' ? 's5' : i.severity === 'warn' ? 's4' : 's2'}`}>{i.severity}</span>
-              <span class="desc"><code>{i.path}</code> — {i.message}</span>
+              <span class="desc"><code>{i.path}</code> — {lintMessage(i)}</span>
             </div>
           ))}
         </div>
