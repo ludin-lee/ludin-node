@@ -14,6 +14,10 @@
 - 📝 **Audit log** – who logged in, who called what, from where (JSON lines to stdout, or your own sink)
 - 📄 **Your own HTML page** – point `readme` at a file and it appears next to the reference, behind the same login
 - 📤 **Spec download** – hand a customer the JSON/YAML they are allowed to see, and log who took it
+- 🧩 **Code samples** – cURL / fetch / axios / Python / Go / `.http` per operation, auth header and body example filled in
+- ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
+- ✅ **Response validation** – every *Try it out* response is checked against the documented schema
+- 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
 - 🎨 **Beautiful UI** – 65 KB total (21 KB gzip), light/dark, your logo and brand colors, custom CSS
 - ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
@@ -213,7 +217,9 @@ needs an `NPM_TOKEN` secret in the `npm` environment.
 ## Roadmap
 
 - **v0.2** ✅ `readme` pages, spec download, branding, adapters for Fastify / Koa / Hono / `node:http`
-- **v0.3** OIDC / OAuth2 (Google, GitHub, Keycloak)
+- **v0.3** ✅ code samples, ⌘K palette (schema-field search), *Try it out* response validation, `ludin lint` + health score
+- **v0.4** spec diff & breaking-change classification, generated changelog, environments, expiring share links
+- **v0.5** MCP endpoint, OIDC / OAuth2 (Google, GitHub, Keycloak), collection & TypeScript type export
 - **v1.0** stable API
 
 MIT

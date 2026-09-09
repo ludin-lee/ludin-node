@@ -1,7 +1,43 @@
+import { useEffect, useState } from 'preact/hooks';
 import type { Doc, TagGroup } from './openapi';
-import { api } from './api';
+import { api, type LintInfo } from './api';
 import { Schema } from './Schema';
 import { Markdown } from './Markdown';
+
+/** Documentation health, linted by the core against the role-filtered spec. */
+function HealthCard({ specName }: { specName: string }) {
+  const [lint, setLint] = useState<LintInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setLint(null);
+    api.lint(specName).then(setLint).catch(() => setLint(null));
+  }, [specName]);
+  if (!lint) return null;
+  const tone = lint.score >= 90 ? 'var(--ok, #3fb950)' : lint.score >= 60 ? 'var(--warn, #d29922)' : 'var(--err, #f85149)';
+  return (
+    <>
+      <div class="card" style="cursor:pointer" onClick={() => setOpen(!open)} title="Click for the issue list (also: npx ludin lint)">
+        <div class="card-b">
+          <div class="v" style={`color:${tone}`}>{lint.score}</div>
+          <div class="l">Docs health · {lint.passed}/{lint.checks} checks</div>
+        </div>
+      </div>
+      {open && lint.issues.length > 0 && (
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-h">Documentation issues <span class="count" style="font-weight:400">{lint.issues.length}</span></div>
+          <div class="card-b" style="padding:6px 14px;max-height:260px;overflow:auto">
+            {lint.issues.map((i) => (
+              <div class="param" style="grid-template-columns:56px 1fr">
+                <span class={`status-pill ${i.severity === 'error' ? 's5' : i.severity === 'warn' ? 's4' : 's2'}`}>{i.severity}</span>
+                <span class="desc"><code>{i.path}</code> — {i.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export function Overview({
   doc,
@@ -80,6 +116,7 @@ export function Overview({
             </div>
           </div>
         )}
+        {specName && <HealthCard specName={specName} />}
       </div>
 
       {groups.map((g) => (

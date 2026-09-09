@@ -50,6 +50,26 @@ export interface TryResult {
   body?: string | null;
   bodyBase64?: string | null;
   error?: string;
+  /** Comparison against the documented response schema (core-side). */
+  validation?: { checked: boolean; reason?: string; issues?: Array<{ path: string; message: string }> };
+}
+
+export interface SearchEntry {
+  method: string;
+  path: string;
+  operationId?: string;
+  summary?: string;
+  tags: string[];
+  fields: string[];
+}
+
+export interface LintInfo {
+  spec: string;
+  score: number;
+  checks: number;
+  passed: number;
+  counts: { error: number; warn: number; info: number };
+  issues: Array<{ rule: string; severity: 'error' | 'warn' | 'info'; path: string; message: string }>;
 }
 
 export interface AdminUser {
@@ -81,8 +101,21 @@ export const api = {
   logout: () => send<{ ok: true }>('POST', '/logout'),
   specs: () => call<{ specs: Array<{ name: string }> }>('/specs'),
   spec: (name: string) => call<any>(`/spec?name=${encodeURIComponent(name)}`),
-  try: (payload: { method: string; url: string; headers: Record<string, string>; body: string | null; spec: string }) =>
-    send<TryResult>('POST', '/try', payload),
+  try: (payload: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body: string | null;
+    spec: string;
+    op?: { method: string; path: string };
+  }) => send<TryResult>('POST', '/try', payload),
+
+  samples: (spec: string, method: string, path: string) =>
+    call<{ request: { method: string; url: string }; samples: Record<string, string> }>(
+      `/samples?name=${encodeURIComponent(spec)}&method=${encodeURIComponent(method)}&path=${encodeURIComponent(path)}`,
+    ),
+  searchIndex: (spec: string) => call<{ index: SearchEntry[] }>(`/search-index?name=${encodeURIComponent(spec)}`),
+  lint: (spec: string) => call<LintInfo>(`/lint?name=${encodeURIComponent(spec)}`),
 
   specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
     `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,

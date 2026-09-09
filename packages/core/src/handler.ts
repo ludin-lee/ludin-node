@@ -1,6 +1,10 @@
 import { Auditor } from './audit.js';
 import { createIpMatcher, isLocalhost, resolveClientIp } from './ip.js';
+import { lintSpec } from './lint.js';
 import { Lockout } from './lockout.js';
+import { buildSampleInput, generateSamples } from './samples.js';
+import { buildSearchIndex } from './search.js';
+import { responseSchemaFor, validateAgainstSchema } from './validate.js';
 import { verifyPassword, isHashed } from './password.js';
 import { Readme, ReadmeError } from './readme.js';
 import { RoleRegistry } from './roles.js';
@@ -214,11 +218,44 @@ export function createLudin(options: LudinOptions): LudinHandler {
       case '/api/try':
         require(ctx, 'docs:try');
         return tryProxy(ctx);
+      case '/api/samples':
+        require(ctx, 'docs:read');
+        return samplesRoute(ctx);
+      case '/api/search-index': {
+        require(ctx, 'docs:read');
+        requireMethod(ctx, 'GET');
+        const { doc } = await visibleSpec(ctx);
+        return json(200, { index: buildSearchIndex(doc) });
+      }
+      case '/api/lint': {
+        require(ctx, 'docs:read');
+        requireMethod(ctx, 'GET');
+        const { name, doc } = await visibleSpec(ctx);
+        const result = lintSpec(doc);
+        return json(200, { spec: name, ...result, issues: result.issues.slice(0, 200) });
+      }
       case '/api/admin':
         require(ctx, 'admin:read');
         return admin(ctx);
     }
     throw new HttpError(404, 'Not Found');
+  }
+
+  /**
+   * Code samples for one operation, generated from the role-filtered document:
+   * an operation the caller may not see yields a 404, never a sample.
+   */
+  async function samplesRoute(ctx: Ctx): Promise<LudinResponse> {
+    requireMethod(ctx, 'GET');
+    const { method, path: opPath, server } = ctx.req.query;
+    if (!method || !opPath) throw new HttpError(400, 'method and path are required');
+    const { doc } = await visibleSpec(ctx);
+    if (server && !serverOrigins(doc).some((o) => server.startsWith(o)) && !doc.servers?.some((s: any) => s?.url === server)) {
+      throw new HttpError(400, 'Unknown server');
+    }
+    const input = buildSampleInput(doc, method, opPath, server);
+    if (!input) throw new HttpError(404, 'Operation not found');
+    return json(200, { request: { method: input.method, url: input.url }, samples: generateSamples(input) });
   }
 
   /** Loads the requested spec, already filtered for the caller's role. */
@@ -367,6 +404,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
       headers?: Record<string, string>;
       body?: string | null;
       spec?: string;
+      /** The documented operation behind this call – enables response validation. */
+      op?: { method?: string; path?: string };
     };
     if (!body.url || !body.method) throw new HttpError(400, 'method and url are required');
 
@@ -444,7 +483,35 @@ export function createLudin(options: LudinOptions): LudinHandler {
       size: buf.length,
       body: isText ? buf.toString('utf8') : null,
       bodyBase64: isText ? null : buf.toString('base64'),
+      validation: validateTryResponse(ctx, doc, body.op, upstream.status, resHeaders['content-type'], isText ? buf.toString('utf8') : null),
     });
+  }
+
+  /**
+   * Compare a Try-it-out response with the documented schema. Validation runs
+   * against the role-filtered document, so an operation hidden from the caller
+   * is simply "unchecked" – it never leaks that a schema exists.
+   */
+  function validateTryResponse(
+    ctx: Ctx,
+    doc: Record<string, any> | null,
+    op: { method?: string; path?: string } | undefined,
+    status: number,
+    contentType: string | undefined,
+    text: string | null,
+  ): { checked: boolean; reason?: string; issues?: Array<{ path: string; message: string }> } {
+    if (!doc || !op?.method || !op.path) return { checked: false, reason: 'no_operation' };
+    if (text == null || !/json/i.test(contentType ?? '')) return { checked: false, reason: 'not_json' };
+    const filtered = applyVisibility(doc, options.visibility, ctx.user!.role);
+    const schema = responseSchemaFor(filtered, op.method, op.path, status);
+    if (!schema) return { checked: false, reason: 'no_schema' };
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      return { checked: false, reason: 'invalid_json' };
+    }
+    return { checked: true, issues: validateAgainstSchema(filtered, schema, value) };
   }
 
   return { handle, options };

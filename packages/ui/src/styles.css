@@ -1098,3 +1098,53 @@ kbd {
   background: var(--bg);
   color-scheme: light dark;
 }
+
+/* ----- v0.3: validation notices ----- */
+.notice.ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+.notice.warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+.notice.warn code { font-family: var(--mono); font-size: 12px; }
+
+/* ----- v0.3: command palette ----- */
+.palette-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: color-mix(in srgb, #000 45%, transparent);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 12vh 16px 0;
+}
+.palette {
+  width: 640px; max-width: 100%;
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius, 10px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.palette > input {
+  border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+  padding: 14px 16px; font-size: 15px; background: transparent;
+}
+.palette > input:focus { outline: none; box-shadow: none; }
+.palette-list { max-height: 46vh; overflow: auto; padding: 6px; }
+.palette-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; border: 0; border-radius: 6px;
+  background: none; color: var(--text); text-align: left; cursor: pointer; font-size: 13px;
+}
+.palette-item.active { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.palette-item .path { font-family: var(--mono); font-size: 12.5px; }
+.palette-summary {
+  color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-left: auto; font-size: 12px; flex: 0 1 auto;
+}
+.palette-empty { padding: 24px; text-align: center; color: var(--text-3); }
+.palette-foot {
+  padding: 7px 12px; border-top: 1px solid var(--border);
+  color: var(--text-3); font-size: 11.5px;
+}
