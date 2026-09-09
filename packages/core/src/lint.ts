@@ -12,7 +12,8 @@ export interface LintIssue {
   rule: string;
   severity: LintSeverity;
   path: string;       // 'GET /pets' or 'info'
-  message: string;
+  message: string;    // English; the UI translates via `rule` + `params`
+  params?: Record<string, string>;
 }
 
 export interface LintResult {
@@ -28,9 +29,9 @@ const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'
 export function lintSpec(doc: OpenApiDoc): LintResult {
   const issues: LintIssue[] = [];
   let checks = 0;
-  const check = (ok: boolean, rule: string, severity: LintSeverity, path: string, message: string) => {
+  const check = (ok: boolean, rule: string, severity: LintSeverity, path: string, message: string, params?: Record<string, string>) => {
     checks++;
-    if (!ok) issues.push({ rule, severity, path, message });
+    if (!ok) issues.push({ rule, severity, path, message, ...(params ? { params } : {}) });
   };
 
   check(!!doc.info?.description, 'info-description', 'warn', 'info', 'The document has no info.description.');
@@ -49,7 +50,7 @@ export function lintSpec(doc: OpenApiDoc): LintResult {
 
       for (const p of [...(item.parameters ?? []), ...(op.parameters ?? [])].map((x: any) => deref(doc, x))) {
         if (p && typeof p === 'object' && p.name) {
-          check(!!p.description, 'param-description', 'info', at, `Parameter "${p.name}" has no description.`);
+          check(!!p.description, 'param-description', 'info', at, `Parameter "${p.name}" has no description.`, { name: String(p.name) });
         }
       }
 
@@ -66,10 +67,10 @@ export function lintSpec(doc: OpenApiDoc): LintResult {
       );
       for (const [code, resRef] of responses) {
         const res = deref(doc, resRef);
-        check(!!res?.description, 'response-description', 'info', `${at} → ${code}`, `Response ${code} has no description.`);
+        check(!!res?.description, 'response-description', 'info', `${at} → ${code}`, `Response ${code} has no description.`, { code });
         if (/^2/.test(code) && method !== 'head') {
           const hasSchema = !res?.content || Object.values<any>(res.content).some((m) => m?.schema);
-          check(hasSchema, 'response-schema', 'warn', `${at} → ${code}`, `Response ${code} declares content without a schema.`);
+          check(hasSchema, 'response-schema', 'warn', `${at} → ${code}`, `Response ${code} declares content without a schema.`, { code });
         }
       }
     }
