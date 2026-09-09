@@ -42,7 +42,31 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [menu, setMenu] = useState(false);
   const [mode, setModeState] = useState<Mode>(getMode());
   const [palette, setPalette] = useState(false);
+  // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
+  const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
+  const [sideW, setSideW] = useState(() => {
+    try {
+      const n = parseInt(localStorage.getItem('ludin.sidebar-w') ?? '', 10);
+      return n >= 220 && n <= 560 ? n : 300;
+    } catch { return 300; }
+  });
   const readme = me.readme && boot.readme ? { label: me.readme.label, url: boot.readme.url } : null;
+
+  function toggleNavLabel() {
+    setNavLabel(navLabel === 'summary' ? 'path' : 'summary');
+  }
+
+  function startResize(down: PointerEvent) {
+    down.preventDefault();
+    const move = (e: PointerEvent) => setSideW(Math.min(560, Math.max(220, e.clientX)));
+    const up = (e: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try { localStorage.setItem('ludin.sidebar-w', String(Math.min(560, Math.max(220, e.clientX)))); } catch { /* ignore */ }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
 
   useEffect(() => {
     api.specs().then((r) => {
@@ -125,7 +149,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   }
 
   return (
-    <div class="shell">
+    <div class="shell" style={`--sidebar-w:${sideW}px`}>
       <header class="topbar">
         <button class="btn btn-ghost btn-icon menu-btn" onClick={() => setNavOpen(!navOpen)} aria-label="Menu">
           ☰
@@ -190,6 +214,13 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <button class="btn btn-sm btn-ghost" onClick={() => setPalette(true)} title="Search everything, including schema fields">
             ⌘K
           </button>
+          <button
+            class={`btn btn-sm btn-ghost nav-label-toggle ${navLabel === 'path' ? 'on' : ''}`}
+            onClick={toggleNavLabel}
+            title={navLabel === 'path' ? 'Show operation summaries in the sidebar' : 'Show URLs in the sidebar'}
+          >
+            URL
+          </button>
         </div>
         <nav class="nav">
           {loadErr && <div class="notice err">{loadErr}</div>}
@@ -209,10 +240,12 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 <a
                   href={`#/op/${encodeURIComponent(o.id)}`}
                   class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
-                  title={o.summary}
+                  title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
                 >
                   <span class={`method ${o.method}`}>{o.method}</span>
-                  <span class="path">{o.path}</span>
+                  <span class="path">
+                    {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
+                  </span>
                 </a>
               ))}
             </details>
@@ -238,6 +271,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </span>
           <span>ludin {boot.version ?? ''}</span>
         </div>
+        <div class="sidebar-resize" onPointerDown={startResize} title="Drag to resize" />
       </aside>
 
       <main class="main">

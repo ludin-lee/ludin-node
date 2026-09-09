@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Markdown } from './Markdown';
+import { JsonView, parseForTree } from './Json';
 import { api, type TryResult } from './api';
 import { buildUrl, deref, exampleFor, securityRequirements, serverUrls, toCurl, type Doc, type Operation } from './openapi';
 import { Schema } from './Schema';
@@ -169,6 +170,8 @@ function BodyTabs({ doc, content }: { doc: Doc; content: Record<string, any> }) 
       </div>
       {view === 'schema' ? (
         media.schema ? <Schema doc={doc} schema={media.schema} open /> : <div style="color:var(--text-3)">No schema</div>
+      ) : typeof example === 'object' && example !== null ? (
+        <JsonView value={example} />
       ) : (
         <pre>{typeof example === 'string' ? example : JSON.stringify(example, null, 2)}</pre>
       )}
@@ -462,7 +465,9 @@ function TryIt({
                     cURL
                   </button>
                 </div>
-                {tab === 'body' && <pre>{prettyBody(result)}</pre>}
+                {tab === 'body' && (parseForTree(result.body) != null
+                  ? <JsonView value={parseForTree(result.body)} />
+                  : <pre>{prettyBody(result)}</pre>)}
                 {tab === 'headers' && (
                   <pre>
                     {Object.entries(result.headers ?? {})
