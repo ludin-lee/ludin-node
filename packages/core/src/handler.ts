@@ -231,7 +231,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
         require(ctx, 'docs:read');
         requireMethod(ctx, 'GET');
         const { name, doc } = await visibleSpec(ctx);
-        const result = lintSpec(doc);
+        const result = lintSpec(doc, options.lint);
         return json(200, { spec: name, ...result, issues: result.issues.slice(0, 200) });
       }
       case '/api/admin':
