@@ -155,7 +155,7 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 - **코드 샘플** — 오퍼레이션마다 여섯 가지(cURL, fetch, axios, Python, Go, `.http`)의 붙여넣기 가능한 스니펫을 코어가 생성한다. 경로 파라미터, 필수 쿼리/헤더 파라미터, 유효한 보안 스킴의 인증 헤더, 요청 바디 예시까지 채워진 상태로. **역할 필터링된** 문서에서 만들기 때문에 숨겨진 오퍼레이션은 샘플이 아니라 404가 나간다. `GET /api/samples?method=&path=`
 - **⌘K 커맨드 팰릿** — 경로·요약·operationId·태그에 더해 **스키마 필드명**(요청·응답, `$ref` 해석 포함)까지 검색한다. 인덱스는 `GET /api/search-index`로 코어가 필터링된 문서에서 만들어 내려주고, UI는 퍼지 매칭만 한다. 필드 매칭은 `field:` 배지로 표시되며 해당 오퍼레이션으로 이동한다.
 - **Try it out 응답 검증** — 프록시를 거친 모든 JSON 응답을 해당 상태 코드의 문서화된 스키마(정확한 코드 → `2XX` 클래스 → `default` 순)와 대조하고, 결과를 `/api/try` 응답의 `validation` 필드로 함께 내려준다. 검사 항목: type, required, enum, nullable, format(date-time·date·email·uuid·uri), oneOf/anyOf. 의도적으로 자체 최소 검증기다 — 의존성 0 원칙(§7) — 적합성을 보증하는 게 아니라 어긋남을 보고한다. 숨겨진 오퍼레이션은 `checked: false`로 돌아와 아무것도 누설하지 않는다.
-- **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다.
+- **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다. 팀이 의도적으로 안 지키는 규칙은 옵션 `lint: { ignore: ['param-description'] }` 또는 CLI `--ignore`로 끌 수 있다 — 점수와 CI 게이트가 실제로 중요한 규칙만 반영하도록.
 
 ---
 
@@ -258,6 +258,7 @@ interface LudinOptions {
   visibility?: Record<string, string[]>; // tag/path → roles
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
+  lint?: { ignore?: string[] };
   theme?: ThemeOptions;
   allowedTargets?: string[];
   basePath?: string;

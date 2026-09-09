@@ -133,6 +133,8 @@ export interface LudinOptions {
   /** Your own HTML page, shown behind a button in the top bar. */
   readme?: string | ReadmeOptions;
   audit?: AuditOptions;
+  /** Lint tuning for /api/lint and the overview health score, e.g. { ignore: ['param-description'] }. */
+  lint?: { ignore?: string[] };
   theme?: ThemeOptions;
   /** Mount path (used for cookie path and asset links). Adapters usually set this. */
   basePath?: string;

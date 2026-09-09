@@ -26,10 +26,17 @@ export interface LintResult {
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 
-export function lintSpec(doc: OpenApiDoc): LintResult {
+export interface LintOptions {
+  /** Rule names to skip entirely – they count neither as checks nor as issues, so the score reflects only the rules you care about. */
+  ignore?: string[];
+}
+
+export function lintSpec(doc: OpenApiDoc, options: LintOptions = {}): LintResult {
+  const ignored = new Set(options.ignore ?? []);
   const issues: LintIssue[] = [];
   let checks = 0;
   const check = (ok: boolean, rule: string, severity: LintSeverity, path: string, message: string, params?: Record<string, string>) => {
+    if (ignored.has(rule)) return;
     checks++;
     if (!ok) issues.push({ rule, severity, path, message, ...(params ? { params } : {}) });
   };
