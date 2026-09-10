@@ -44,7 +44,9 @@ export function lintSpec(doc: OpenApiDoc, options: LintOptions = {}): LintResult
   check(!!doc.info?.description, 'info-description', 'warn', 'info', 'The document has no info.description.');
   check((doc.servers ?? []).length > 0, 'servers', 'warn', 'servers', 'No servers are declared; Try it out and code samples have no base URL.');
 
-  for (const [path, item] of Object.entries<any>(doc.paths ?? {})) {
+  const containers = [doc.paths ?? {}, doc.webhooks ?? {}];
+  for (const container of containers)
+  for (const [path, item] of Object.entries<any>(container)) {
     if (!item || typeof item !== 'object') continue;
     for (const method of HTTP_METHODS) {
       const op = item[method];

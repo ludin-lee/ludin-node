@@ -7,6 +7,8 @@ export interface Operation {
   id: string;
   method: Method;
   path: string;
+  /** OpenAPI 3.1 webhook: the API calls you, so there is nothing to send. */
+  webhook?: boolean;
   op: any;
   tags: string[];
   summary: string;
@@ -51,18 +53,25 @@ export function groupOperations(doc: Doc): TagGroup[] {
   const tagMeta = new Map<string, any>((doc.tags ?? []).map((t: any) => [t.name, t]));
   for (const t of doc.tags ?? []) groups.set(t.name, { name: t.name, description: t.description, operations: [] });
 
-  for (const [path, item] of Object.entries<any>(doc.paths ?? {})) {
+  const containers: Array<[Record<string, any>, boolean]> = [
+    [doc.paths ?? {}, false],
+    [doc.webhooks ?? {}, true],
+  ];
+  for (const [container, webhook] of containers)
+  for (const [path, item] of Object.entries<any>(container)) {
     if (!item) continue;
     const pathParams = item.parameters ?? [];
     for (const method of METHODS) {
       const op = item[method];
       if (!op) continue;
-      const tags: string[] = op.tags?.length ? op.tags : ['default'];
+      const tags: string[] = op.tags?.length ? op.tags : webhook ? ['webhooks'] : ['default'];
       const params = mergeParams(doc, pathParams, op.parameters ?? []);
       const operation: Operation = {
-        id: op.operationId || `${method}-${path}`.replace(/[^a-zA-Z0-9]+/g, '-'),
+        // Webhook ids are namespaced: a webhook and a path may share a name.
+        id: (webhook ? 'wh-' : '') + (op.operationId || `${method}-${path}`.replace(/[^a-zA-Z0-9]+/g, '-')),
         method,
         path,
+        ...(webhook ? { webhook: true } : {}),
         op,
         tags,
         summary: op.summary || op.description?.split('\n')[0] || `${method.toUpperCase()} ${path}`,

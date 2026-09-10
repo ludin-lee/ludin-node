@@ -17,6 +17,7 @@
 - 🧩 **Code samples** – cURL / fetch / axios / Python / Go / `.http` per operation, auth header and body example filled in
 - ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
 - ✅ **Response validation** – every *Try it out* response is checked against the documented schema, envelope-aware (`validate.envelope`) and vocal about undocumented status codes
+- 🪝 **OpenAPI 3.1 webhooks** – rendered as incoming calls, not as endpoints you can send to; role filtering applies to them too
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
 - 🔀 **`ludin diff`** – compare two versions of a document and see which changes are *breaking*, in the CLI (`--fail-on-breaking`) and in a Changes view
 - 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS

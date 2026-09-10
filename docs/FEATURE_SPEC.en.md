@@ -202,6 +202,16 @@ The token is signed in its own HMAC namespace, so a share token can never be pre
 
 **The honest limitation**: the grant is stateless, because there is no store to keep it in (§6). A single link therefore cannot be revoked — rotating the session secret invalidates all of them at once. Creation is recorded as a `share.created` audit event, and every request made through a link is attributed to `share:<label>`.
 
+### 3.11 OpenAPI 3.1 webhooks (v0.5)
+
+A 3.1 document can declare `webhooks` alongside `paths`: operations **the API calls on you**, rather than ones you call. Until now they rendered as nothing at all.
+
+- Webhooks appear in the sidebar and the ⌘K index, marked, and default to a `webhooks` group when untagged
+- The operation page frames them correctly: the request body is labelled *the payload you will receive*, and there is no Try it out — you cannot send a call that someone else makes
+- **`visibility` filters them exactly like paths.** Without this an operation hidden from a role could leak simply by living in the other container, which would quietly undo §3.3
+- Lint and the health score cover webhook operations as well
+
+Note: an endpoint a *provider* calls on your server (a payment or billing callback, say) is an ordinary path, and is correctly documented under `paths`. The `webhooks` section is for the other direction — calls your API makes to its consumers.
 ### 3.12 MCP endpoint (v0.5)
 
 An agent that can read your API documentation is useful; an agent that can read *everything* is a liability. The MCP endpoint hands an agent the **same document a person with that identity would get**, under the same rules.
