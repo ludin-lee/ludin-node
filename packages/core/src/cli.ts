@@ -1,6 +1,7 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import { diffSpecs } from './diff.js';
+import { diffSpecs, toMarkdown } from './diff.js';
+import { buildPostmanCollection, generateTypes } from './export.js';
 import { lintSpec } from './lint.js';
 import { hashPassword } from './password.js';
 import { parseSpecText } from './spec.js';
@@ -26,6 +27,9 @@ async function main() {
   if (cmd === 'diff') {
     return diff(rest);
   }
+  if (cmd === 'export') {
+    return exportSpec(rest);
+  }
   console.log(`ludin – commands:
   ludin hash [password]        Print a $scrypt$ hash to use in auth.users[].password / env
   ludin lint <spec> [options]  Check an OpenAPI document and print a health score
@@ -34,7 +38,13 @@ async function main() {
       --json             Machine-readable output
   ludin diff <before> <after> [options]  Compare two documents and classify breaking changes
       --fail-on-breaking  Exit 1 when a breaking change is found
-      --json              Machine-readable output`);
+      --markdown          Release notes as Markdown
+      --json              Machine-readable output
+  ludin export <spec> --format postman|types [options]  Generate a client artifact
+      --out <file>        Write to a file instead of stdout
+
+  export works from the whole document: the CLI has no identity, so unlike
+  GET /docs/api/export/* nothing is filtered by role.`);
 }
 
 async function lint(args: string[]) {
@@ -74,6 +84,8 @@ async function diff(args: string[]) {
 
   if (args.includes('--json')) {
     console.log(JSON.stringify(result, null, 2));
+  } else if (args.includes('--markdown')) {
+    process.stdout.write(toMarkdown(result));
   } else if (result.changes.length === 0) {
     console.log('No changes.');
   } else {
@@ -83,6 +95,32 @@ async function diff(args: string[]) {
       (result.versions.before || result.versions.after ? `  (${result.versions.before ?? '?'} → ${result.versions.after ?? '?'})` : ''));
   }
   if (args.includes('--fail-on-breaking') && result.breaking > 0) process.exit(1);
+}
+
+/**
+ * The same generators the server route uses (spec §3.13). The CLI has no
+ * caller, so there is no role to filter by: it works from the whole document
+ * and is meant for code-generation pipelines and CI artifacts.
+ */
+async function exportSpec(args: string[]) {
+  const flagValue = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
+  const format = flagValue('--format');
+  const out = flagValue('--out');
+  const file = args.filter((a) => !a.startsWith('--') && a !== format && a !== out)[0];
+  if (!file || (format !== 'postman' && format !== 'types')) {
+    console.error('Usage: ludin export <spec.json|spec.yaml> --format postman|types [--out <file>]');
+    process.exit(1);
+  }
+  const doc = parseSpecText(await readFile(file, 'utf8'), file);
+  const text = format === 'postman'
+    ? JSON.stringify(buildPostmanCollection(doc), null, 2) + '\n'
+    : generateTypes(doc);
+  if (out) {
+    await writeFile(out, text);
+    console.error(`Wrote ${out}`);
+  } else {
+    process.stdout.write(text);
+  }
 }
 
 function prompt(q: string): Promise<string> {

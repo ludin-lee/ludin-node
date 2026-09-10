@@ -39,6 +39,28 @@ await page.waitForSelector('.nav-item');
 if (await page.locator('a.nav-item[href="#/op/resetDb"]').count()) throw new Error('developer should not see Admin tag');
 if (await page.locator('a[href="#/admin"]').count()) throw new Error('developer should not see Admin button');
 
+// Export artifacts: generated from the same role-filtered document (spec §3.13),
+// so a developer's collection must not name an operation they cannot see.
+for (const [what, must] of [['postman', 'List all pets'], ['types.d.ts', 'listPets']]) {
+  const res = await page.request.get(`http://localhost:3000/docs/api/export/${what}`);
+  if (!res.ok()) throw new Error(`export ${what}: ${res.status()}`);
+  const body = await res.text();
+  if (!body.includes(must)) throw new Error(`export ${what} is missing ${must}`);
+  if (body.includes('resetDb') || body.includes('/admin/reset')) throw new Error(`export ${what} leaks a hidden operation`);
+}
+
+// The changes screen, and release notes built from the diff it already holds.
+await page.click('a[href="#/changes"]');
+await page.waitForSelector('.chg-kind');
+await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+await page.click('.op-head .op-path button');
+const notes = await page.evaluate(() => navigator.clipboard.readText());
+if (!/^### Breaking changes$/m.test(notes)) throw new Error('release notes have no breaking section');
+if (!notes.includes('DELETE /pets/{petId}')) throw new Error('release notes lost a change');
+await page.screenshot({ path: 'shots/08-changes.png' });
+await page.click('a[href="#/"] >> nth=0');
+await page.waitForSelector('.nav-item');
+
 // open an operation and try it out
 await page.click('a.nav-item[href="#/op/showPetById"] >> nth=0');
 await page.waitForSelector('.try');

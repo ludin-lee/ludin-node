@@ -14,12 +14,13 @@
 - 📝 **Audit log** – who logged in, who called what, from where (JSON lines to stdout, or your own sink)
 - 📄 **Your own HTML page** – point `readme` at a file and it appears next to the reference, behind the same login
 - 📤 **Spec download** – hand a customer the JSON/YAML they are allowed to see, and log who took it
+- 📦 **Export to your tools** – a Postman collection and a `.d.ts` of the operations *that caller* can see, from the UI or `ludin export`
 - 🧩 **Code samples** – cURL / fetch / axios / Python / Go / `.http` per operation, auth header and body example filled in
 - ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
 - ✅ **Response validation** – every *Try it out* response is checked against the documented schema, envelope-aware (`validate.envelope`) and vocal about undocumented status codes
 - 🪝 **OpenAPI 3.1 webhooks** – rendered as incoming calls, not as endpoints you can send to; role filtering applies to them too
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
-- 🔀 **`ludin diff`** – compare two versions of a document and see which changes are *breaking*, in the CLI (`--fail-on-breaking`) and in a Changes view
+- 🔀 **`ludin diff`** – compare two versions of a document and see which changes are *breaking*, in the CLI (`--fail-on-breaking`, `--markdown` for release notes) and in a Changes view
 - 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS
 - 🌍 **9 languages** – the UI ships in English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português and Русский; auto-detected, switchable in the menu, or forced with `theme.language`
 - 🤖 **MCP endpoint** – hand an AI agent the *same* role-filtered docs a person gets; reading needs a login or a share link, executing needs `docs:try`
@@ -179,10 +180,22 @@ Escape hatch if you lock yourself out: `LUDIN_BYPASS_IP_CHECK=1`.
 Everything a client sees is already filtered by their role, and the same is true of what they can take with them:
 
 - **Download** – the Overview screen offers the document as JSON or YAML (`/docs/api/spec.json`, `/docs/api/spec.yaml`). The file goes through the same `visibility` filter as the rendered docs, and each download is recorded as a `docs.export` audit event.
+- **A collection and types** – the same screen exports a Postman v2.1 collection (`/docs/api/export/postman`) and a TypeScript declaration file (`/docs/api/export/types.d.ts`), built from that caller's filtered document. Credentials are collection variables (`{{token}}`, `{{apiKey}}`), never literals, and the `.d.ts` carries only the schemas reachable from operations the caller can see. Both are audited like a download.
 - **A page of your own** – `readme` puts your guide, onboarding steps or release notes one click away from the reference, for the roles you choose.
 - **Branding** – `theme.title` names the platform, `theme.logo` (any URL or data URI) is the icon in the top-left corner, `theme.logoDark` swaps it in dark mode, `theme.favicon` sets the tab icon.
 
 OpenAPI descriptions are rendered as Markdown; the source is HTML-escaped before decoration and only `http(s)`, `mailto:` and relative links survive, so a document can never inject markup into the page. The `readme` file is the one place your own HTML runs — which is why it runs sandboxed, in a frame of its own.
+
+## CLI
+
+```bash
+npx ludin hash [password]                      # a $scrypt$ hash for auth.users[].password
+npx ludin lint <spec> [--min 80] [--ignore r1,r2] [--json]
+npx ludin diff <before> <after> [--fail-on-breaking] [--markdown] [--json]
+npx ludin export <spec> --format postman|types [--out <file>]
+```
+
+`lint` and `diff` are the CI gates; `diff --markdown` writes release notes you can pipe into a release body. `export` runs the same generators as the routes above, but the CLI has no caller and therefore no role, so it works from the whole document.
 
 ## How Try-it-out works
 
@@ -229,8 +242,10 @@ needs an `NPM_TOKEN` secret in the `npm` environment.
 
 - **v0.2** ✅ `readme` pages, spec download, branding, adapters for Fastify / Koa / Hono / `node:http`
 - **v0.3** ✅ code samples, ⌘K palette (schema-field search), *Try it out* response validation, `ludin lint` + health score
-- **v0.4** spec diff & breaking-change classification, generated changelog, environments, expiring share links
-- **v0.5** MCP endpoint, OIDC / OAuth2 (Google, GitHub, Keycloak), collection & TypeScript type export
+- **v0.4** ✅ spec diff & breaking-change classification, global server selector + auth chaining, expiring share links
+- **v0.5** ✅ MCP endpoint, OpenAPI 3.1 webhooks, envelope-aware response validation
+- **v0.6** Postman collection & TypeScript type export, `ludin export`, diff → release-notes Markdown
+- **v0.7** OIDC / OAuth2 login (Google, GitHub, Keycloak) via `@ludin-docs/auth-oidc`
 - **v1.0** stable API
 
 MIT

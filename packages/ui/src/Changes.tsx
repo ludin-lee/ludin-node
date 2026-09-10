@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, type DiffInfo } from './api';
 import { t, type MsgKey } from './i18n';
 
@@ -37,15 +37,58 @@ function label(kind: string): string {
   return key ? t(key) : kind;
 }
 
+/**
+ * The same list as release notes, in the viewer's language (spec §3.9). The
+ * core classifies; this only formats what `/api/diff` already returned, so
+ * `ludin diff --markdown` and this button can never disagree about what
+ * breaks.
+ */
+function releaseNotes(diff: DiffInfo): string {
+  const out: string[] = [];
+  if (diff.versions.before || diff.versions.after) {
+    out.push(`## ${diff.versions.before ?? '?'} → ${diff.versions.after ?? '?'}`, '');
+  }
+  if (!diff.changes.length) return [...out, t('noChanges')].join('\n') + '\n';
+
+  for (const [heading, breaking] of [[t('releaseNotesBreaking'), true], [t('releaseNotesOther'), false]] as const) {
+    const group = diff.changes.filter((c) => c.breaking === breaking);
+    if (!group.length) continue;
+    out.push(`### ${heading}`, '');
+    const byLocation = new Map<string, DiffInfo['changes']>();
+    for (const c of group) byLocation.set(c.at, [...(byLocation.get(c.at) ?? []), c]);
+    for (const [at, items] of byLocation) {
+      out.push(`- \`${at}\``);
+      for (const c of items) {
+        const params = c.params && Object.keys(c.params).length ? ` — ${Object.values(c.params).join(' · ')}` : '';
+        out.push(`  - ${label(c.kind)}${params}`);
+      }
+    }
+    out.push('');
+  }
+  out.push(`_${t('breakingCount', { n: diff.breaking })} · ${t('compatibleCount', { n: diff.nonBreaking })}_`, '');
+  return out.join('\n');
+}
+
 export function Changes({ specName }: { specName: string }) {
   const [diff, setDiff] = useState<DiffInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     setDiff(null);
     setErr(null);
     api.diff(specName).then(setDiff).catch((e) => setErr(e.message));
   }, [specName]);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  function copyNotes(d: DiffInfo) {
+    navigator.clipboard?.writeText(releaseNotes(d));
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1600);
+  }
 
   if (err) return <div class="notice err">{err}</div>;
   if (!diff) return <div style="padding:20px;text-align:center"><span class="spin" /></div>;
@@ -83,6 +126,11 @@ export function Changes({ specName }: { specName: string }) {
           )}
           <span class={`chip ${diff.breaking ? 'chip-breaking' : ''}`}>{t('breakingCount', { n: diff.breaking })}</span>
           <span class="chip">{t('compatibleCount', { n: diff.nonBreaking })}</span>
+          {diff.changes.length > 0 && (
+            <button class="btn btn-sm" onClick={() => copyNotes(diff)}>
+              {copied ? t('copied') : t('copyReleaseNotes')}
+            </button>
+          )}
         </div>
       </div>
 

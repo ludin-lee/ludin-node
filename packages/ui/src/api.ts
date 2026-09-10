@@ -138,6 +138,10 @@ export const api = {
   specDownloadUrl: (name: string, format: 'json' | 'yaml') =>
     `${boot.basePath}/api/spec.${format}?name=${encodeURIComponent(name)}`,
 
+  /** Postman collection / TypeScript declarations, generated from the filtered document. */
+  exportUrl: (name: string, what: 'postman' | 'types') =>
+    `${boot.basePath}/api/export/${what === 'postman' ? 'postman' : 'types.d.ts'}?name=${encodeURIComponent(name)}`,
+
   admin: () => call<AdminInfo>('/admin'),
   createShare: (body: { role: string; ttl?: string; spec?: string; canTry?: boolean; label?: string }) =>
     send<{ url: string; expiresAt: string; role: string; canTry: boolean; spec: string | null }>('POST', '/share', body),

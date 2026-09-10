@@ -109,6 +109,12 @@ export function Overview({
               <a class="btn btn-sm" href={api.specDownloadUrl(specName, 'yaml')} download title={t('downloadTooltip')}>
                 ↓ YAML
               </a>
+              <a class="btn btn-sm" href={api.exportUrl(specName, 'postman')} download title={t('exportPostmanTooltip')}>
+                ↓ {t('exportPostman')}
+              </a>
+              <a class="btn btn-sm" href={api.exportUrl(specName, 'types')} download title={t('exportTypesTooltip')}>
+                ↓ {t('exportTypes')}
+              </a>
             </>
           )}
         </div>
