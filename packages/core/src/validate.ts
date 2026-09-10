@@ -23,9 +23,9 @@ const FORMATS: Record<string, RegExp> = {
   uri: /^[a-z][a-z0-9+.-]*:/i,
 };
 
-export function validateAgainstSchema(doc: OpenApiDoc, schema: any, value: unknown): ValidationIssue[] {
+export function validateAgainstSchema(doc: OpenApiDoc, schema: any, value: unknown, basePath = '$'): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  walk(doc, schema, value, '$', issues, 0, new Set());
+  walk(doc, schema, value, basePath, issues, 0, new Set());
   return issues;
 }
 
@@ -95,14 +95,38 @@ function walk(doc: OpenApiDoc, schema: any, value: unknown, path: string, issues
 }
 
 /** The declared schema for one operation response (status, else default), JSON media only. */
-export function responseSchemaFor(doc: OpenApiDoc, method: string, path: string, status: number): any | null {
+/**
+ * Why a response could not be compared — the distinction matters. A documented
+ * response that simply carries no schema is nothing to report; a status code the
+ * document never mentions is drift in its own right, and staying silent about it
+ * would let "no warning" be read as "the response matches".
+ */
+export type ResponseLookup =
+  | { schema: any; code: string }
+  | { schema: null; reason: 'undocumented_status'; documented: string[] }
+  | { schema: null; reason: 'no_schema'; code: string };
+
+export function lookupResponseSchema(doc: OpenApiDoc, method: string, path: string, status: number): ResponseLookup | null {
   const op = doc.paths?.[path]?.[method.toLowerCase()];
-  if (!op?.responses) return null;
-  const res = deref(doc, op.responses[String(status)] ?? op.responses[`${String(status)[0]}XX`] ?? op.responses.default);
-  const content = res?.content;
-  if (!content) return null;
-  const jsonType = Object.keys(content).find((t) => /json/i.test(t));
-  return jsonType ? content[jsonType].schema ?? null : null;
+  if (!op?.responses) return null;   // the operation documents nothing at all
+
+  const exact = String(status);
+  const wildcard = `${exact[0]}XX`;
+  const code = op.responses[exact] ? exact : op.responses[wildcard] ? wildcard : op.responses.default ? 'default' : null;
+  if (!code) {
+    return { schema: null, reason: 'undocumented_status', documented: Object.keys(op.responses) };
+  }
+
+  const content = deref(doc, op.responses[code])?.content;
+  const jsonType = content && Object.keys(content).find((t) => /json/i.test(t));
+  const schema = jsonType ? content[jsonType].schema ?? null : null;
+  return schema ? { schema, code } : { schema: null, reason: 'no_schema', code };
+}
+
+/** Back-compatible helper: the schema alone, or null for any reason. */
+export function responseSchemaFor(doc: OpenApiDoc, method: string, path: string, status: number): any | null {
+  const found = lookupResponseSchema(doc, method, path, status);
+  return found && found.schema ? found.schema : null;
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {

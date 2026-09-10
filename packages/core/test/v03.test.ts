@@ -425,3 +425,92 @@ test('webhooks: a hidden webhook never reaches the search index or the diff', as
   assert.ok(idx.some((e: any) => e.operationId === 'petCreated'));
   assert.ok(!idx.some((e: any) => e.operationId === 'secretEvent'));
 });
+
+// --- response validation: undocumented status & envelopes -------------------
+
+import { lookupResponseSchema } from '../src/index.js';
+
+const envSpec = {
+  openapi: '3.0.3',
+  info: { title: 'Enveloped', version: '1' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: {
+    '/items': {
+      get: { operationId: 'items', responses: { 200: { description: 'ok', content: { 'application/json': {
+        schema: { type: 'object', required: ['list'], properties: { list: { type: 'array', items: { type: 'string' } } } } } } } } },
+      // NestJS answers 201 to a POST by default while @ApiOkResponse documents 200.
+      post: { operationId: 'make', responses: { 200: { description: 'ok', content: { 'application/json': {
+        schema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } } } },
+    },
+  },
+};
+
+test('lookupResponseSchema separates an undocumented status from a missing schema', () => {
+  const documented = lookupResponseSchema(envSpec, 'GET', '/items', 200)!;
+  assert.ok(documented.schema);
+
+  const undoc = lookupResponseSchema(envSpec, 'POST', '/items', 201)!;
+  assert.equal(undoc.schema, null);
+  assert.equal((undoc as any).reason, 'undocumented_status');
+  assert.deepEqual((undoc as any).documented, ['200']);
+
+  const noSchema = lookupResponseSchema(
+    { openapi: '3.0.3', info: {}, paths: { '/x': { get: { responses: { 200: { description: 'ok' } } } } } },
+    'GET', '/x', 200,
+  )!;
+  assert.equal((noSchema as any).reason, 'no_schema');
+});
+
+async function tryIt(ludin: ReturnType<typeof createLudin>, body: Record<string, unknown>) {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/try', body: JSON.stringify(body),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  return JSON.parse(String(res.body));
+}
+
+test('envelope: the documented schema is compared against the wrapped payload', async (t) => {
+  const upstream = { success: true, message: 'ok', data: { list: ['a'] } };
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify(upstream), { status: 200, headers: { 'content-type': 'application/json' } }));
+
+  // Without the envelope configured, the wrapper looks like a violation…
+  const plain = createLudin({ spec: envSpec, auth: false });
+  const bare = await tryIt(plain, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.equal(bare.validation.checked, true);
+  assert.match(bare.validation.issues[0].message, /missing required property "list"/);
+
+  // …and with it, the payload is validated and the noise is gone.
+  const wrapped = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const ok = await tryIt(wrapped, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.deepEqual(ok.validation.issues, []);
+});
+
+test('envelope: real drift inside the payload is still reported, with a data-scoped path', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ success: true, data: { list: [1, 2] } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.equal(r.validation.issues.length, 2);
+  assert.equal(r.validation.issues[0].path, '$.data.list[0]');
+  assert.match(r.validation.issues[0].message, /expected string, got number/);
+});
+
+test('envelope: an unwrapped response is still validated whole', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ list: ['a'] }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.deepEqual(r.validation.issues, []);   // matches the documented schema at the root
+});
+
+test('try: an undocumented status code is reported instead of silently skipped', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ success: true, data: { id: 'x' } }), { status: 201, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'POST', url: 'http://api.example.com/items', op: { method: 'post', path: '/items' } });
+  assert.equal(r.validation.checked, false);
+  assert.equal(r.validation.reason, 'undocumented_status');
+  assert.equal(r.validation.status, 201);
+  assert.deepEqual(r.validation.documented, ['200']);
+});

@@ -138,6 +138,27 @@ export interface LudinOptions {
   audit?: AuditOptions;
   /** Lint tuning for /api/lint and the overview health score, e.g. { ignore: ['param-description'] }. */
   lint?: { ignore?: string[] };
+  /** Try-it-out response validation. */
+  validate?: {
+    /**
+     * For APIs that wrap every response in a common envelope. The documented
+     * schema then describes what sits at `dataPath`, not the whole body — so
+     * say so here instead of documenting the wrapper 300 times.
+     *
+     * ```ts
+     * validate: { envelope: { dataPath: 'data' } }
+     * ```
+     *
+     * Responses that lack the property are validated whole, as before: some
+     * endpoints legitimately answer unwrapped, and crying wolf on those would
+     * teach people to ignore the badge.
+     */
+    envelope?: {
+      dataPath: string;
+      /** Optional schema for the wrapper itself, checked alongside the payload. */
+      schema?: Record<string, unknown>;
+    };
+  };
   /**
    * Expiring share links. Off unless enabled: it adds a way in, so it is opt-in.
    * A link is a signed grant that still walks the full pipeline — the IP

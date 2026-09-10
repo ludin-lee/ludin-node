@@ -16,7 +16,7 @@
 - 📤 **Spec download** – hand a customer the JSON/YAML they are allowed to see, and log who took it
 - 🧩 **Code samples** – cURL / fetch / axios / Python / Go / `.http` per operation, auth header and body example filled in
 - ⌘K **Command palette** – search paths, summaries, operationIds *and schema field names*
-- ✅ **Response validation** – every *Try it out* response is checked against the documented schema
+- ✅ **Response validation** – every *Try it out* response is checked against the documented schema, envelope-aware (`validate.envelope`) and vocal about undocumented status codes
 - 🪝 **OpenAPI 3.1 webhooks** – rendered as incoming calls, not as endpoints you can send to; role filtering applies to them too
 - 🩺 **`ludin lint`** – a documentation health score, in the CLI, in CI (`--min 80`) and on the overview screen
 - 🔀 **`ludin diff`** – compare two versions of a document and see which changes are *breaking*, in the CLI (`--fail-on-breaking`) and in a Changes view
@@ -150,6 +150,7 @@ interface LudinOptions {
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };     // rules the health score should skip, e.g. ['param-description']
+  validate?: { envelope?: { dataPath: 'data' } };  // responses wrapped in a common envelope
   share?: { enabled?: boolean; maxTtl?: '30d' };   // expiring share links (opt-in)
 
   diff?: { baseline?: SpecSource }; // previous document, for the Changes view (per spec: SpecEntry.baseline)
