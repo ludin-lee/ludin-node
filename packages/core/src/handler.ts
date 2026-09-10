@@ -177,7 +177,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       authEnabled,
       theme: options.theme ?? {},
       readme: readme ? { label: readme.label, url: `${basePath === '/' ? '' : basePath}/readme` } : null,
-      version: '0.4.0',
+      version: '0.5.0',
     };
     const page = UI_HTML.replace(
       '<!--LUDIN_CONFIG-->',
