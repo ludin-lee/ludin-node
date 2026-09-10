@@ -22,6 +22,7 @@
 - 🔀 **`ludin diff`** – compare two versions of a document and see which changes are *breaking*, in the CLI (`--fail-on-breaking`) and in a Changes view
 - 🎨 **Beautiful UI** – a single ~110 KB HTML bundle (36 KB gzip), light/dark, your logo and brand colors, custom CSS
 - 🌍 **9 languages** – the UI ships in English, 한국어, 日本語, 中文, Español, Français, Deutsch, Português and Русский; auto-detected, switchable in the menu, or forced with `theme.language`
+- 🤖 **MCP endpoint** – hand an AI agent the *same* role-filtered docs a person gets; reading needs a login or a share link, executing needs `docs:try`
 - 🔗 **Expiring share links** – hand a partner a read-only link that stops working on its own; never admin, IP rules still apply
 - ⚡ **No database** – accounts, IP rules and roles come from code / `process.env`; a redeploy is what changes them
 
@@ -152,6 +153,7 @@ interface LudinOptions {
   lint?: { ignore?: string[] };     // rules the health score should skip, e.g. ['param-description']
   validate?: { envelope?: { dataPath: 'data' } };  // responses wrapped in a common envelope
   share?: { enabled?: boolean; maxTtl?: '30d' };   // expiring share links (opt-in)
+  mcp?: { enabled?: boolean };                     // MCP endpoint for agents (opt-in)
 
   diff?: { baseline?: SpecSource }; // previous document, for the Changes view (per spec: SpecEntry.baseline)
   theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };

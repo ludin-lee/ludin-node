@@ -212,6 +212,32 @@ A 3.1 document can declare `webhooks` alongside `paths`: operations **the API ca
 - Lint and the health score cover webhook operations as well
 
 Note: an endpoint a *provider* calls on your server (a payment or billing callback, say) is an ordinary path, and is correctly documented under `paths`. The `webhooks` section is for the other direction — calls your API makes to its consumers.
+### 3.12 MCP endpoint (v0.5)
+
+An agent that can read your API documentation is useful; an agent that can read *everything* is a liability. The MCP endpoint hands an agent the **same document a person with that identity would get**, under the same rules.
+
+```ts
+ludin({ spec, mcp: { enabled: true }, share: { enabled: true }, auth: { ... } })
+```
+
+`POST {basePath}/api/mcp` speaks JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`). Tools:
+
+| tool | |
+|---|---|
+| `list_operations` | the operations this caller may see |
+| `search_operations` | by path, summary, tag — and by **schema field name** |
+| `get_operation` | parameters, body schema, responses, code samples |
+| `call_operation` | execute one; offered **only** when the caller has `docs:try` |
+
+**Authentication reuses what already exists** — this closes the open decision in §7. An agent presents a share link as `Authorization: Bearer <token>`, or a session cookie for a person's own agent. No new credential type, which means no second thing to leak, expire or revoke.
+
+The guarantees are the pipeline's, not the endpoint's:
+
+- the **IP allowlist** applies, because identity is resolved after it (§4.4)
+- documents are **role-filtered**; an operation hidden from that role is absent from the listing, the search index and `get_operation` alike
+- **execution needs `docs:try`** — a read-only share link is not even *offered* `call_operation`, and is refused if it asks anyway
+- calls leave through the **same egress path** as the browser's Try it out, so the origin allowlist, header scrubbing and audit trail cannot be sidestepped by using the other entry point
+- every tool call is audited as `mcp.tool`, attributed to `share:<label>` or the signed-in user
 
 ---
 
@@ -288,6 +314,7 @@ Everything goes through the same pipeline (§4.4). No route bypasses it.
 | `GET /api/search-index` | ⌘K index: operations + schema field names, filtered (`docs:read`) |
 | `GET /api/lint` | Documentation health score for the filtered document (`docs:read`) |
 | `GET /api/diff` | Classified changes against the configured baseline (`docs:read`) |
+| `POST /api/mcp` | MCP JSON-RPC endpoint for agents (`docs:read`; execution needs `docs:try`) |
 | `POST /api/share` | Mint an expiring share link (`admin:read`) |
 | `GET /api/admin` | The current configuration (`admin:read`, read-only) |
 
@@ -319,6 +346,7 @@ interface LudinOptions {
   lint?: { ignore?: string[] };
   validate?: { envelope?: { dataPath: string; schema?: object } };
   diff?: { baseline?: SpecSource };
+  mcp?: { enabled?: boolean };
   share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
@@ -336,7 +364,7 @@ interface LudinOptions {
 | **v0.2** | done | Readme page (your HTML, directly), spec export, document visibility (visibleTo), multiple specs, logo & dark-mode branding, Fastify / Koa / Hono / node:http adapters |
 | **v0.3 — "docs you can trust"** | done | Code samples in six flavours (curl, fetch, axios, python, go, `.http`, with server URL, auth header and body example filled in), ⌘K command palette (searching **schema field names** as well as paths, summaries and operationIds), response schema validation for Try it out, `ludin lint` + a documentation health score (§3.8) |
 | **v0.4 — "changes you can follow"** | in progress | Spec diff and breaking-change classification (removed path, new required field, narrowed enum, changed type, dropped response code), generated changelog page, environments + auth chaining, expiring share links |
-| **v0.5 — "a catalogue, and agents"** | planned | MCP endpoint (with the per-role spec filter applied as-is), collection & TypeScript type export, OIDC / OAuth2 adapter, OpenAPI 3.1 webhooks rendering |
+| **v0.5 — "a catalogue, and agents"** | in progress | MCP endpoint (with the per-role spec filter applied as-is), collection & TypeScript type export, OIDC / OAuth2 adapter, OpenAPI 3.1 webhooks rendering |
 | **v1.0** | planned | Stable API |
 
 During v0.2 a database-backed store mode (account editing, invitations, session revocation, an audit log browser) was built and then removed before release. It was not needed to guard the front door of a document, and the database, migrations and drivers raised the cost of adopting the library. Accounts belong in code; logs belong in the log pipeline you already run.
@@ -357,5 +385,5 @@ Two constraints run across the whole roadmap:
 - Default for recording Try-it-out request/response bodies in the audit log (off recommended)
 - ~~Where the baseline snapshot for a spec diff comes from~~ → passed in the config (`diff.baseline` / `SpecEntry.baseline`); ludin writes nothing (2026-09-09)
 - ~~How a share link passes the request pipeline~~ → resolved as an identity inside the pipeline, never a separate route (2026-09-09)
-- Authentication for the MCP endpoint: a service account / API key header vs reusing share-link tokens
+- ~~Authentication for the MCP endpoint~~ → share links presented as `Authorization: Bearer`, or a session cookie; no new credential type (2026-09-10)
 - Whether to bring store mode back: hold until demand for comments and read receipts actually accumulates vs ship it as a separate opt-in package
