@@ -292,7 +292,7 @@ test('share: disabled by default', async () => {
 
 // --- spec diff -------------------------------------------------------------
 
-import { diffSpecs } from '../src/index.js';
+import { diffSpecs, applyVisibility } from '../src/index.js';
 
 const v1 = {
   openapi: '3.0.3',
@@ -368,6 +368,62 @@ test('diff: identical documents produce no changes', () => {
   const r = diffSpecs(v1, structuredClone(v1));
   assert.deepEqual(r.changes, []);
   assert.equal(r.breaking, 0);
+});
+
+// --- OpenAPI 3.1 webhooks --------------------------------------------------
+
+const hookSpec = {
+  openapi: '3.1.0',
+  info: { title: 'Hooks', version: '1', description: 'd' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: { '/pets': { get: { operationId: 'list', summary: 'List', tags: ['Pets'], responses: { 200: { description: 'ok' } } } } },
+  webhooks: {
+    petCreated: { post: { operationId: 'petCreated', summary: 'Pet created', tags: ['Events'],
+      requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { petId: { type: 'string' } } } } } },
+      responses: { 200: { description: 'ack' } } } },
+    secretEvent: { post: { operationId: 'secretEvent', summary: 'Internal', tags: ['Internal'],
+      responses: { 200: { description: 'ack' } } } },
+  },
+};
+
+test('webhooks: visibility filters them exactly like paths', () => {
+  const forDev = applyVisibility(structuredClone(hookSpec), { 'tag:Internal': ['admin'] }, 'developer');
+  assert.ok(forDev.webhooks.petCreated, 'a visible webhook survives');
+  assert.equal(forDev.webhooks.secretEvent, undefined, 'a hidden webhook must not leak through the other container');
+
+  const forAdmin = applyVisibility(structuredClone(hookSpec), { 'tag:Internal': ['admin'] }, 'admin');
+  assert.ok(forAdmin.webhooks.secretEvent);
+});
+
+test('webhooks: the search index carries them, marked', () => {
+  const index = buildSearchIndex(hookSpec);
+  const hook = index.find((e) => e.operationId === 'petCreated')!;
+  assert.equal(hook.webhook, true);
+  assert.ok(hook.fields.includes('petId'));
+  assert.equal(index.find((e) => e.operationId === 'list')!.webhook, undefined);
+});
+
+test('webhooks: a hidden webhook never reaches the search index or the diff', async () => {
+  const ludin = createLudin({
+    spec: hookSpec,
+    auth: { users: [{ email: 'd@x.io', password: 'pw', role: 'developer' }], session: { secret: 's' } },
+    visibility: { 'tag:Internal': ['admin'] },
+  });
+  const login = await ludin.handle(req({
+    method: 'POST', path: '/api/login', body: JSON.stringify({ email: 'd@x.io', password: 'pw' }),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  const sc = login.headers['set-cookie'];
+  const cookie = String(Array.isArray(sc) ? sc[0] : sc).split(';')[0];
+
+  const spec200 = await ludin.handle(req({ path: '/api/spec', headers: { host: 'localhost:3000', cookie } }));
+  const served = JSON.parse(String(spec200.body));
+  assert.ok(served.webhooks.petCreated);
+  assert.equal(served.webhooks.secretEvent, undefined);
+
+  const idx = JSON.parse(String((await ludin.handle(req({ path: '/api/search-index', headers: { host: 'localhost:3000', cookie } }))).body)).index;
+  assert.ok(idx.some((e: any) => e.operationId === 'petCreated'));
+  assert.ok(!idx.some((e: any) => e.operationId === 'secretEvent'));
 });
 
 // --- response validation: undocumented status & envelopes -------------------

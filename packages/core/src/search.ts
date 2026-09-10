@@ -12,6 +12,8 @@ const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'
 export interface SearchEntry {
   method: string;          // upper case
   path: string;
+  /** True for an OpenAPI 3.1 webhook: an operation the API calls, not one you call. */
+  webhook?: boolean;
   operationId?: string;
   summary?: string;
   tags: string[];
@@ -21,7 +23,12 @@ export interface SearchEntry {
 
 export function buildSearchIndex(doc: OpenApiDoc): SearchEntry[] {
   const out: SearchEntry[] = [];
-  for (const [path, item] of Object.entries<any>(doc.paths ?? {})) {
+  const containers: Array<[Record<string, any>, boolean]> = [
+    [doc.paths ?? {}, false],
+    [doc.webhooks ?? {}, true],
+  ];
+  for (const [container, webhook] of containers)
+  for (const [path, item] of Object.entries<any>(container)) {
     if (!item || typeof item !== 'object') continue;
     for (const method of HTTP_METHODS) {
       const op = item[method];
@@ -41,6 +48,7 @@ export function buildSearchIndex(doc: OpenApiDoc): SearchEntry[] {
       out.push({
         method: method.toUpperCase(),
         path,
+        ...(webhook ? { webhook: true } : {}),
         operationId: typeof op.operationId === 'string' ? op.operationId : undefined,
         summary: typeof op.summary === 'string' ? op.summary : undefined,
         tags: Array.isArray(op.tags) ? op.tags.filter((t: unknown) => typeof t === 'string') : [],
