@@ -84,11 +84,32 @@ export function applyVisibility(
   visibility: Record<string, Role[]> | undefined,
   role: Role | null,
 ): OpenApiDoc {
-  if (!visibility || !doc.paths) return doc;
+  if (!visibility || (!doc.paths && !doc.webhooks)) return doc;
   const rules = Object.entries(visibility);
   const allowed = (roles: Role[]) => role != null && roles.includes(role);
 
-  for (const [path, item] of Object.entries<any>(doc.paths)) {
+  // OpenAPI 3.1 webhooks carry operations like paths do, so they must go
+  // through the same filter — otherwise a hidden operation leaks by living
+  // in the other container.
+  for (const [name, item] of Object.entries<any>(doc.webhooks ?? {})) {
+    if (!item || typeof item !== 'object') continue;
+    for (const method of HTTP_METHODS) {
+      const op = item[method];
+      if (!op) continue;
+      const hidden = rules.some(([rule, roles]) =>
+        !allowed(roles) &&
+        (rule.startsWith('tag:')
+          ? Array.isArray(op.tags) && op.tags.includes(rule.slice(4))
+          : /^[A-Z]+ /.test(rule)
+            ? rule.split(/\s+/, 2)[0].toLowerCase() === method && matchPath(rule.split(/\s+/, 2)[1], name)
+            : matchPath(rule, name)),
+      );
+      if (hidden) delete item[method];
+    }
+    if (!HTTP_METHODS.some((m) => item[m])) delete doc.webhooks[name];
+  }
+
+  for (const [path, item] of Object.entries<any>(doc.paths ?? {})) {
     if (!item || typeof item !== 'object') continue;
     for (const method of HTTP_METHODS) {
       const op = item[method];
@@ -115,7 +136,7 @@ export function applyVisibility(
   // Drop tags with no remaining operations.
   if (Array.isArray(doc.tags)) {
     const used = new Set<string>();
-    for (const item of Object.values<any>(doc.paths)) {
+    for (const item of [...Object.values<any>(doc.paths ?? {}), ...Object.values<any>(doc.webhooks ?? {})]) {
       for (const m of HTTP_METHODS) for (const t of item?.[m]?.tags ?? []) used.add(t);
     }
     doc.tags = doc.tags.filter((t: any) => used.has(t?.name));

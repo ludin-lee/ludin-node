@@ -78,6 +78,7 @@ export interface AuditEvent {
     | 'docs.readme'
     | 'docs.try'
     | 'share.created'
+    | 'mcp.tool'
     | 'ip.blocked'
     | 'auth.denied';
   user?: { email: string; role: Role } | null;
@@ -138,11 +139,40 @@ export interface LudinOptions {
   audit?: AuditOptions;
   /** Lint tuning for /api/lint and the overview health score, e.g. { ignore: ['param-description'] }. */
   lint?: { ignore?: string[] };
+  /** Try-it-out response validation. */
+  validate?: {
+    /**
+     * For APIs that wrap every response in a common envelope. The documented
+     * schema then describes what sits at `dataPath`, not the whole body — so
+     * say so here instead of documenting the wrapper 300 times.
+     *
+     * ```ts
+     * validate: { envelope: { dataPath: 'data' } }
+     * ```
+     *
+     * Responses that lack the property are validated whole, as before: some
+     * endpoints legitimately answer unwrapped, and crying wolf on those would
+     * teach people to ignore the badge.
+     */
+    envelope?: {
+      dataPath: string;
+      /** Optional schema for the wrapper itself, checked alongside the payload. */
+      schema?: Record<string, unknown>;
+    };
+  };
   /**
    * Expiring share links. Off unless enabled: it adds a way in, so it is opt-in.
    * A link is a signed grant that still walks the full pipeline — the IP
    * allowlist, roles and `visibility` all apply, and it can never reach admin.
    */
+  /**
+   * MCP endpoint for AI agents, at `{basePath}/api/mcp`. Off unless enabled:
+   * it is another way in, so it is opt-in. An agent authenticates the same way
+   * a person does — a session cookie, or a share link presented as
+   * `Authorization: Bearer <token>` — and gets the same role-filtered document.
+   * Executing a request still needs `docs:try`.
+   */
+  mcp?: { enabled?: boolean };
   share?: {
     enabled?: boolean;
     /** Upper bound for a link's lifetime. Default '30d'. */

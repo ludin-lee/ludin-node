@@ -292,7 +292,7 @@ test('share: disabled by default', async () => {
 
 // --- spec diff -------------------------------------------------------------
 
-import { diffSpecs } from '../src/index.js';
+import { diffSpecs, applyVisibility } from '../src/index.js';
 
 const v1 = {
   openapi: '3.0.3',
@@ -368,4 +368,265 @@ test('diff: identical documents produce no changes', () => {
   const r = diffSpecs(v1, structuredClone(v1));
   assert.deepEqual(r.changes, []);
   assert.equal(r.breaking, 0);
+});
+
+// --- MCP endpoint ----------------------------------------------------------
+
+const mcpSpec = {
+  openapi: '3.0.3', info: { title: 'MCP', version: '1' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: {
+    '/pets/{petId}': { get: { operationId: 'showPet', summary: 'Get a pet', tags: ['Pets'],
+      parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'integer' } }],
+      responses: { 200: { description: 'ok', content: { 'application/json': { schema: { type: 'object', properties: { createdAt: { type: 'string' } } } } } } } } },
+    '/admin/wipe': { post: { operationId: 'wipe', summary: 'Wipe', tags: ['Internal'], responses: { 200: { description: 'ok' } } } },
+  },
+};
+
+function mcpLudin(extra: Record<string, any> = {}) {
+  return createLudin({
+    spec: mcpSpec,
+    auth: { users: [{ email: 'a@x.io', password: 'pw', role: 'admin' }], session: { secret: 'mcp-secret' } },
+    visibility: { 'tag:Internal': ['admin'] },
+    mcp: { enabled: true },
+    share: { enabled: true },
+    ...extra,
+  });
+}
+
+async function rpc(ludin: ReturnType<typeof createLudin>, body: unknown, headers: Record<string, string> = {}) {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/mcp', body: JSON.stringify(body),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', ...headers },
+  }));
+  return { status: res.status, data: res.body ? JSON.parse(String(res.body)) : null };
+}
+
+const toolResult = (data: any) => JSON.parse(data.result.content[0].text);
+
+test('mcp: disabled by default, and login is still required when enabled', async () => {
+  const off = createLudin({ spec: mcpSpec, auth: false });
+  assert.equal((await rpc(off, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status, 404);
+
+  const on = mcpLudin();
+  assert.equal((await rpc(on, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status, 401);
+});
+
+test('mcp: an agent reads the role-filtered document, never more', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+
+  // admin sees the internal operation
+  const asAdmin = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_operations', arguments: {} },
+  }, { cookie })).data);
+  assert.ok(asAdmin.operations.some((o: any) => o.operationId === 'wipe'));
+
+  // a read-only share link for a non-admin role does not
+  const { data: link } = await mintShare(ludin, cookie, { role: 'viewer' });
+  const asAgent = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_operations', arguments: {} },
+  }, { authorization: `Bearer ${link.token}` })).data);
+  assert.ok(asAgent.operations.some((o: any) => o.operationId === 'showPet'));
+  assert.ok(!asAgent.operations.some((o: any) => o.operationId === 'wipe'), 'hidden operation must not reach the agent');
+
+  // …and cannot fetch it by name either
+  const denied = (await rpc(ludin, {
+    jsonrpc: '2.0', id: 4, method: 'tools/call',
+    params: { name: 'get_operation', arguments: { method: 'POST', path: '/admin/wipe' } },
+  }, { authorization: `Bearer ${link.token}` })).data;
+  assert.equal(denied.result.isError, true);
+  assert.match(denied.result.content[0].text, /not in the document you can see/);
+});
+
+test('mcp: a read-only link is not even offered the execute tool', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const { data: readOnly } = await mintShare(ludin, cookie, { role: 'viewer' });
+  const { data: executor } = await mintShare(ludin, cookie, { role: 'developer', canTry: true });
+
+  const names = async (token: string) =>
+    (await rpc(ludin, { jsonrpc: '2.0', id: 5, method: 'tools/list' }, { authorization: `Bearer ${token}` }))
+      .data.result.tools.map((t: any) => t.name);
+
+  assert.ok(!(await names(readOnly.token)).includes('call_operation'));
+  assert.ok((await names(executor.token)).includes('call_operation'));
+
+  // and asking anyway is refused
+  const attempt = (await rpc(ludin, {
+    jsonrpc: '2.0', id: 6, method: 'tools/call',
+    params: { name: 'call_operation', arguments: { method: 'GET', path: '/pets/{petId}', pathParams: { petId: '1' } } },
+  }, { authorization: `Bearer ${readOnly.token}` })).data;
+  assert.equal(attempt.result.isError, true);
+});
+
+test('mcp: search finds an operation by schema field name', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const found = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'search_operations', arguments: { query: 'createdAt' } },
+  }, { cookie })).data);
+  assert.equal(found.results[0].operationId, 'showPet');
+  assert.equal(found.results[0].matchedOn, 'field:createdAt');
+});
+
+test('mcp: protocol basics – initialize, notifications, unknown method', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const init = (await rpc(ludin, { jsonrpc: '2.0', id: 8, method: 'initialize' }, { cookie })).data;
+  assert.equal(init.result.protocolVersion, '2025-06-18');
+  assert.ok(init.result.capabilities.tools);
+
+  // a notification gets no body at all
+  const note = await rpc(ludin, { jsonrpc: '2.0', method: 'notifications/initialized' }, { cookie });
+  assert.equal(note.status, 202);
+  assert.equal(note.data, null);
+
+  const bad = (await rpc(ludin, { jsonrpc: '2.0', id: 9, method: 'resources/list' }, { cookie })).data;
+  assert.equal(bad.error.code, -32601);
+});
+
+// --- OpenAPI 3.1 webhooks --------------------------------------------------
+
+const hookSpec = {
+  openapi: '3.1.0',
+  info: { title: 'Hooks', version: '1', description: 'd' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: { '/pets': { get: { operationId: 'list', summary: 'List', tags: ['Pets'], responses: { 200: { description: 'ok' } } } } },
+  webhooks: {
+    petCreated: { post: { operationId: 'petCreated', summary: 'Pet created', tags: ['Events'],
+      requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { petId: { type: 'string' } } } } } },
+      responses: { 200: { description: 'ack' } } } },
+    secretEvent: { post: { operationId: 'secretEvent', summary: 'Internal', tags: ['Internal'],
+      responses: { 200: { description: 'ack' } } } },
+  },
+};
+
+test('webhooks: visibility filters them exactly like paths', () => {
+  const forDev = applyVisibility(structuredClone(hookSpec), { 'tag:Internal': ['admin'] }, 'developer');
+  assert.ok(forDev.webhooks.petCreated, 'a visible webhook survives');
+  assert.equal(forDev.webhooks.secretEvent, undefined, 'a hidden webhook must not leak through the other container');
+
+  const forAdmin = applyVisibility(structuredClone(hookSpec), { 'tag:Internal': ['admin'] }, 'admin');
+  assert.ok(forAdmin.webhooks.secretEvent);
+});
+
+test('webhooks: the search index carries them, marked', () => {
+  const index = buildSearchIndex(hookSpec);
+  const hook = index.find((e) => e.operationId === 'petCreated')!;
+  assert.equal(hook.webhook, true);
+  assert.ok(hook.fields.includes('petId'));
+  assert.equal(index.find((e) => e.operationId === 'list')!.webhook, undefined);
+});
+
+test('webhooks: a hidden webhook never reaches the search index or the diff', async () => {
+  const ludin = createLudin({
+    spec: hookSpec,
+    auth: { users: [{ email: 'd@x.io', password: 'pw', role: 'developer' }], session: { secret: 's' } },
+    visibility: { 'tag:Internal': ['admin'] },
+  });
+  const login = await ludin.handle(req({
+    method: 'POST', path: '/api/login', body: JSON.stringify({ email: 'd@x.io', password: 'pw' }),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  const sc = login.headers['set-cookie'];
+  const cookie = String(Array.isArray(sc) ? sc[0] : sc).split(';')[0];
+
+  const spec200 = await ludin.handle(req({ path: '/api/spec', headers: { host: 'localhost:3000', cookie } }));
+  const served = JSON.parse(String(spec200.body));
+  assert.ok(served.webhooks.petCreated);
+  assert.equal(served.webhooks.secretEvent, undefined);
+
+  const idx = JSON.parse(String((await ludin.handle(req({ path: '/api/search-index', headers: { host: 'localhost:3000', cookie } }))).body)).index;
+  assert.ok(idx.some((e: any) => e.operationId === 'petCreated'));
+  assert.ok(!idx.some((e: any) => e.operationId === 'secretEvent'));
+});
+
+// --- response validation: undocumented status & envelopes -------------------
+
+import { lookupResponseSchema } from '../src/index.js';
+
+const envSpec = {
+  openapi: '3.0.3',
+  info: { title: 'Enveloped', version: '1' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: {
+    '/items': {
+      get: { operationId: 'items', responses: { 200: { description: 'ok', content: { 'application/json': {
+        schema: { type: 'object', required: ['list'], properties: { list: { type: 'array', items: { type: 'string' } } } } } } } } },
+      // NestJS answers 201 to a POST by default while @ApiOkResponse documents 200.
+      post: { operationId: 'make', responses: { 200: { description: 'ok', content: { 'application/json': {
+        schema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } } } },
+    },
+  },
+};
+
+test('lookupResponseSchema separates an undocumented status from a missing schema', () => {
+  const documented = lookupResponseSchema(envSpec, 'GET', '/items', 200)!;
+  assert.ok(documented.schema);
+
+  const undoc = lookupResponseSchema(envSpec, 'POST', '/items', 201)!;
+  assert.equal(undoc.schema, null);
+  assert.equal((undoc as any).reason, 'undocumented_status');
+  assert.deepEqual((undoc as any).documented, ['200']);
+
+  const noSchema = lookupResponseSchema(
+    { openapi: '3.0.3', info: {}, paths: { '/x': { get: { responses: { 200: { description: 'ok' } } } } } },
+    'GET', '/x', 200,
+  )!;
+  assert.equal((noSchema as any).reason, 'no_schema');
+});
+
+async function tryIt(ludin: ReturnType<typeof createLudin>, body: Record<string, unknown>) {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/try', body: JSON.stringify(body),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin' },
+  }));
+  return JSON.parse(String(res.body));
+}
+
+test('envelope: the documented schema is compared against the wrapped payload', async (t) => {
+  const upstream = { success: true, message: 'ok', data: { list: ['a'] } };
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify(upstream), { status: 200, headers: { 'content-type': 'application/json' } }));
+
+  // Without the envelope configured, the wrapper looks like a violation…
+  const plain = createLudin({ spec: envSpec, auth: false });
+  const bare = await tryIt(plain, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.equal(bare.validation.checked, true);
+  assert.match(bare.validation.issues[0].message, /missing required property "list"/);
+
+  // …and with it, the payload is validated and the noise is gone.
+  const wrapped = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const ok = await tryIt(wrapped, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.deepEqual(ok.validation.issues, []);
+});
+
+test('envelope: real drift inside the payload is still reported, with a data-scoped path', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ success: true, data: { list: [1, 2] } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.equal(r.validation.issues.length, 2);
+  assert.equal(r.validation.issues[0].path, '$.data.list[0]');
+  assert.match(r.validation.issues[0].message, /expected string, got number/);
+});
+
+test('envelope: an unwrapped response is still validated whole', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ list: ['a'] }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'GET', url: 'http://api.example.com/items', op: { method: 'get', path: '/items' } });
+  assert.deepEqual(r.validation.issues, []);   // matches the documented schema at the root
+});
+
+test('try: an undocumented status code is reported instead of silently skipped', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ success: true, data: { id: 'x' } }), { status: 201, headers: { 'content-type': 'application/json' } }));
+  const ludin = createLudin({ spec: envSpec, auth: false, validate: { envelope: { dataPath: 'data' } } });
+  const r = await tryIt(ludin, { method: 'POST', url: 'http://api.example.com/items', op: { method: 'post', path: '/items' } });
+  assert.equal(r.validation.checked, false);
+  assert.equal(r.validation.reason, 'undocumented_status');
+  assert.equal(r.validation.status, 201);
+  assert.deepEqual(r.validation.documented, ['200']);
 });

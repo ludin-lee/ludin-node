@@ -54,7 +54,13 @@ export interface TryResult {
   bodyBase64?: string | null;
   error?: string;
   /** Comparison against the documented response schema (core-side). */
-  validation?: { checked: boolean; reason?: string; issues?: Array<{ path: string; message: string }> };
+  validation?: {
+    checked: boolean;
+    reason?: string;
+    documented?: string[];
+    status?: number;
+    issues?: Array<{ path: string; message: string }>;
+  };
 }
 
 export interface SearchEntry {

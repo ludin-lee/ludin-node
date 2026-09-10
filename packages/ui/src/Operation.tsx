@@ -17,7 +17,8 @@ export function OperationView({ doc, op, canTry, specName, server }: { doc: Doc;
     <div>
       <div class="op-head">
         <h1>
-          {op.summary} {op.deprecated && <span class="deprecated-badge">{t('deprecated')}</span>}
+          {op.summary} {op.webhook && <span class="webhook-badge">{t('webhook')}</span>}
+          {op.deprecated && <span class="deprecated-badge">{t('deprecated')}</span>}
         </h1>
         <div class="op-path">
           <span class={`method lg ${op.method}`}>{op.method}</span>
@@ -68,7 +69,7 @@ export function OperationView({ doc, op, canTry, specName, server }: { doc: Doc;
           {body && (
             <>
               <h3 class="sec">
-                {t('requestBody')} {body.required && <span class="tag req">{t('required')}</span>}
+                {op.webhook ? t('webhookPayload') : t('requestBody')} {body.required && <span class="tag req">{t('required')}</span>}
               </h3>
               <div class="card">
                 <div class="card-b">
@@ -119,7 +120,16 @@ export function OperationView({ doc, op, canTry, specName, server }: { doc: Doc;
         </div>
 
         <div class="sticky">
-          <TryIt doc={doc} op={op} canTry={canTry} specName={specName} contentTypes={contentTypes} security={security} server={server} />
+          {op.webhook ? (
+            <div class="card">
+              <div class="card-h">{t('webhook')}</div>
+              <div class="card-b">
+                <div class="notice info">{t('webhookNotice')}</div>
+              </div>
+            </div>
+          ) : (
+            <TryIt doc={doc} op={op} canTry={canTry} specName={specName} contentTypes={contentTypes} security={security} server={server} />
+          )}
         </div>
       </div>
     </div>
@@ -699,6 +709,15 @@ function TryIt({
 
 /** Whether the live response matches the documented schema (validated in the core). */
 function ValidationBadge({ v }: { v: TryResult['validation'] }) {
+  // A status the document never mentions is drift too — saying nothing would
+  // let the absence of a badge read as "the response matches".
+  if (v?.reason === 'undocumented_status') {
+    return (
+      <div class="notice warn" style="margin-top:8px">
+        {t('undocumentedStatus', { status: String(v.status ?? ''), documented: (v.documented ?? []).join(', ') })}
+      </div>
+    );
+  }
   if (!v?.checked) return null;
   if (!v.issues?.length) {
     return <div class="notice ok" style="margin-top:8px">{t('validationOk')}</div>;
