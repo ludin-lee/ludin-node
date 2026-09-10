@@ -155,6 +155,14 @@ readme: './docs/guide.html'   // 기본값으로 쓰는 축약형
 - **코드 샘플** — 오퍼레이션마다 여섯 가지(cURL, fetch, axios, Python, Go, `.http`)의 붙여넣기 가능한 스니펫을 코어가 생성한다. 경로 파라미터, 필수 쿼리/헤더 파라미터, 유효한 보안 스킴의 인증 헤더, 요청 바디 예시까지 채워진 상태로. **역할 필터링된** 문서에서 만들기 때문에 숨겨진 오퍼레이션은 샘플이 아니라 404가 나간다. `GET /api/samples?method=&path=`
 - **⌘K 커맨드 팰릿** — 경로·요약·operationId·태그에 더해 **스키마 필드명**(요청·응답, `$ref` 해석 포함)까지 검색한다. 인덱스는 `GET /api/search-index`로 코어가 필터링된 문서에서 만들어 내려주고, UI는 퍼지 매칭만 한다. 필드 매칭은 `field:` 배지로 표시되며 해당 오퍼레이션으로 이동한다.
 - **Try it out 응답 검증** — 프록시를 거친 모든 JSON 응답을 해당 상태 코드의 문서화된 스키마(정확한 코드 → `2XX` 클래스 → `default` 순)와 대조하고, 결과를 `/api/try` 응답의 `validation` 필드로 함께 내려준다. 검사 항목: type, required, enum, nullable, format(date-time·date·email·uuid·uri), oneOf/anyOf. 의도적으로 자체 최소 검증기다 — 의존성 0 원칙(§7) — 적합성을 보증하는 게 아니라 어긋남을 보고한다. 숨겨진 오퍼레이션은 `checked: false`로 돌아와 아무것도 누설하지 않는다.
+**배지를 신뢰할 수 있는지를 가르는 두 가지:**
+
+- **봉투(envelope) 응답.** 모든 응답이 감싸여 나가는 API — 예를 들어 프레임워크 인터셉터가 `{ success, message, data }`로 감싸는 경우 — 문서의 스키마는 전체 바디가 아니라 `data` 안쪽을 설명한다. 이를 모르면 모든 엔드포인트가 불일치로 표시된다. 한 번만 알려주면 된다:
+  ```ts
+  validate: { envelope: { dataPath: 'data' } }   // schema를 함께 주면 봉투 자체도 검사
+  ```
+  페이로드 안의 실제 어긋남은 `$.data.…` 경로로 그대로 보고된다. 봉투 없이 온 응답은 전체를 대조한다 — 일부 엔드포인트는 정당하게 감싸지 않고 답하며, 그것까지 경고하면 사람들이 배지를 무시하게 되기 때문이다.
+- **문서화되지 않은 상태 코드는 건너뛰지 않고 보고한다.** POST가 `201`로 답하는데 문서에는 `200`만 있다면(`@HttpCode`나 `@ApiCreatedResponse`가 없을 때 NestJS의 기본값) 대조할 스키마가 없다. 여기서 침묵하면 "배지가 없음 = 일치함"으로 읽히므로, 루딘은 그 상태 코드와 문서에 있는 코드 목록을 함께 알려준다.
 - **`ludin lint` + 건강 점수** — `npx ludin lint spec.yaml [--min 80] [--json]`이 문서를 검사하고(요약·operationId·설명 누락, 태그 없는 오퍼레이션, 스키마 없는 바디·응답, 2xx 없음, servers 없음) 건강 점수를 출력한다: 통과한 검사의 비율이라 스펙 크기와 무관하게 안정적이다. 같은 결과가 필터링된 문서 기준으로 `GET /api/lint`에서도 나가고, 오버뷰 화면에 점수 카드로 표시되며 클릭하면 이슈 목록이 열린다. 팀이 의도적으로 안 지키는 규칙은 옵션 `lint: { ignore: ['param-description'] }` 또는 CLI `--ignore`로 끌 수 있다 — 점수와 CI 게이트가 실제로 중요한 규칙만 반영하도록.
 
 ### 3.9 변경을 따라갈 수 있게 (v0.4)
@@ -298,6 +306,7 @@ interface LudinOptions {
   readme?: string | { enabled?: boolean; path: string; label?: string; visibleTo?: Role[] };
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
+  validate?: { envelope?: { dataPath: string; schema?: object } };
   diff?: { baseline?: SpecSource };
   share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
