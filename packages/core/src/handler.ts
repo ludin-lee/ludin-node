@@ -1,5 +1,6 @@
 import { Auditor } from './audit.js';
 import { diffSpecs } from './diff.js';
+import { buildPostmanCollection, generateTypes } from './export.js';
 import { createIpMatcher, isLocalhost, resolveClientIp } from './ip.js';
 import { handleMcp, MCP_PROTOCOL_VERSION, type McpCapabilities } from './mcp.js';
 import { lintSpec } from './lint.js';
@@ -177,7 +178,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       authEnabled,
       theme: options.theme ?? {},
       readme: readme ? { label: readme.label, url: `${basePath === '/' ? '' : basePath}/readme` } : null,
-      version: '0.3.2',
+      version: '0.5.0',
     };
     const page = UI_HTML.replace(
       '<!--LUDIN_CONFIG-->',
@@ -271,6 +272,10 @@ export function createLudin(options: LudinOptions): LudinHandler {
       case '/api/spec.yaml':
         require(ctx, 'docs:read');
         return exportSpec(ctx, path.endsWith('.yaml') ? 'yaml' : 'json');
+      case '/api/export/postman':
+      case '/api/export/types.d.ts':
+        require(ctx, 'docs:read');
+        return exportGenerated(ctx, path.endsWith('postman') ? 'postman' : 'types');
       case '/api/try':
         require(ctx, 'docs:try');
         return tryProxy(ctx);
@@ -360,6 +365,31 @@ export function createLudin(options: LudinOptions): LudinHandler {
         'cache-control': 'no-store',
       },
       body: format === 'json' ? JSON.stringify(doc, null, 2) : toYaml(doc),
+    };
+  }
+
+  /**
+   * A Postman collection or a TypeScript declaration file, generated from the
+   * same role-filtered document the docs render (spec §3.13). Read access is
+   * export access, so a share link can fetch these too – they never carry
+   * anything `/api/spec.json` would not already hand out.
+   */
+  async function exportGenerated(ctx: Ctx, format: 'postman' | 'types'): Promise<LudinResponse> {
+    requireMethod(ctx, 'GET');
+    const { name, doc } = await visibleSpec(ctx);
+    await auditor.emit({ type: 'docs.export', ip: ctx.ip, user: pick(ctx.user), detail: { spec: name, format } });
+    const base = String(doc.info?.title ?? name).replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60) || 'openapi';
+    const postman = format === 'postman';
+    return {
+      status: 200,
+      headers: {
+        'content-type': postman ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8',
+        'content-disposition': `attachment; filename="${base}${postman ? '.postman_collection.json' : '.d.ts'}"`,
+        'cache-control': 'no-store',
+      },
+      body: postman
+        ? JSON.stringify(buildPostmanCollection(doc, requestOrigin(ctx.req)), null, 2)
+        : generateTypes(doc),
     };
   }
 

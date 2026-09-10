@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ludin } from '@ludin-docs/express';
-import { petstore } from './petstore.js';
+import { petstore, petstoreV1 } from './petstore.js';
 
 const app = express();
 app.use(express.json());
@@ -33,6 +33,8 @@ app.use(
   '/docs',
   ludin({
     spec: petstore,
+    // The previous release, so the Changes screen has something to show.
+    diff: { baseline: petstoreV1 },
     // Any HTML file of yours, served next to the reference behind a button.
     readme: { enabled: true, path: fileURLToPath(new URL('../readme.html', import.meta.url)), label: 'Guide' },
     auth: {

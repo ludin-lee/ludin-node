@@ -92,6 +92,50 @@ export function diffSpecs(before: OpenApiDoc, after: OpenApiDoc): DiffResult {
   };
 }
 
+/**
+ * The same classified list as release notes (spec §3.9, v0.6). The CLI writes
+ * this English rendering; the Changes screen builds the same shape from the
+ * `/api/diff` response in the viewer's language. Classification itself stays
+ * here, so the two can never disagree about what breaks.
+ */
+export function toMarkdown(result: DiffResult, labels: MarkdownLabels = {}): string {
+  const l = { ...DEFAULT_LABELS, ...labels };
+  const out: string[] = [];
+  const { before, after } = result.versions;
+  if (before || after) out.push(`## ${before ?? '?'} → ${after ?? '?'}`, '');
+  if (!result.changes.length) return [...out, l.noChanges].join('\n') + '\n';
+
+  for (const [heading, breaking] of [[l.breaking, true], [l.other, false]] as const) {
+    const group = result.changes.filter((c) => c.breaking === breaking);
+    if (!group.length) continue;
+    out.push(`### ${heading}`, '');
+    // Grouped by location, in the order the diff produced them.
+    const byLocation = new Map<string, SpecChange[]>();
+    for (const c of group) byLocation.set(c.at, [...(byLocation.get(c.at) ?? []), c]);
+    for (const [at, items] of byLocation) {
+      out.push(`- \`${at}\``);
+      for (const c of items) out.push(`  - ${c.detail}`);
+    }
+    out.push('');
+  }
+  out.push(l.summary(result.breaking, result.nonBreaking), '');
+  return out.join('\n');
+}
+
+export interface MarkdownLabels {
+  breaking?: string;
+  other?: string;
+  noChanges?: string;
+  summary?: (breaking: number, compatible: number) => string;
+}
+
+const DEFAULT_LABELS: Required<MarkdownLabels> = {
+  breaking: 'Breaking changes',
+  other: 'Other changes',
+  noChanges: 'No changes.',
+  summary: (b, c) => `_${b} breaking · ${c} compatible_`,
+};
+
 type Add = (kind: ChangeKind, breaking: boolean, at: string, detail: string, params?: Record<string, string>) => void;
 
 /** Requiring auth where there was none locks out existing callers. */
