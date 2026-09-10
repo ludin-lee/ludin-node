@@ -194,6 +194,33 @@ ludin({ spec: './openapi.yaml', share: { enabled: true, maxTtl: '30d' }, auth: {
 
 **솔직한 한계**: 저장소를 두지 않기 때문에(§6) 이 권한은 무상태다. 따라서 개별 링크는 취소할 수 없고, 세션 시크릿을 교체하면 전부 한 번에 무효화된다. 발급은 `share.created` 감사 이벤트로 남고, 링크로 들어온 모든 요청은 `share:<라벨>`로 귀속된다.
 
+### 3.12 MCP 엔드포인트 (v0.5)
+
+API 문서를 읽을 수 있는 에이전트는 유용하지만, *전부* 읽을 수 있는 에이전트는 부담이다. MCP 엔드포인트는 **그 신원을 가진 사람이 받았을 문서와 똑같은 것**을 같은 규칙 아래 에이전트에게 건넨다.
+
+```ts
+ludin({ spec, mcp: { enabled: true }, share: { enabled: true }, auth: { ... } })
+```
+
+`POST {basePath}/api/mcp`가 JSON-RPC 2.0(`initialize`, `tools/list`, `tools/call`)을 처리한다. 도구는 넷:
+
+| 도구 | |
+|---|---|
+| `list_operations` | 이 호출자가 볼 수 있는 오퍼레이션 |
+| `search_operations` | 경로·요약·태그에 더해 **스키마 필드명**으로 검색 |
+| `get_operation` | 파라미터·바디 스키마·응답·코드 샘플 |
+| `call_operation` | 실행. `docs:try` 권한이 있는 호출자에게**만** 제공된다 |
+
+**인증은 이미 있는 것을 재사용한다** — §7의 열린 결정을 이렇게 닫는다. 에이전트는 공유 링크를 `Authorization: Bearer <토큰>`으로 제시하거나, 본인의 에이전트라면 세션 쿠키를 쓴다. 새로운 자격 증명 종류를 만들지 않는다는 것은, 유출·만료·폐기를 관리할 대상이 하나 더 늘지 않는다는 뜻이다.
+
+보장은 엔드포인트가 아니라 파이프라인이 제공한다:
+
+- 신원 해석이 IP 검사 뒤에 오므로 **IP 화이트리스트가 그대로 적용**된다 (§4.4)
+- 문서는 **역할 필터링**된다. 그 역할에게 숨긴 오퍼레이션은 목록에도, 검색 인덱스에도, `get_operation`에도 없다
+- **실행에는 `docs:try`가 필요하다.** 읽기 전용 공유 링크에는 `call_operation`이 아예 *제시되지 않고*, 그래도 요청하면 거부된다
+- 호출은 브라우저의 Try it out과 **같은 출구**로 나간다. 다른 입구를 쓴다고 origin 허용 목록·헤더 정리·감사 기록을 우회할 수 없다
+- 모든 도구 호출은 `mcp.tool`로 감사되며 `share:<라벨>` 또는 로그인한 사용자에게 귀속된다
+
 ---
 
 ## 4. 아키텍처
@@ -269,6 +296,7 @@ interface BoundUser {
 | `GET /api/search-index` | ⌘K 인덱스: 오퍼레이션 + 스키마 필드명, 필터링됨 (`docs:read`) |
 | `GET /api/lint` | 필터링된 문서의 건강 점수 (`docs:read`) |
 | `GET /api/diff` | 기준 문서 대비 분류된 변경 목록 (`docs:read`) |
+| `POST /api/mcp` | 에이전트용 MCP JSON-RPC 엔드포인트 (`docs:read`, 실행은 `docs:try`) |
 | `POST /api/share` | 만료되는 공유 링크 발급 (`admin:read`) |
 | `GET /api/admin` | 현재 설정 조회 (`admin:read`, 읽기 전용) |
 
@@ -299,6 +327,7 @@ interface LudinOptions {
   audit?: { sink?: (e: AuditEvent) => void | false; mask?: string[]; recordBodies?: boolean };
   lint?: { ignore?: string[] };
   diff?: { baseline?: SpecSource };
+  mcp?: { enabled?: boolean };
   share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
@@ -316,7 +345,7 @@ interface LudinOptions {
 | **v0.2** | 완료 | README 페이지(HTML 직결), 스펙 내보내기, 문서 가시성 제어(visibleTo), 다중 스펙, 로고·다크모드 브랜딩, Fastify·Koa·Hono·node:http 어댑터 |
 | **v0.3 — "문서를 신뢰할 수 있게"** | 완료 | 여섯 가지 코드 샘플(curl·fetch·axios·python·go·`.http`, 서버 URL·인증 헤더·바디 예시가 채워진 상태), ⌘K 커맨드 팰릿(경로·요약·operationId에 더해 **스키마 필드명**까지 검색), Try it out 응답 스키마 검증, `ludin lint` + 문서 건강도 점수 (§3.8) |
 | **v0.4 — "변경을 추적할 수 있게"** | 예정 | 스펙 diff와 breaking change 분류(경로 삭제, required 추가, enum 축소, 타입 변경, 응답 코드 제거), 자동 체인지로그 페이지, 환경(Environment) + 인증 체이닝, 만료되는 공유 링크 |
-| **v0.5 — "카탈로그와 에이전트"** | 예정 | MCP 엔드포인트(역할별 스펙 필터 그대로 적용), 컬렉션·TypeScript 타입 내보내기, OIDC/OAuth2 어댑터, OpenAPI 3.1 webhooks 렌더 |
+| **v0.5 — "카탈로그와 에이전트"** | 진행 중 | MCP 엔드포인트(역할별 스펙 필터 그대로 적용), 컬렉션·TypeScript 타입 내보내기, OIDC/OAuth2 어댑터, OpenAPI 3.1 webhooks 렌더 |
 | **v1.0** | 예정 | 안정 API 확정 |
 
 v0.2 개발 중 DB 기반 스토어 모드(계정 편집·초대·세션 폐기·감사 로그 UI)를 만들었다가 출시 전에 걷어냈다. 문서 앞의 문을 지키는 데 필요하지 않았고, DB·마이그레이션·드라이버가 도입 비용을 키웠기 때문이다. 계정은 코드에, 로그는 이미 쓰는 로그 파이프라인에 둔다.
@@ -337,5 +366,5 @@ v0.2 개발 중 DB 기반 스토어 모드(계정 편집·초대·세션 폐기�
 - 감사 로그의 Try it out 요청/응답 바디 기록 기본값(off 권장)
 - 스펙 diff의 기준 스냅샷 출처: 설정으로 받은 파일 경로·URL vs 코어가 자동 저장하는 `.ludin/` 디렉터리
 - 공유 링크가 요청 파이프라인을 통과하는 방식: 세션과 동일 취급(토큰이 역할·스코프를 담고 IP 검사는 그대로) vs 별도 경로 — 후자는 §4.4 불변식을 깨므로 채택하지 않는 쪽으로 기운다
-- MCP 엔드포인트 인증: 서비스 계정·API 키 헤더 vs 공유 링크 토큰 재사용
+- ~~MCP 엔드포인트 인증~~ → 공유 링크를 `Authorization: Bearer`로 제시하거나 세션 쿠키 사용, 새 자격 증명 종류 없음 (2026-09-10)
 - 스토어 모드 재도입 여부: 코멘트·읽음 표시 수요가 실제로 쌓일 때까지 보류 vs 별도 옵트인 패키지

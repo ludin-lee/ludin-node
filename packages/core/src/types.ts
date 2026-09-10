@@ -78,6 +78,7 @@ export interface AuditEvent {
     | 'docs.readme'
     | 'docs.try'
     | 'share.created'
+    | 'mcp.tool'
     | 'ip.blocked'
     | 'auth.denied';
   user?: { email: string; role: Role } | null;
@@ -143,6 +144,14 @@ export interface LudinOptions {
    * A link is a signed grant that still walks the full pipeline — the IP
    * allowlist, roles and `visibility` all apply, and it can never reach admin.
    */
+  /**
+   * MCP endpoint for AI agents, at `{basePath}/api/mcp`. Off unless enabled:
+   * it is another way in, so it is opt-in. An agent authenticates the same way
+   * a person does — a session cookie, or a share link presented as
+   * `Authorization: Bearer <token>` — and gets the same role-filtered document.
+   * Executing a request still needs `docs:try`.
+   */
+  mcp?: { enabled?: boolean };
   share?: {
     enabled?: boolean;
     /** Upper bound for a link's lifetime. Default '30d'. */

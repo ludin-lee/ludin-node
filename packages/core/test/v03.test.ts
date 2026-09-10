@@ -369,3 +369,119 @@ test('diff: identical documents produce no changes', () => {
   assert.deepEqual(r.changes, []);
   assert.equal(r.breaking, 0);
 });
+
+// --- MCP endpoint ----------------------------------------------------------
+
+const mcpSpec = {
+  openapi: '3.0.3', info: { title: 'MCP', version: '1' },
+  servers: [{ url: 'http://api.example.com' }],
+  paths: {
+    '/pets/{petId}': { get: { operationId: 'showPet', summary: 'Get a pet', tags: ['Pets'],
+      parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'integer' } }],
+      responses: { 200: { description: 'ok', content: { 'application/json': { schema: { type: 'object', properties: { createdAt: { type: 'string' } } } } } } } } },
+    '/admin/wipe': { post: { operationId: 'wipe', summary: 'Wipe', tags: ['Internal'], responses: { 200: { description: 'ok' } } } },
+  },
+};
+
+function mcpLudin(extra: Record<string, any> = {}) {
+  return createLudin({
+    spec: mcpSpec,
+    auth: { users: [{ email: 'a@x.io', password: 'pw', role: 'admin' }], session: { secret: 'mcp-secret' } },
+    visibility: { 'tag:Internal': ['admin'] },
+    mcp: { enabled: true },
+    share: { enabled: true },
+    ...extra,
+  });
+}
+
+async function rpc(ludin: ReturnType<typeof createLudin>, body: unknown, headers: Record<string, string> = {}) {
+  const res = await ludin.handle(req({
+    method: 'POST', path: '/api/mcp', body: JSON.stringify(body),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', ...headers },
+  }));
+  return { status: res.status, data: res.body ? JSON.parse(String(res.body)) : null };
+}
+
+const toolResult = (data: any) => JSON.parse(data.result.content[0].text);
+
+test('mcp: disabled by default, and login is still required when enabled', async () => {
+  const off = createLudin({ spec: mcpSpec, auth: false });
+  assert.equal((await rpc(off, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status, 404);
+
+  const on = mcpLudin();
+  assert.equal((await rpc(on, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status, 401);
+});
+
+test('mcp: an agent reads the role-filtered document, never more', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+
+  // admin sees the internal operation
+  const asAdmin = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_operations', arguments: {} },
+  }, { cookie })).data);
+  assert.ok(asAdmin.operations.some((o: any) => o.operationId === 'wipe'));
+
+  // a read-only share link for a non-admin role does not
+  const { data: link } = await mintShare(ludin, cookie, { role: 'viewer' });
+  const asAgent = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_operations', arguments: {} },
+  }, { authorization: `Bearer ${link.token}` })).data);
+  assert.ok(asAgent.operations.some((o: any) => o.operationId === 'showPet'));
+  assert.ok(!asAgent.operations.some((o: any) => o.operationId === 'wipe'), 'hidden operation must not reach the agent');
+
+  // …and cannot fetch it by name either
+  const denied = (await rpc(ludin, {
+    jsonrpc: '2.0', id: 4, method: 'tools/call',
+    params: { name: 'get_operation', arguments: { method: 'POST', path: '/admin/wipe' } },
+  }, { authorization: `Bearer ${link.token}` })).data;
+  assert.equal(denied.result.isError, true);
+  assert.match(denied.result.content[0].text, /not in the document you can see/);
+});
+
+test('mcp: a read-only link is not even offered the execute tool', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const { data: readOnly } = await mintShare(ludin, cookie, { role: 'viewer' });
+  const { data: executor } = await mintShare(ludin, cookie, { role: 'developer', canTry: true });
+
+  const names = async (token: string) =>
+    (await rpc(ludin, { jsonrpc: '2.0', id: 5, method: 'tools/list' }, { authorization: `Bearer ${token}` }))
+      .data.result.tools.map((t: any) => t.name);
+
+  assert.ok(!(await names(readOnly.token)).includes('call_operation'));
+  assert.ok((await names(executor.token)).includes('call_operation'));
+
+  // and asking anyway is refused
+  const attempt = (await rpc(ludin, {
+    jsonrpc: '2.0', id: 6, method: 'tools/call',
+    params: { name: 'call_operation', arguments: { method: 'GET', path: '/pets/{petId}', pathParams: { petId: '1' } } },
+  }, { authorization: `Bearer ${readOnly.token}` })).data;
+  assert.equal(attempt.result.isError, true);
+});
+
+test('mcp: search finds an operation by schema field name', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const found = toolResult((await rpc(ludin, {
+    jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'search_operations', arguments: { query: 'createdAt' } },
+  }, { cookie })).data);
+  assert.equal(found.results[0].operationId, 'showPet');
+  assert.equal(found.results[0].matchedOn, 'field:createdAt');
+});
+
+test('mcp: protocol basics – initialize, notifications, unknown method', async () => {
+  const ludin = mcpLudin();
+  const cookie = await adminCookie(ludin);
+  const init = (await rpc(ludin, { jsonrpc: '2.0', id: 8, method: 'initialize' }, { cookie })).data;
+  assert.equal(init.result.protocolVersion, '2025-06-18');
+  assert.ok(init.result.capabilities.tools);
+
+  // a notification gets no body at all
+  const note = await rpc(ludin, { jsonrpc: '2.0', method: 'notifications/initialized' }, { cookie });
+  assert.equal(note.status, 202);
+  assert.equal(note.data, null);
+
+  const bad = (await rpc(ludin, { jsonrpc: '2.0', id: 9, method: 'resources/list' }, { cookie })).data;
+  assert.equal(bad.error.code, -32601);
+});

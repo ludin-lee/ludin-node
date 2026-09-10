@@ -1,6 +1,7 @@
 import { Auditor } from './audit.js';
 import { diffSpecs } from './diff.js';
 import { createIpMatcher, isLocalhost, resolveClientIp } from './ip.js';
+import { handleMcp, MCP_PROTOCOL_VERSION, type McpCapabilities } from './mcp.js';
 import { lintSpec } from './lint.js';
 import { Lockout } from './lockout.js';
 import { buildSampleInput, generateSamples } from './samples.js';
@@ -60,6 +61,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
   const ttlSec = parseDuration(auth?.session?.ttl, 12 * 3600);
   const signer = new SessionSigner(auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET, ttlSec);
   const cookieName = auth?.session?.cookieName ?? 'ludin_session';
+  const mcpEnabled = options.mcp?.enabled === true;
   const shareEnabled = options.share?.enabled === true;
   const shareSigner = shareEnabled
     ? new ShareSigner(auth?.session?.secret ?? process.env.LUDIN_SESSION_SECRET)
@@ -110,7 +112,9 @@ export function createLudin(options: LudinOptions): LudinHandler {
       // check above and before any role check below.
       let share: SharePayload | undefined;
       if (!user && shareSigner) {
-        const presented = req.query.share || cookies[shareCookieName];
+        const auth = req.headers['authorization'];
+        const bearer = typeof auth === 'string' && /^Bearer /i.test(auth) ? auth.slice(7).trim() : undefined;
+        const presented = req.query.share || cookies[shareCookieName] || bearer;
         const payload = shareSigner.verify(presented);
         if (payload && roles.exists(payload.role) && !grantsAdmin(payload.role)) {
           share = payload;
@@ -299,6 +303,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
         const result = lintSpec(doc, options.lint);
         return json(200, { spec: name, ...result, issues: result.issues.slice(0, 200) });
       }
+      case '/api/mcp':
+        return mcpRoute(ctx);
       case '/api/share':
         require(ctx, 'admin:read');
         return createShare(ctx);
@@ -367,6 +373,16 @@ export function createLudin(options: LudinOptions): LudinHandler {
       }
     }
     if (!roles.has(ctx.user.role, perm)) throw new HttpError(403, `Missing permission: ${perm}`, 'forbidden');
+  }
+
+  /** Same rules as require(), as a question rather than a throw. */
+  function canDo(ctx: Ctx, perm: Permission): boolean {
+    try {
+      require(ctx, perm);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** True when a role can reach the admin surface – never allowed for a share link. */
@@ -479,6 +495,63 @@ export function createLudin(options: LudinOptions): LudinHandler {
   }
 
   /**
+   * The MCP endpoint. Identity is already resolved by the pipeline above, so
+   * the agent gets exactly the documents its role can see, and `docs:try`
+   * decides whether the execute tool is offered at all.
+   */
+  async function mcpRoute(ctx: Ctx): Promise<LudinResponse> {
+    if (!mcpEnabled) throw new HttpError(404, 'Not Found');
+    if (ctx.req.method === 'GET') {
+      // Streamable HTTP allows a GET stream for server-initiated messages; we
+      // have none, so say so rather than hold a socket open.
+      throw new HttpError(405, 'This MCP endpoint is POST-only.');
+    }
+    requireMethod(ctx, 'POST');
+    require(ctx, 'docs:read');
+
+    const capabilities: McpCapabilities = {
+      serverName: `ludin:${options.theme?.title ?? 'API docs'}`,
+      serverVersion: MCP_PROTOCOL_VERSION,
+      canTry: canDo(ctx, 'docs:try'),
+      listSpecs: () => specs.listFor(ctx.user!.role).filter((s) => !ctx.share?.spec || s.name === ctx.share.spec),
+      loadSpec: async (name?: string) => {
+        const wanted = name || ctx.share?.spec || specs.entries[0].name;
+        if (ctx.share?.spec && wanted !== ctx.share.spec) return null;
+        if (!specs.listFor(ctx.user!.role).some((s) => s.name === wanted)) return null;
+        const doc = await specs.load(wanted);
+        return doc ? applyVisibility(doc, options.visibility, ctx.user!.role) : null;
+      },
+      execute: async (input) => {
+        require(ctx, 'docs:try');
+        const specName = input.spec || ctx.share?.spec || specs.entries[0].name;
+        const doc = await specs.load(specName);
+        const base = (input.server ?? doc?.servers?.[0]?.url ?? '').replace(/\/+$/, '').replace(/\{[^}]+\}/g, 'x');
+        let path = input.path;
+        for (const [k, v] of Object.entries(input.pathParams ?? {})) {
+          path = path.replace(`{${k}}`, encodeURIComponent(String(v)));
+        }
+        const qs = new URLSearchParams(input.query ?? {}).toString();
+        const url = `${base}${path}${qs ? `?${qs}` : ''}`;
+        return await executeTry(ctx, {
+          method: input.method.toUpperCase(),
+          url,
+          headers: input.headers ?? {},
+          body: input.body === undefined ? null : typeof input.body === 'string' ? input.body : JSON.stringify(input.body),
+          spec: specName,
+          op: { method: input.method, path: input.path },
+        });
+      },
+      audit: async (tool, detail) => {
+        await auditor.emit({ type: 'mcp.tool', ip: ctx.ip, user: pick(ctx.user), detail: { tool, ...detail } });
+      },
+    };
+
+    const result = await handleMcp(parseJson(ctx.req.body) as any, capabilities);
+    // A notification gets no body, per JSON-RPC.
+    return result ? json(200, result) : { status: 202, headers: { ...JSON_HEADERS } };
+  }
+
+  /**
    * Mint a share link. Everything the link may do is decided here and sealed
    * into the token: an admin-capable role is refused outright, Try it out is
    * off unless asked for, and the lifetime is capped by `share.maxTtl`.
@@ -516,17 +589,28 @@ export function createLudin(options: LudinOptions): LudinHandler {
   }
 
   // -------------------------------------------------------------------------
+  interface TryPayload {
+    method?: string;
+    url?: string;
+    headers?: Record<string, string>;
+    body?: string | null;
+    spec?: string;
+    /** The documented operation behind this call – enables response validation. */
+    op?: { method?: string; path?: string };
+  }
+
   async function tryProxy(ctx: Ctx): Promise<LudinResponse> {
     requireMethod(ctx, 'POST');
-    const body = parseJson(ctx.req.body) as {
-      method?: string;
-      url?: string;
-      headers?: Record<string, string>;
-      body?: string | null;
-      spec?: string;
-      /** The documented operation behind this call – enables response validation. */
-      op?: { method?: string; path?: string };
-    };
+    return json(200, await executeTry(ctx, parseJson(ctx.req.body) as TryPayload));
+  }
+
+  /**
+   * The one place a request leaves ludin for the documented API. Both the
+   * browser's Try it out and the MCP tool go through it, so the origin
+   * allowlist, the header scrubbing and the audit trail cannot be sidestepped
+   * by using the other entry point.
+   */
+  async function executeTry(ctx: Ctx, body: TryPayload): Promise<Record<string, unknown>> {
     if (!body.url || !body.method) throw new HttpError(400, 'method and url are required');
 
     // Resolve relative URLs against the incoming host.
@@ -569,7 +653,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
         user: pick(ctx.user),
         detail: { method, url: target.toString(), error: String(err), ms: Date.now() - started },
       });
-      return json(200, { status: 0, error: `Request failed: ${(err as Error).message}`, ms: Date.now() - started });
+      return { status: 0, error: `Request failed: ${(err as Error).message}`, ms: Date.now() - started };
     }
     const resHeaders: Record<string, string> = {};
     upstream.headers.forEach((v, k) => (resHeaders[k] = v));
@@ -595,7 +679,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       },
     });
 
-    return json(200, {
+    return {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: resHeaders,
@@ -604,7 +688,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       body: isText ? buf.toString('utf8') : null,
       bodyBase64: isText ? null : buf.toString('base64'),
       validation: validateTryResponse(ctx, doc, body.op, upstream.status, resHeaders['content-type'], isText ? buf.toString('utf8') : null),
-    });
+    };
   }
 
   /**
