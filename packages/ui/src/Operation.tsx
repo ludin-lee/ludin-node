@@ -699,6 +699,15 @@ function TryIt({
 
 /** Whether the live response matches the documented schema (validated in the core). */
 function ValidationBadge({ v }: { v: TryResult['validation'] }) {
+  // A status the document never mentions is drift too — saying nothing would
+  // let the absence of a badge read as "the response matches".
+  if (v?.reason === 'undocumented_status') {
+    return (
+      <div class="notice warn" style="margin-top:8px">
+        {t('undocumentedStatus', { status: String(v.status ?? ''), documented: (v.documented ?? []).join(', ') })}
+      </div>
+    );
+  }
   if (!v?.checked) return null;
   if (!v.issues?.length) {
     return <div class="notice ok" style="margin-top:8px">{t('validationOk')}</div>;

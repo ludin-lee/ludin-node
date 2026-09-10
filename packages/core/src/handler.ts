@@ -6,7 +6,7 @@ import { lintSpec } from './lint.js';
 import { Lockout } from './lockout.js';
 import { buildSampleInput, generateSamples } from './samples.js';
 import { buildSearchIndex } from './search.js';
-import { responseSchemaFor, validateAgainstSchema } from './validate.js';
+import { lookupResponseSchema, validateAgainstSchema } from './validate.js';
 import { verifyPassword, isHashed } from './password.js';
 import { Readme, ReadmeError } from './readme.js';
 import { RoleRegistry } from './roles.js';
@@ -703,19 +703,47 @@ export function createLudin(options: LudinOptions): LudinHandler {
     status: number,
     contentType: string | undefined,
     text: string | null,
-  ): { checked: boolean; reason?: string; issues?: Array<{ path: string; message: string }> } {
+  ): {
+    checked: boolean;
+    reason?: string;
+    documented?: string[];
+    status?: number;
+    issues?: Array<{ path: string; message: string }>;
+  } {
     if (!doc || !op?.method || !op.path) return { checked: false, reason: 'no_operation' };
     if (text == null || !/json/i.test(contentType ?? '')) return { checked: false, reason: 'not_json' };
     const filtered = applyVisibility(doc, options.visibility, ctx.user!.role);
-    const schema = responseSchemaFor(filtered, op.method, op.path, status);
-    if (!schema) return { checked: false, reason: 'no_schema' };
+    const found = lookupResponseSchema(filtered, op.method, op.path, status);
+    if (!found) return { checked: false, reason: 'no_operation' };
+    if ('reason' in found) {
+      // An undocumented status is drift worth naming; a documented response
+      // without a schema is simply nothing to compare against.
+      return found.reason === 'undocumented_status'
+        ? { checked: false, reason: 'undocumented_status', documented: found.documented, status }
+        : { checked: false, reason: 'no_schema' };
+    }
+
     let value: unknown;
     try {
       value = JSON.parse(text);
     } catch {
       return { checked: false, reason: 'invalid_json' };
     }
-    return { checked: true, issues: validateAgainstSchema(filtered, schema, value) };
+
+    // Envelope APIs: the documented schema describes the payload, not the wrapper.
+    const envelope = options.validate?.envelope;
+    if (envelope && value && typeof value === 'object' && envelope.dataPath in (value as object)) {
+      const issues = envelope.schema
+        ? validateAgainstSchema(filtered, envelope.schema, value)
+        : [];
+      const payload = (value as Record<string, unknown>)[envelope.dataPath];
+      return {
+        checked: true,
+        issues: [...issues, ...validateAgainstSchema(filtered, found.schema, payload, `$.${envelope.dataPath}`)],
+      };
+    }
+
+    return { checked: true, issues: validateAgainstSchema(filtered, found.schema, value) };
   }
 
   return { handle, options };

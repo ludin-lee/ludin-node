@@ -8,5 +8,5 @@ export { diffSpecs } from './diff.js';
 export { handleMcp, MCP_PROTOCOL_VERSION } from './mcp.js';
 export { buildSearchIndex } from './search.js';
 export { buildSampleInput, generateSamples, SAMPLE_LANGUAGES } from './samples.js';
-export { validateAgainstSchema, responseSchemaFor } from './validate.js';
+export { validateAgainstSchema, responseSchemaFor, lookupResponseSchema } from './validate.js';
 export type * from './types.js';
