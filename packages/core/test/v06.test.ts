@@ -263,6 +263,35 @@ test('export routes: role-filtered, audited, and closed to anonymous callers', a
   }))).status, 405);
 });
 
+test('export routes: a share link exports what it can read, and no more', async () => {
+  const ludin = createLudin({
+    spec: [{ name: 'Public', spec }, { name: 'Partner', spec: { openapi: '3.0.3', info: { title: 'P', version: '1' }, paths: {} } }],
+    auth: { users: [{ email: 'a@x.io', password: 'pw', role: 'admin' }], session: { secret: 'v06-share' } },
+    visibility: { 'tag:Internal': ['admin'] },
+    share: { enabled: true },
+  });
+  const cookie = await login(ludin, 'a@x.io');
+
+  // A read-only link for one spec, at a viewer's role.
+  const minted = await ludin.handle(req({
+    method: 'POST', path: '/api/share', body: JSON.stringify({ role: 'viewer', ttl: '1d', spec: 'Public' }),
+    headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', cookie },
+  }));
+  const { token } = JSON.parse(String(minted.body));
+
+  const asShare = (path: string, query: Record<string, string> = {}) =>
+    ludin.handle(req({ path, query, headers: { host: 'localhost:3000', authorization: `Bearer ${token}` } }));
+
+  // Read access is export access.
+  const collection = await asShare('/api/export/postman');
+  assert.equal(collection.status, 200);
+  assert.ok(!String(collection.body).includes('/internal/flags'), 'the link\'s role does not see the internal tag');
+  assert.equal((await asShare('/api/export/types.d.ts')).status, 200);
+
+  // The link is bound to one spec; the other is not exportable through it.
+  assert.equal((await asShare('/api/export/postman', { name: 'Partner' })).status, 404);
+});
+
 // --- release notes ---------------------------------------------------------
 
 test('diff --markdown: breaking and compatible changes in separate sections', () => {
