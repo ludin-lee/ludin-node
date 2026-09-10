@@ -95,3 +95,22 @@ export const petstore = {
     },
   },
 };
+
+/**
+ * The previous release, so the demo has something to diff against. Passed as
+ * `diff.baseline`, which puts a Changes button in the top bar.
+ */
+export const petstoreV1 = (() => {
+  const v1 = JSON.parse(JSON.stringify(petstore)) as typeof petstore;
+  v1.info.version = '1.3.0';
+  // Since 1.3.0: DELETE /pets/{petId} is new, `limit` gained a maximum, and
+  // Pet.tag grew a value. That last one shows the direction rule at work: a
+  // wider enum is fine in a request and breaking in a response, because a
+  // caller reading the field now has a case it never had to handle.
+  delete (v1.paths['/pets/{petId}'] as any).delete;
+  (v1.components.schemas.Pet.properties.tag as any).enum = ['cat', 'dog'];
+  (v1.paths['/pets'] as any).get.parameters = [
+    { name: 'limit', in: 'query', description: 'How many items to return', schema: { type: 'integer', format: 'int32' } },
+  ];
+  return v1;
+})();
