@@ -130,6 +130,16 @@ test('postman: a relative server URL is resolved against the origin the route pa
   assert.equal(buildPostmanCollection(spec, 'https://docs.example.com').variable[0].value, 'https://api.example.com/v1');
 });
 
+test('postman: `security: []` opts an operation out instead of inheriting the collection auth', () => {
+  const doc: any = JSON.parse(JSON.stringify(spec));
+  doc.paths['/health'] = { get: { operationId: 'health', summary: 'Health', tags: ['Pets'], security: [], responses: { 200: { description: 'ok' } } } };
+  const c = buildPostmanCollection(doc);
+  const health = c.item.find((i) => i.name === 'Pets')!.item!.find((i) => i.name === 'Health')!.request!;
+  // Without this, Postman falls back to the collection's bearer auth and sends
+  // a token to an endpoint the document says needs none.
+  assert.deepEqual(health.auth, { type: 'noauth' });
+});
+
 test('postman: webhooks are not requests, and empty tag folders are dropped', () => {
   const c = buildPostmanCollection(spec);
   const raw = JSON.stringify(c);

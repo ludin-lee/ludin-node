@@ -106,8 +106,13 @@ export function buildPostmanCollection(doc: OpenApiDoc, origin?: string): Postma
         request.header.push({ key: 'Content-Type', value: r.contentType ?? 'application/json' });
         request.body = { mode: 'raw', raw: r.body, options: { raw: { language: 'json' } } };
       }
-      // Operation-level security overrides the document's; `security: []` means none.
-      if (Array.isArray(op.security)) request.auth = authFor(doc, op.security[0], used);
+      // Operation-level security overrides the document's, and `security: []`
+      // means this operation needs none – it has to say so explicitly, or
+      // Postman falls back to the collection's auth and sends a token to an
+      // endpoint documented as public.
+      if (Array.isArray(op.security)) {
+        request.auth = op.security.length ? authFor(doc, op.security[0], used) : { type: 'noauth' };
+      }
 
       const name = typeof op.summary === 'string' && op.summary.trim()
         ? op.summary.trim()
@@ -140,7 +145,7 @@ export function buildPostmanCollection(doc: OpenApiDoc, origin?: string): Postma
 
 /** Postman auth for one security requirement; credentials are always variables. */
 function authFor(doc: OpenApiDoc, requirement: any, used: Set<string>): PostmanAuth | undefined {
-  if (!requirement || typeof requirement !== 'object') return requirement === undefined ? undefined : { type: 'noauth' };
+  if (!requirement || typeof requirement !== 'object') return undefined;
   const name = Object.keys(requirement)[0];
   if (!name) return { type: 'noauth' };
   const scheme = deref(doc, doc.components?.securitySchemes?.[name]);
