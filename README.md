@@ -229,8 +229,10 @@ needs an `NPM_TOKEN` secret in the `npm` environment.
 
 - **v0.2** ✅ `readme` pages, spec download, branding, adapters for Fastify / Koa / Hono / `node:http`
 - **v0.3** ✅ code samples, ⌘K palette (schema-field search), *Try it out* response validation, `ludin lint` + health score
-- **v0.4** spec diff & breaking-change classification, generated changelog, environments, expiring share links
-- **v0.5** MCP endpoint, OIDC / OAuth2 (Google, GitHub, Keycloak), collection & TypeScript type export
+- **v0.4** ✅ spec diff & breaking-change classification, global server selector + auth chaining, expiring share links
+- **v0.5** ✅ MCP endpoint, OpenAPI 3.1 webhooks, envelope-aware response validation
+- **v0.6** Postman collection & TypeScript type export, `ludin export`, diff → release-notes Markdown
+- **v0.7** OIDC / OAuth2 login (Google, GitHub, Keycloak) via `@ludin-docs/auth-oidc`
 - **v1.0** stable API
 
 MIT

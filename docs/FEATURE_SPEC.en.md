@@ -1,7 +1,7 @@
-# Ludin — Feature Spec v0.3
+# Ludin — Feature Spec v0.6
 
 > An API documentation library for Node.js. Everything existing OpenAPI documentation tools do, plus a layer of **authentication · accounts · IP control · audit logging · theming** on top.
-> Written: 2026-09-02 · Updated: 2026-09-09 · Status: draft
+> Written: 2026-09-02 · Updated: 2026-09-10 · Status: draft
 
 ---
 
@@ -180,6 +180,14 @@ ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
 - Classified as breaking: removed path or operation, newly required parameter or property, parameter that became required, changed type, removed 2xx response, request body that became required, newly required authentication
 - Both sides go through the role filter, so a diff never reveals an operation the viewer cannot otherwise see
 - The baseline is passed in, never written by ludin — the "no persistent state" constraint (§6) holds
+
+**Release notes (v0.6).** The classified change list is release-note material as it stands. The same list goes out as Markdown from two places:
+
+- `ludin diff before.yaml after.yaml --markdown` — writes Markdown to stdout in two sections, **Breaking** and **Other changes**, grouped by path. Meant to be piped straight into a GitHub release body or a PR comment from CI; English only
+- The **Copy as release notes** button on the Changes screen — turns the `/api/diff` response the UI already holds into Markdown of the same shape, in the UI's current language. No new API call, no new work in the core
+
+The two outputs share one structure and differ only in language. Classification happens in exactly one place (`diff.ts`), so the CLI and the screen cannot disagree.
+
 ### 3.10 Expiring share links (v0.4)
 
 Hand a partner a link that opens the documentation for three days and then stops working — without creating an account for them.
@@ -239,6 +247,28 @@ The guarantees are the pipeline's, not the endpoint's:
 - calls leave through the **same egress path** as the browser's Try it out, so the origin allowlist, header scrubbing and audit trail cannot be sidestepped by using the other entry point
 - every tool call is audited as `mcp.tool`, attributed to `share:<label>` or the signed-in user
 
+### 3.13 Take it to the tools you use (v0.6)
+
+Reading a document and working with it are different things. Developers call from an API client and type against the schemas in code. The core generates both from the **role-filtered document**. There is no new configuration — nothing here reveals more than `/api/spec.json` already does.
+
+| Endpoint | Output |
+|---|---|
+| `GET /api/export/postman` | Postman Collection v2.1 JSON. The other major API clients import the same format, so one format is enough |
+| `GET /api/export/types.d.ts` | A TypeScript declaration file |
+
+Both need `docs:read`, take `?spec=` to pick a document, and are recorded as a `docs.export` audit event carrying the `format`. They sit next to the download buttons on the overview screen, and a visitor on a share link can fetch them too — read access is export access.
+
+**The collection.** The sidebar's tag groups become folders. Each request is built from the same input as the code samples (§3.8) — path parameters as variables filled with example values, required query and header parameters, the auth of the effective security scheme, a JSON body example — so the samples and the collection never describe different requests. The server URL is a `{{baseUrl}}` variable and credentials are `{{token}}` / `{{apiKey}}` variables, so no secret ever lands in the collection file. Webhooks (§3.11) are left out: they are calls you cannot make.
+
+**The types.** A generator of our own, under the zero-dependency rule (§6). The output has two parts:
+
+- `components.schemas` → `export interface` / `export type` under their own names. `$ref` becomes a type-name reference, `allOf` an intersection, `oneOf` / `anyOf` a union, `enum` a union of literals, `nullable` a `| null`, `additionalProperties` a `Record`, properties outside `required` are optional, and `description` becomes JSDoc. Whatever cannot be expressed stays `unknown`; the generator never narrows on a guess
+- `operations` → per `operationId` (method + path when there is none): `parameters.path` / `query` / `header`, `requestBody`, and `responses` per status code. Webhooks are included as *the payload you will receive* — that is the type the handler author needs
+
+**Only reachable components are exported.** The `visibility` filter removes operations but leaves `components` alone. Schema names and fields give away the existence of a hidden operation on their own, so the type file carries **only the schemas reachable through `$ref` from visible operations**. It is the same rule the search index and the samples already follow; the collection is per-operation and satisfies it by construction.
+
+**CLI.** `ludin export <spec> --format postman|types [--out <file>]` runs the same generators without a server. Like `lint` and `diff` it has no identity, so it works from the whole, unfiltered document — for code-generation pipelines and CI artifacts.
+
 ---
 
 ## 4. Architecture
@@ -253,7 +283,7 @@ The guarantees are the pipeline's, not the endpoint's:
 @ludin-docs/hono            Hono 4 (Node · Bun · Deno · edge)                             [released]
 @ludin-docs/node            plain node:http, connect, polka                               [released]
 @ludin-docs/nestjs          NestJS 9 / 10 / 11                                            [released]
-@ludin-docs/auth-oidc       OAuth2/OIDC adapter                                           [post-v1]
+@ludin-docs/auth-oidc       OAuth2/OIDC adapter                                           [v0.7]
 ```
 
 The core has exactly one runtime dependency, `yaml`. The UI (`packages/ui`, Preact + Vite) is built into a single HTML string compiled into the core, so nothing static needs to be served after install.
@@ -314,6 +344,8 @@ Everything goes through the same pipeline (§4.4). No route bypasses it.
 | `GET /api/search-index` | ⌘K index: operations + schema field names, filtered (`docs:read`) |
 | `GET /api/lint` | Documentation health score for the filtered document (`docs:read`) |
 | `GET /api/diff` | Classified changes against the configured baseline (`docs:read`) |
+| `GET /api/export/postman` | Postman v2.1 collection, from the filtered document (`docs:read`) |
+| `GET /api/export/types.d.ts` | TypeScript declarations, only schemas reachable from visible operations (`docs:read`) |
 | `POST /api/mcp` | MCP JSON-RPC endpoint for agents (`docs:read`; execution needs `docs:try`) |
 | `POST /api/share` | Mint an expiring share link (`admin:read`) |
 | `GET /api/admin` | The current configuration (`admin:read`, read-only) |
@@ -363,9 +395,13 @@ interface LudinOptions {
 | **v0.1 (MVP)** | done | OpenAPI 3.x rendering + Try it out, email/password login (JWT cookie), accounts & IP configuration (read-only admin screen), IP allowlist (CIDR, trustProxy, escape hatch), basic theme options, stdout audit log, Express & NestJS adapters |
 | **v0.2** | done | Readme page (your HTML, directly), spec export, document visibility (visibleTo), multiple specs, logo & dark-mode branding, Fastify / Koa / Hono / node:http adapters |
 | **v0.3 — "docs you can trust"** | done | Code samples in six flavours (curl, fetch, axios, python, go, `.http`, with server URL, auth header and body example filled in), ⌘K command palette (searching **schema field names** as well as paths, summaries and operationIds), response schema validation for Try it out, `ludin lint` + a documentation health score (§3.8) |
-| **v0.4 — "changes you can follow"** | in progress | Spec diff and breaking-change classification (removed path, new required field, narrowed enum, changed type, dropped response code), generated changelog page, environments + auth chaining, expiring share links |
-| **v0.5 — "a catalogue, and agents"** | in progress | MCP endpoint (with the per-role spec filter applied as-is), collection & TypeScript type export, OIDC / OAuth2 adapter, OpenAPI 3.1 webhooks rendering |
+| **v0.4 — "changes you can follow"** | done | Spec diff and breaking-change classification (removed path, new required field, narrowed enum, changed type, dropped response code), global server selector + auth chaining, expiring share links (§3.9 · §3.10) |
+| **v0.5 — "a catalogue, and agents"** | done | MCP endpoint (with the per-role spec filter applied as-is), OpenAPI 3.1 webhooks rendering, envelope-aware validation + reporting of undocumented status codes (§3.11 · §3.12) |
+| **v0.6 — "take it to the tools you use"** | planned | Postman collection · TypeScript type export (role-filtered, reachable schemas only), `ludin export` CLI, diff → release-notes Markdown (`--markdown` + copy from the screen), CHANGELOG backfill for 0.3–0.5 (§3.13 · §3.9) |
+| **v0.7 — "sign in with your company account"** | planned | `@ludin-docs/auth-oidc` — OIDC / OAuth2 login (discovery, PKCE, JWKS), claims → role mapping, coexists with users/verify, stays stateless (state and nonce in signed cookies) |
 | **v1.0** | planned | Stable API |
+
+The "generated changelog page" listed under v0.4 became the release-notes export in v0.6; the collection and type export listed under v0.5 moved to v0.6; the OIDC adapter moved to v0.7.
 
 During v0.2 a database-backed store mode (account editing, invitations, session revocation, an audit log browser) was built and then removed before release. It was not needed to guard the front door of a document, and the database, migrations and drivers raised the cost of adopting the library. Accounts belong in code; logs belong in the log pipeline you already run.
 

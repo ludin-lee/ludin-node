@@ -1,7 +1,7 @@
-# 루딘(Ludin) 기능 명세 v0.3
+# 루딘(Ludin) 기능 명세 v0.6
 
 > Node.js용 API 문서 라이브러리. 기존 OpenAPI 문서 도구가 하는 것을 모두 하되, 그 위에 **인증 · 계정 · IP 제어 · 감사 로그 · 테마** 레이어를 얹는다.
-> 작성일: 2026-09-02 · 갱신일: 2026-09-09 · 상태: 초안
+> 작성일: 2026-09-02 · 갱신일: 2026-09-10 · 상태: 초안
 
 ---
 
@@ -180,6 +180,14 @@ ludin({ spec: './openapi.yaml', diff: { baseline: './openapi.v1.yaml' } })
 - 호환성 파괴로 분류: 경로·오퍼레이션 삭제, 필수 파라미터·속성 추가, 파라미터 필수화, 타입 변경, 2xx 응답 삭제, 요청 바디 필수화, 인증 요구 추가
 - 양쪽 문서 모두 역할 필터를 거치므로, diff가 볼 수 없는 오퍼레이션을 드러내는 일은 없다
 - 기준 문서는 주입받을 뿐 루딘이 쓰지 않는다 — "영구 상태를 두지 않는다"는 제약(§6) 유지
+
+**릴리스 노트 (v0.6).** 분류된 변경 목록은 그대로 릴리스 노트의 재료다. 같은 목록을 두 곳에서 마크다운으로 내보낸다:
+
+- `ludin diff before.yaml after.yaml --markdown` — **호환성 파괴** / **그 외 변경** 두 절로 나누고 경로별로 묶은 마크다운을 stdout에 쓴다. CI에서 GitHub 릴리스 본문이나 PR 코멘트로 바로 흘려보내는 용도이며, 영어로만 나간다
+- 변경 사항 화면의 **릴리스 노트로 복사** 버튼 — 이미 받아 둔 `/api/diff` 응답을 UI의 현재 언어로 같은 구조의 마크다운으로 만든다. 새 API 호출도, 새 코어 계산도 없다
+
+두 출력의 구조는 동일하고 언어만 다르다. 분류 자체는 한 곳(`diff.ts`)에서만 하므로 CLI와 화면이 다른 판정을 내릴 수 없다.
+
 ### 3.10 만료되는 공유 링크 (v0.4)
 
 파트너사에게 3일 뒤 자동으로 막히는 링크를 건넨다 — 계정을 만들어주지 않고도.
@@ -239,6 +247,28 @@ ludin({ spec, mcp: { enabled: true }, share: { enabled: true }, auth: { ... } })
 - 호출은 브라우저의 Try it out과 **같은 출구**로 나간다. 다른 입구를 쓴다고 origin 허용 목록·헤더 정리·감사 기록을 우회할 수 없다
 - 모든 도구 호출은 `mcp.tool`로 감사되며 `share:<라벨>` 또는 로그인한 사용자에게 귀속된다
 
+### 3.13 쓰던 도구로 가져가기 (v0.6)
+
+문서를 읽는 것과 문서로 일하는 것은 다르다. 개발자는 API 클라이언트에서 호출하고 코드에서 타입을 쓴다. 두 가지를 **역할 필터링된 문서**로부터 코어가 생성해 내려준다. 새 설정은 없다 — 이미 `/api/spec.json`으로 받을 수 있는 것 이상을 드러내지 않기 때문이다.
+
+| 엔드포인트 | 산출물 |
+|---|---|
+| `GET /api/export/postman` | Postman Collection v2.1 JSON. 같은 형식을 다른 주요 API 클라이언트들도 임포트하므로 형식은 하나로 충분하다 |
+| `GET /api/export/types.d.ts` | TypeScript 선언 파일 |
+
+둘 다 `docs:read`, `?spec=` 로 스펙 선택, `docs.export` 감사 이벤트에 `format`을 담아 기록한다. 오버뷰 화면의 내려받기 버튼 옆에 나란히 놓이고, 공유 링크로 들어온 사람도 받을 수 있다 — 읽기 권한이 곧 내보내기 권한이다.
+
+**컬렉션.** 사이드바와 같은 태그 그룹이 폴더가 된다. 요청 하나는 코드 샘플(§3.8)과 같은 입력 — 경로 파라미터는 예시 값을 채운 변수로, 필수 쿼리·헤더, 유효한 보안 스킴의 인증, JSON 바디 예시 — 에서 만들어지므로 샘플과 컬렉션이 서로 다른 요청을 말하지 않는다. 서버 URL은 `{{baseUrl}}` 변수, 자격 증명은 `{{token}}` / `{{apiKey}}` 변수로 두어 컬렉션 파일에 비밀이 실리지 않는다. 웹훅(§3.11)은 내가 보낼 수 없는 호출이므로 제외한다.
+
+**타입.** 의존성 0 원칙(§6)에 따라 자체 생성기다. 출력은 두 부분:
+
+- `components.schemas` → 이름 그대로의 `export interface` / `export type`. `$ref`는 타입 이름 참조, `allOf`는 교차, `oneOf`/`anyOf`는 합집합, `enum`은 리터럴 합집합, `nullable`은 `| null`, `additionalProperties`는 `Record`, `required` 밖의 속성은 선택 속성, `description`은 JSDoc. 표현하지 못하는 것은 `unknown`으로 두고 절대 임의로 좁히지 않는다
+- `operations` → `operationId`(없으면 메서드 + 경로)별로 `parameters.path` / `query` / `header`, `requestBody`, 상태 코드별 `responses`. 웹훅은 *받게 될 페이로드*로 포함한다 — 핸들러를 쓰는 쪽에 필요한 타입이기 때문이다
+
+**컴포넌트는 도달 가능한 것만 내보낸다.** `visibility` 필터는 오퍼레이션을 지우지만 `components`는 건드리지 않는다. 스키마 이름과 필드 자체가 숨긴 오퍼레이션의 존재를 말해 주므로, 타입 파일에는 **보이는 오퍼레이션에서 `$ref`로 도달할 수 있는 스키마만** 실린다. 이는 검색 인덱스와 샘플에 적용되는 것과 같은 규칙이며, 컬렉션은 오퍼레이션 단위라 자연히 만족한다.
+
+**CLI.** `ludin export <spec> --format postman|types [--out <파일>]`는 서버 없이 같은 생성기를 돌린다. `lint`·`diff`처럼 신원이 없으므로 필터링 없는 전체 문서 기준이며, 코드 생성 파이프라인이나 CI 아티팩트 용도다.
+
 ---
 
 ## 4. 아키텍처
@@ -253,7 +283,7 @@ ludin({ spec, mcp: { enabled: true }, share: { enabled: true }, auth: { ... } })
 @ludin-docs/hono            Hono 4 (Node · Bun · Deno · edge)                             [출시]
 @ludin-docs/node            Node 기본 http, connect, polka                                 [출시]
 @ludin-docs/nestjs          NestJS 9 / 10 / 11                                            [출시]
-@ludin-docs/auth-oidc       OAuth2/OIDC 어댑터                                            [v1 이후]
+@ludin-docs/auth-oidc       OAuth2/OIDC 어댑터                                            [v0.7]
 ```
 
 코어의 런타임 의존성은 `yaml` 하나다. UI(`packages/ui`, Preact + Vite)는 단일 HTML 문자열로 빌드되어 코어 안에 컴파일되므로, 설치 후 별도 정적 파일 서빙이 필요 없다.
@@ -314,6 +344,8 @@ interface BoundUser {
 | `GET /api/search-index` | ⌘K 인덱스: 오퍼레이션 + 스키마 필드명, 필터링됨 (`docs:read`) |
 | `GET /api/lint` | 필터링된 문서의 건강 점수 (`docs:read`) |
 | `GET /api/diff` | 기준 문서 대비 분류된 변경 목록 (`docs:read`) |
+| `GET /api/export/postman` | Postman v2.1 컬렉션, 필터링된 문서 기준 (`docs:read`) |
+| `GET /api/export/types.d.ts` | TypeScript 선언, 보이는 오퍼레이션에서 도달 가능한 스키마만 (`docs:read`) |
 | `POST /api/mcp` | 에이전트용 MCP JSON-RPC 엔드포인트 (`docs:read`, 실행은 `docs:try`) |
 | `POST /api/share` | 만료되는 공유 링크 발급 (`admin:read`) |
 | `GET /api/admin` | 현재 설정 조회 (`admin:read`, 읽기 전용) |
@@ -363,9 +395,13 @@ interface LudinOptions {
 | **v0.1 (MVP)** | 완료 | OpenAPI 3.x 렌더링 + Try it out, 이메일/비밀번호 로그인(JWT 쿠키), 계정·IP 설정(읽기 전용 관리 화면), IP 화이트리스트(CIDR, trustProxy, 탈출구), 기본 테마 옵션, stdout 감사 로그, Express·NestJS 어댑터 |
 | **v0.2** | 완료 | README 페이지(HTML 직결), 스펙 내보내기, 문서 가시성 제어(visibleTo), 다중 스펙, 로고·다크모드 브랜딩, Fastify·Koa·Hono·node:http 어댑터 |
 | **v0.3 — "문서를 신뢰할 수 있게"** | 완료 | 여섯 가지 코드 샘플(curl·fetch·axios·python·go·`.http`, 서버 URL·인증 헤더·바디 예시가 채워진 상태), ⌘K 커맨드 팰릿(경로·요약·operationId에 더해 **스키마 필드명**까지 검색), Try it out 응답 스키마 검증, `ludin lint` + 문서 건강도 점수 (§3.8) |
-| **v0.4 — "변경을 추적할 수 있게"** | 예정 | 스펙 diff와 breaking change 분류(경로 삭제, required 추가, enum 축소, 타입 변경, 응답 코드 제거), 자동 체인지로그 페이지, 환경(Environment) + 인증 체이닝, 만료되는 공유 링크 |
-| **v0.5 — "카탈로그와 에이전트"** | 진행 중 | MCP 엔드포인트(역할별 스펙 필터 그대로 적용), 컬렉션·TypeScript 타입 내보내기, OIDC/OAuth2 어댑터, OpenAPI 3.1 webhooks 렌더 |
+| **v0.4 — "변경을 추적할 수 있게"** | 완료 | 스펙 diff와 breaking change 분류(경로 삭제, required 추가, enum 축소, 타입 변경, 응답 코드 제거), 전역 서버 선택 + 인증 체이닝, 만료되는 공유 링크 (§3.9 · §3.10) |
+| **v0.5 — "카탈로그와 에이전트"** | 완료 | MCP 엔드포인트(역할별 스펙 필터 그대로 적용), OpenAPI 3.1 webhooks 렌더, 봉투 응답 인식 검증 + 문서화되지 않은 상태 코드 보고 (§3.11 · §3.12) |
+| **v0.6 — "쓰던 도구로 가져가기"** | 예정 | Postman 컬렉션 · TypeScript 타입 내보내기(역할 필터링, 도달 가능한 스키마만), `ludin export` CLI, diff → 릴리스 노트 마크다운(`--markdown` + 화면 복사), CHANGELOG 0.3~0.5 소급 (§3.13 · §3.9) |
+| **v0.7 — "회사 계정으로 들어오기"** | 예정 | `@ludin-docs/auth-oidc` — OIDC/OAuth2 로그인(디스커버리·PKCE·JWKS), 클레임 → 역할 매핑, 기존 users/verify와 공존, 무상태 유지(state·nonce는 서명 쿠키) |
 | **v1.0** | 예정 | 안정 API 확정 |
+
+v0.4에 적혀 있던 "자동 체인지로그 페이지"는 v0.6의 릴리스 노트 내보내기로, v0.5에 적혀 있던 컬렉션·타입 내보내기는 v0.6으로, OIDC 어댑터는 v0.7로 옮겼다.
 
 v0.2 개발 중 DB 기반 스토어 모드(계정 편집·초대·세션 폐기·감사 로그 UI)를 만들었다가 출시 전에 걷어냈다. 문서 앞의 문을 지키는 데 필요하지 않았고, DB·마이그레이션·드라이버가 도입 비용을 키웠기 때문이다. 계정은 코드에, 로그는 이미 쓰는 로그 파이프라인에 둔다.
 
@@ -383,7 +419,7 @@ v0.2 개발 중 DB 기반 스토어 모드(계정 편집·초대·세션 폐기�
 - README 페이지를 여러 개(탭)로 확장할지, 단일 페이지로 유지할지
 - 마크다운(`.md`) 파일도 `readme.path`로 받을지(현재는 HTML만)
 - 감사 로그의 Try it out 요청/응답 바디 기록 기본값(off 권장)
-- 스펙 diff의 기준 스냅샷 출처: 설정으로 받은 파일 경로·URL vs 코어가 자동 저장하는 `.ludin/` 디렉터리
-- 공유 링크가 요청 파이프라인을 통과하는 방식: 세션과 동일 취급(토큰이 역할·스코프를 담고 IP 검사는 그대로) vs 별도 경로 — 후자는 §4.4 불변식을 깨므로 채택하지 않는 쪽으로 기운다
+- ~~스펙 diff의 기준 스냅샷 출처~~ → 설정으로 받는다(`diff.baseline` / `SpecEntry.baseline`); 루딘은 아무것도 쓰지 않는다 (2026-09-09)
+- ~~공유 링크가 요청 파이프라인을 통과하는 방식~~ → 파이프라인 안의 신원으로 해석, 별도 경로 없음 (2026-09-09)
 - ~~MCP 엔드포인트 인증~~ → 공유 링크를 `Authorization: Bearer`로 제시하거나 세션 쿠키 사용, 새 자격 증명 종류 없음 (2026-09-10)
 - 스토어 모드 재도입 여부: 코멘트·읽음 표시 수요가 실제로 쌓일 때까지 보류 vs 별도 옵트인 패키지
