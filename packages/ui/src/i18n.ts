@@ -88,6 +88,9 @@ const en = {
   tokenClear: 'Clear',
   autoCapture: 'Auto-capture tokens',
   autoCaptureHint: 'Reuse a token found in a response on every later request',
+  webhook: 'Webhook',
+  webhookNotice: 'This operation is called by the API, not by you — implement it on your side. There is nothing to send from here.',
+  webhookPayload: 'Payload you will receive',
   tryItOut: 'Try it out',
   readOnlyRole: 'read-only role',
   serverField: 'server',
@@ -214,6 +217,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: '`{key}`에서 받은 토큰을 이후 요청의 Authorization으로 보냅니다.', tokenFound: '`{key}`에서 토큰을 찾았습니다.', tokenUse: '사용하기', tokenClear: '해제',
     autoCapture: '토큰 자동 수집', autoCaptureHint: '응답에서 찾은 토큰을 이후 모든 요청에 재사용합니다',
+    webhook: '웹훅', webhookNotice: '이 오퍼레이션은 여러분이 호출하는 게 아니라 API가 여러분을 호출합니다 — 받는 쪽을 구현하세요. 여기서 보낼 것은 없습니다.', webhookPayload: '전달받게 될 페이로드',
     tryItOut: '실행해 보기', readOnlyRole: '읽기 전용 역할', serverField: '서버', bodyField: '바디',
     extraHeaders: '추가 헤더', addHeader: '+ 추가', sendRequest: '요청 보내기', copyCurl: 'cURL 복사',
     fillFields: '{names} 입력 필요', missingFields: '누락: {names}',
@@ -308,6 +312,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: '`{key}` のトークンを以降のリクエストの Authorization に付与します。', tokenFound: '`{key}` にトークンが見つかりました。', tokenUse: '使う', tokenClear: '解除',
     autoCapture: 'トークン自動取得', autoCaptureHint: 'レスポンスで見つけたトークンを以降のリクエストで再利用します',
+    webhook: 'Webhook', webhookNotice: 'この操作は呼び出す側ではなく、APIから呼ばれます — 受け口を実装してください。ここから送るものはありません。', webhookPayload: '受け取るペイロード',
     tryItOut: '試してみる', readOnlyRole: '読み取り専用ロール', serverField: 'サーバー', bodyField: 'ボディ',
     extraHeaders: '追加ヘッダー', addHeader: '+ 追加', sendRequest: 'リクエスト送信', copyCurl: 'cURLをコピー',
     fillFields: '{names} を入力してください', missingFields: '未入力: {names}',
@@ -402,6 +407,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: '`{key}` 中的令牌将作为 Authorization 用于后续请求。', tokenFound: '在 `{key}` 中找到令牌。', tokenUse: '使用', tokenClear: '清除',
     autoCapture: '自动捕获令牌', autoCaptureHint: '将响应中找到的令牌复用到后续所有请求',
+    webhook: 'Webhook', webhookNotice: '该操作由 API 调用你，而不是你调用它 — 请在你这一侧实现。这里没有可发送的内容。', webhookPayload: '你将收到的负载',
     tryItOut: '在线调试', readOnlyRole: '只读角色', serverField: '服务器', bodyField: '请求体',
     extraHeaders: '额外请求头', addHeader: '+ 添加', sendRequest: '发送请求', copyCurl: '复制 cURL',
     fillFields: '请填写 {names}', missingFields: '缺少: {names}',
@@ -496,6 +502,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: 'El token de `{key}` se enviará como Authorization en las siguientes peticiones.', tokenFound: 'Se encontró un token en `{key}`.', tokenUse: 'Usarlo', tokenClear: 'Limpiar',
     autoCapture: 'Capturar tokens automáticamente', autoCaptureHint: 'Reutiliza un token hallado en una respuesta en las peticiones siguientes',
+    webhook: 'Webhook', webhookNotice: 'Esta operación la invoca la API, no tú — impleméntala en tu lado. Aquí no hay nada que enviar.', webhookPayload: 'Carga que recibirás',
     tryItOut: 'Probar', readOnlyRole: 'rol de solo lectura', serverField: 'servidor', bodyField: 'cuerpo',
     extraHeaders: 'cabeceras extra', addHeader: '+ añadir', sendRequest: 'Enviar petición', copyCurl: 'Copiar cURL',
     fillFields: 'completa {names}', missingFields: 'Falta: {names}',
@@ -590,6 +597,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: 'Le token de `{key}` sera envoyé comme Authorization sur les requêtes suivantes.', tokenFound: 'Un token a été trouvé dans `{key}`.', tokenUse: 'L’utiliser', tokenClear: 'Effacer',
     autoCapture: 'Capture auto des tokens', autoCaptureHint: 'Réutilise un token trouvé dans une réponse pour les requêtes suivantes',
+    webhook: 'Webhook', webhookNotice: 'Cette opération est appelée par l’API, pas par vous — implémentez-la de votre côté. Il n’y a rien à envoyer ici.', webhookPayload: 'Charge utile que vous recevrez',
     tryItOut: 'Essayer', readOnlyRole: 'rôle en lecture seule', serverField: 'serveur', bodyField: 'corps',
     extraHeaders: 'en-têtes supplémentaires', addHeader: '+ ajouter', sendRequest: 'Envoyer la requête', copyCurl: 'Copier cURL',
     fillFields: 'renseignez {names}', missingFields: 'Manquant : {names}',
@@ -684,6 +692,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: 'Das Token aus `{key}` wird künftig als Authorization gesendet.', tokenFound: 'Token in `{key}` gefunden.', tokenUse: 'Verwenden', tokenClear: 'Löschen',
     autoCapture: 'Tokens automatisch übernehmen', autoCaptureHint: 'Ein in einer Antwort gefundenes Token für weitere Anfragen wiederverwenden',
+    webhook: 'Webhook', webhookNotice: 'Diese Operation ruft die API bei dir auf, nicht umgekehrt — implementiere sie auf deiner Seite. Hier gibt es nichts zu senden.', webhookPayload: 'Nutzlast, die du erhältst',
     tryItOut: 'Ausprobieren', readOnlyRole: 'Nur-Lese-Rolle', serverField: 'Server', bodyField: 'Body',
     extraHeaders: 'Zusätzliche Header', addHeader: '+ hinzufügen', sendRequest: 'Anfrage senden', copyCurl: 'cURL kopieren',
     fillFields: '{names} ausfüllen', missingFields: 'Fehlt: {names}',
@@ -778,6 +787,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: 'O token de `{key}` será enviado como Authorization nas próximas requisições.', tokenFound: 'Token encontrado em `{key}`.', tokenUse: 'Usar', tokenClear: 'Limpar',
     autoCapture: 'Capturar tokens automaticamente', autoCaptureHint: 'Reutiliza um token encontrado numa resposta nas requisições seguintes',
+    webhook: 'Webhook', webhookNotice: 'Esta operação é chamada pela API, não por si — implemente-a do seu lado. Aqui não há nada para enviar.', webhookPayload: 'Payload que irá receber',
     tryItOut: 'Testar', readOnlyRole: 'papel somente leitura', serverField: 'servidor', bodyField: 'corpo',
     extraHeaders: 'cabeçalhos extras', addHeader: '+ adicionar', sendRequest: 'Enviar requisição', copyCurl: 'Copiar cURL',
     fillFields: 'preencha {names}', missingFields: 'Faltando: {names}',
@@ -872,6 +882,7 @@ const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
 
     tokenCaptured: 'Токен из `{key}` будет отправляться как Authorization в последующих запросах.', tokenFound: 'Найден токен в `{key}`.', tokenUse: 'Использовать', tokenClear: 'Очистить',
     autoCapture: 'Автозахват токенов', autoCaptureHint: 'Повторно использовать найденный в ответе токен в последующих запросах',
+    webhook: 'Вебхук', webhookNotice: 'Эту операцию вызывает API, а не вы — реализуйте её на своей стороне. Отсюда нечего отправлять.', webhookPayload: 'Полезная нагрузка, которую вы получите',
     tryItOut: 'Попробовать', readOnlyRole: 'роль только для чтения', serverField: 'сервер', bodyField: 'тело',
     extraHeaders: 'доп. заголовки', addHeader: '+ добавить', sendRequest: 'Отправить запрос', copyCurl: 'Копировать cURL',
     fillFields: 'заполните {names}', missingFields: 'Не заполнено: {names}',
