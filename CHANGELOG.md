@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [Unreleased]
+
+### Added
+
+- **Try it out for session-cookie APIs.** `forwardCookies: true` lets the
+  proxy hand the caller's own cookies to an API on the docs' origin — an
+  `/admin` or `/console` next to the docs — exactly as a direct call from the
+  page would. Cookies for other origins never reach ludin, so nothing is
+  forwarded cross-origin; ludin's own session and share cookies are always
+  left out; a list of names forwards only those. Off by default.
+
 ## [0.6.0] — 2026-09-10
 
 ### Added

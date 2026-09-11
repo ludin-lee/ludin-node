@@ -159,6 +159,7 @@ interface LudinOptions {
   diff?: { baseline?: SpecSource }; // previous document, for the Changes view (per spec: SpecEntry.baseline)
   theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
+  forwardCookies?: boolean | string[]; // hand the caller's own cookies to same-origin APIs (opt-in)
 }
 ```
 
@@ -200,6 +201,8 @@ npx ludin export <spec> --format postman|types [--out <file>]
 ## How Try-it-out works
 
 Requests go through a server-side proxy (`POST /docs/api/try`) so that every call is audited and attributed to the signed-in user, CORS is never an issue, and only origins listed in the spec's `servers` (or `allowedTargets`) can be reached. The upstream receives `X-Ludin-User` and `X-Forwarded-For`.
+
+The proxy drops the `Cookie` header, so an API that authenticates with a session cookie — an `/admin` or `/console` living next to the docs — cannot be tried out of the box. `forwardCookies: true` changes that for APIs on the **docs' own origin**: the browser already sends the caller's cookies to `/docs/api/try`, and the proxy hands them on exactly as a direct call from the page would. Cookies for any other origin never reach ludin, so nothing is ever forwarded cross-origin; ludin's own session and share cookies are always left out; a list of names (`forwardCookies: ['sid']`) forwards only those. Two things to know: the target's cookie needs `Path=/` (or a path covering `/docs`) for the browser to send it along, and a `Set-Cookie` in the response comes back as data rather than landing in the browser, so sign in to the target first.
 
 ## Repository layout
 
