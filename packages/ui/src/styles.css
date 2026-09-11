@@ -1238,6 +1238,10 @@ kbd {
 .share-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .share-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
 .auto-capture input { width: auto; }
+.auto-capture select.env-select {
+  width: auto; height: 22px; padding: 0 6px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elev); color: var(--text);
+}
 
 /* ----- webhooks ----- */
 .webhook-badge {

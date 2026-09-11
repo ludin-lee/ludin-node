@@ -413,6 +413,35 @@ function TryIt({
     savePinned(next);
   }
   const pinnedCount = pinned.headers.filter(([k]) => k.trim()).length;
+  const [envs, setEnvsState] = useState<Envs>(loadEnvs);
+  const [varsOpen, setVarsOpen] = useState(false);
+  function setEnvs(next: Envs) {
+    setEnvsState(next);
+    saveEnvs(next);
+  }
+  const activeVars = envs.envs[envs.active] ?? [];
+  const vars = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of activeVars) if (k.trim()) out[k.trim()] = v;
+    return out;
+  }, [activeVars]);
+  const varCount = Object.keys(vars).length;
+  const r = (s: string) => substitute(s, vars);
+  function setActiveVars(rows: Array<[string, string]>) {
+    setEnvs({ ...envs, envs: { ...envs.envs, [envs.active]: rows } });
+  }
+  function addEnv() {
+    const name = (prompt(t('varsEnvName')) ?? '').trim();
+    if (!name || envs.envs[name]) return;
+    setEnvs({ active: name, envs: { ...envs.envs, [name]: [] } });
+  }
+  function deleteEnv() {
+    const names = Object.keys(envs.envs);
+    if (names.length < 2) return;
+    const rest = { ...envs.envs };
+    delete rest[envs.active];
+    setEnvs({ active: Object.keys(rest)[0], envs: rest });
+  }
 
   function applyCookies(list: Array<{ name: string; value: string; expired: boolean }>) {
     const next = { ...jar };
@@ -473,21 +502,27 @@ function TryIt({
     if (!result) return;
     const text = what === 'body'
       ? prettyBody(result)
-      : buildReport({ op, specName, url: finalUrl, headers, body: hasBody ? bodyText : null, result });
+      : buildReport({ op, specName, url: finalUrl, headers, body: resolvedBody, result });
     navigator.clipboard?.writeText(text);
     setCopied(what);
     setTimeout(() => setCopied(null), 1400);
   }
 
-  const url = buildUrl(server, op.path, op.parameters, values);
+  // Everything below works on the request with `{{variables}}` already resolved.
+  const rValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(values)) out[k] = r(v);
+    return out;
+  }, [values, vars]);
+  const url = buildUrl(r(server), op.path, op.parameters, rValues);
   const headers = useMemo(() => {
     const h: Record<string, string> = {};
     for (const p of op.parameters) {
-      if (p.in === 'header' && values[`header:${p.name}`]) h[p.name] = values[`header:${p.name}`];
+      if (p.in === 'header' && rValues[`header:${p.name}`]) h[p.name] = rValues[`header:${p.name}`];
     }
     if (op.op.requestBody && bodyText) h['content-type'] = ct;
     for (const s of security) {
-      const v = auth[s.name];
+      const v = auth[s.name] ? r(auth[s.name]) : '';
       if (!v) continue;
       const sc = s.scheme;
       if (sc.type === 'http' && sc.scheme === 'bearer') h['authorization'] = `Bearer ${v}`;
@@ -496,23 +531,24 @@ function TryIt({
       else if (sc.type === 'oauth2' || sc.type === 'openIdConnect') h['authorization'] = `Bearer ${v}`;
     }
     // Pinned headers apply everywhere; an operation's own extra header still wins on a clash.
-    if (pinned.on) for (const [k, v] of pinned.headers) if (k.trim()) h[k.trim()] = v;
-    for (const [k, v] of extra) if (k) h[k] = v;
+    if (pinned.on) for (const [k, v] of pinned.headers) if (k.trim()) h[k.trim()] = r(v);
+    for (const [k, v] of extra) if (k) h[k] = r(v);
     return h;
-  }, [op, values, bodyText, ct, security, auth, extra, pinned]);
+  }, [op, rValues, bodyText, ct, security, auth, extra, pinned, vars]);
 
   const finalUrl = useMemo(() => {
     let u = url;
     for (const s of security) {
-      const v = auth[s.name];
+      const v = auth[s.name] ? r(auth[s.name]) : '';
       if (v && s.scheme.type === 'apiKey' && s.scheme.in === 'query') {
         u += (u.includes('?') ? '&' : '?') + `${encodeURIComponent(s.scheme.name)}=${encodeURIComponent(v)}`;
       }
     }
     return u;
-  }, [url, security, auth]);
+  }, [url, security, auth, vars]);
 
   const hasBody = op.method !== 'get' && op.method !== 'head' && bodyText;
+  const resolvedBody = hasBody ? r(bodyText) : null;
 
   async function send() {
     setBusy(true);
@@ -530,7 +566,7 @@ function TryIt({
         method: op.method,
         url: finalUrl,
         headers,
-        body: hasBody ? bodyText : null,
+        body: resolvedBody,
         spec: specName,
         op: { method: op.method, path: op.path },
         ...(Object.keys(cookies).length ? { cookies } : {}),
@@ -608,6 +644,51 @@ function TryIt({
             <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setPinned({ ...pinned, headers: [...pinned.headers, ['', '']] })}>
               {t('addHeader')}
             </button>
+          </div>
+        )}
+        <div class="auto-capture" title={t('varsHint')}>
+          <span>{t('vars')}</span>
+          <select
+            class="env-select"
+            value={envs.active}
+            onChange={(e) => {
+              const name = (e.target as HTMLSelectElement).value;
+              if (name === '__new__') { (e.target as HTMLSelectElement).value = envs.active; addEnv(); }
+              else setEnvs({ ...envs, active: name });
+            }}
+          >
+            {Object.keys(envs.envs).map((n) => <option value={n}>{n}</option>)}
+            <option value="__new__">{t('varsEnvNew')}</option>
+          </select>
+          {varCount ? `(${varCount})` : ''}{' '}
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            style="height:20px;padding:0 6px"
+            onClick={() => { setVarsOpen(!varsOpen); if (!varsOpen && !activeVars.length) setActiveVars([['', '']]); }}
+          >
+            {varsOpen ? t('pinnedDone') : t('pinnedEdit')}
+          </button>
+        </div>
+        {varsOpen && (
+          <div class="field vars">
+            {activeVars.map(([k, v], i) => (
+              <div class="kv">
+                <input placeholder="baseUrl" value={k} onInput={(e) => setActiveVars(activeVars.map((x, j) => (j === i ? [(e.target as HTMLInputElement).value, x[1]] : x)))} />
+                <input placeholder="Value" value={v} onInput={(e) => setActiveVars(activeVars.map((x, j) => (j === i ? [x[0], (e.target as HTMLInputElement).value] : x)))} />
+                <button class="btn btn-sm btn-ghost" onClick={() => setActiveVars(activeVars.filter((_, j) => j !== i))}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setActiveVars([...activeVars, ['', '']])}>
+              {t('addHeader')}
+            </button>
+            {Object.keys(envs.envs).length > 1 && (
+              <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px;margin-left:6px" onClick={deleteEnv}>
+                {t('varsEnvDelete', { name: envs.active })}
+              </button>
+            )}
           </div>
         )}
         {cookiesGot && cookiesGot.some((c) => !c.expired) ? (
@@ -702,7 +783,7 @@ function TryIt({
           <button class="btn btn-primary" disabled={!canTry || busy || missing.length > 0} onClick={send} title={missing.length ? t('missingFields', { names: missing.map((m) => m.name).join(', ') }) : ''}>
             {busy ? <span class="spin" style="border-top-color:#fff" /> : t('sendRequest')}
           </button>
-          <button class="btn" onClick={() => navigator.clipboard?.writeText(toCurl(op.method, finalUrl, headers, hasBody ? bodyText : null))}>
+          <button class="btn" onClick={() => navigator.clipboard?.writeText(toCurl(op.method, finalUrl, headers, resolvedBody))}>
             {t('copyCurl')}
           </button>
           {missing.length > 0 && <span style="font-size:12px;color:var(--text-3)">{t('fillFields', { names: missing.map((m) => m.name).join(', ') })}</span>}
@@ -778,7 +859,7 @@ function TryIt({
                       .join('\n')}
                   </pre>
                 )}
-                {tab === 'curl' && <pre>{toCurl(op.method, finalUrl, headers, hasBody ? bodyText : null)}</pre>}
+                {tab === 'curl' && <pre>{toCurl(op.method, finalUrl, headers, resolvedBody)}</pre>}
               </>
             )}
           </div>
@@ -877,6 +958,29 @@ function loadPinned(): Pinned {
 }
 function savePinned(p: Pinned) {
   saveJson(PINNED_KEY, p);
+}
+
+/**
+ * Environments: named sets of variables, one active at a time, usable as
+ * `{{name}}` anywhere in a request – path and query values, headers, the body,
+ * pinned headers, auth fields. Switching the environment switches the whole
+ * set, the way a dev / staging / prod toggle should. Unknown names are left
+ * as typed, so a literal `{{...}}` in a body still goes through.
+ */
+interface Envs { active: string; envs: Record<string, Array<[string, string]>> }
+const VARS_KEY = 'ludin.vars';
+const VAR_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
+function loadEnvs(): Envs {
+  const v = loadJson<Partial<Envs>>(VARS_KEY);
+  const envs = v?.envs && typeof v.envs === 'object' && Object.keys(v.envs).length ? v.envs : { default: [] };
+  const active = v?.active && envs[v.active] ? v.active : Object.keys(envs)[0];
+  return { active, envs };
+}
+function saveEnvs(e: Envs) {
+  saveJson(VARS_KEY, e);
+}
+function substitute(s: string, vars: Record<string, string>): string {
+  return s.replace(VAR_RE, (m, k: string) => (k in vars ? vars[k] : m));
 }
 
 function saveJar(origin: string, jar: Record<string, string>) {

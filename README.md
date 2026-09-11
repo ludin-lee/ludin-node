@@ -208,6 +208,8 @@ For a session-cookie API on **another** origin — the docs on `localhost`, the 
 
 **Pinned headers** cover the rest: an API key the spec never declared, a tenant id, a feature flag. Add them once at the top of Try it out and they go with every request of every operation; one switch pauses them without losing them. Headers only, and an operation's own extra header still wins on a clash.
 
+**Variables** tie it together: write `{{name}}` anywhere in a request — a path or query value, a header, the body, a pinned header, an auth field — and the active environment fills it in. Environments are named sets (`default`, `staging`, `prod`…) switched from one dropdown, so the same request runs against another stack by changing one thing. An unknown name is left as typed. Stored in the browser; the server never sees the variables, only the resolved request.
+
 ## Repository layout
 
 ```
