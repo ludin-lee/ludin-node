@@ -406,6 +406,13 @@ function TryIt({
   const [jar, setJar] = useState<Record<string, string>>(() => loadJar(targetOrigin));
   useEffect(() => { setJar(loadJar(targetOrigin)); }, [targetOrigin]);
   const [cookiesGot, setCookiesGot] = useState<Array<{ name: string; value: string; expired: boolean }> | null>(null);
+  const [pinned, setPinnedState] = useState<Pinned>(loadPinned);
+  const [pinOpen, setPinOpen] = useState(false);
+  function setPinned(next: Pinned) {
+    setPinnedState(next);
+    savePinned(next);
+  }
+  const pinnedCount = pinned.headers.filter(([k]) => k.trim()).length;
 
   function applyCookies(list: Array<{ name: string; value: string; expired: boolean }>) {
     const next = { ...jar };
@@ -488,9 +495,11 @@ function TryIt({
       else if (sc.type === 'apiKey' && sc.in === 'header') h[sc.name] = v;
       else if (sc.type === 'oauth2' || sc.type === 'openIdConnect') h['authorization'] = `Bearer ${v}`;
     }
+    // Pinned headers apply everywhere; an operation's own extra header still wins on a clash.
+    if (pinned.on) for (const [k, v] of pinned.headers) if (k.trim()) h[k.trim()] = v;
     for (const [k, v] of extra) if (k) h[k] = v;
     return h;
-  }, [op, values, bodyText, ct, security, auth, extra]);
+  }, [op, values, bodyText, ct, security, auth, extra, pinned]);
 
   const finalUrl = useMemo(() => {
     let u = url;
@@ -573,6 +582,34 @@ function TryIt({
           <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
           {t('autoCapture')}
         </label>
+        <label class="auto-capture" title={t('pinnedHeadersHint')}>
+          <input type="checkbox" checked={pinned.on} onChange={() => setPinned({ ...pinned, on: !pinned.on })} />
+          {t('pinnedHeaders')}{pinnedCount ? ` (${pinnedCount})` : ''}{' '}
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            style="height:20px;padding:0 6px"
+            onClick={(e) => { e.preventDefault(); setPinOpen(!pinOpen); if (!pinOpen && !pinned.headers.length) setPinned({ ...pinned, headers: [['', '']] }); }}
+          >
+            {pinOpen ? t('pinnedDone') : t('pinnedEdit')}
+          </button>
+        </label>
+        {pinOpen && (
+          <div class="field pinned" style={pinned.on ? '' : 'opacity:.55'}>
+            {pinned.headers.map(([k, v], i) => (
+              <div class="kv">
+                <input placeholder="X-Api-Key" value={k} onInput={(e) => setPinned({ ...pinned, headers: pinned.headers.map((x, j) => (j === i ? [(e.target as HTMLInputElement).value, x[1]] : x)) })} />
+                <input placeholder="Value" value={v} onInput={(e) => setPinned({ ...pinned, headers: pinned.headers.map((x, j) => (j === i ? [x[0], (e.target as HTMLInputElement).value] : x)) })} />
+                <button class="btn btn-sm btn-ghost" onClick={() => setPinned({ ...pinned, headers: pinned.headers.filter((_, j) => j !== i) })}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setPinned({ ...pinned, headers: [...pinned.headers, ['', '']] })}>
+              {t('addHeader')}
+            </button>
+          </div>
+        )}
         {cookiesGot && cookiesGot.some((c) => !c.expired) ? (
           <div class="notice info" style="margin-bottom:8px">
             {t('cookiesFound', { n: cookiesGot.filter((c) => !c.expired).length, host: targetOrigin.replace(/^https?:\/\//, '') })}{' '}
@@ -825,6 +862,23 @@ function loadJar(origin: string): Record<string, string> {
     return {};
   }
 }
+/**
+ * Pinned headers: a small set of headers sent with every request of every
+ * operation – an API key the spec never declared, a tenant id, a feature flag.
+ * One switch turns them all off without losing them. Kept in localStorage like
+ * the per-operation drafts, and headers only: a body or query has no meaning
+ * across operations.
+ */
+interface Pinned { on: boolean; headers: Array<[string, string]> }
+const PINNED_KEY = 'ludin.pinned-headers';
+function loadPinned(): Pinned {
+  const v = loadJson<Partial<Pinned>>(PINNED_KEY);
+  return { on: v?.on !== false, headers: Array.isArray(v?.headers) ? v.headers : [] };
+}
+function savePinned(p: Pinned) {
+  saveJson(PINNED_KEY, p);
+}
+
 function saveJar(origin: string, jar: Record<string, string>) {
   try {
     if (Object.keys(jar).length) sessionStorage.setItem(`ludin.cookies:${origin}`, JSON.stringify(jar));
