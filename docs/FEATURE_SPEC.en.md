@@ -125,6 +125,7 @@ Three roles out of the box, custom roles supported.
 Customization is deliberately capped at **theme level**. Swapping components out is excluded from v1 (it explodes the maintenance surface).
 
 - Options: logo (URL or data URI, with a separate `logoDark` for dark mode), favicon, service name (platform title), primary/accent colors, font, radius/density, light/dark/system mode
+- Named presets (`theme.preset`): dark `graphite`·`nocturne`·`fjord`·`phosphor`·`contrast`, light `paper`·`blossom`·`cloud`·`mint`. Each preset is a fixed, complete color scheme, so the light/dark/system toggle only applies to `default`. Switchable from the user menu (remembered per browser); `primary`, `accent`, `font` and `radius` apply only on top of the preset the operator configured; when a viewer switches to another preset, that preset's own values are used (so a brand color never lands on a palette it was not picked for)
 - Custom CSS injection (`customCss`), custom login-screen copy and background
 - Sidebar group order and collapsed state
 - Faster first load than existing documentation UIs (a single ~110 KB HTML bundle, 36 KB gzipped)
