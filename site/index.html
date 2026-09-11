@@ -220,6 +220,7 @@
       <a href="#access" data-i18n="nav_access">접근 통제</a>
       <a href="#trust" data-i18n="nav_trust">문서 품질</a>
       <a href="#share" data-i18n="nav_share">내보내기</a>
+      <a href="https://ludin-lee.github.io/ludin-node/demo/" data-i18n="nav_live">예시 페이지</a>
       <a href="https://github.com/ludin-lee/ludin-node">GitHub</a>
       <select class="lang" id="lang" aria-label="Language">
         <option value="ko">한국어</option>
@@ -236,9 +237,10 @@
     <h1 data-i18n="h1">API 문서에<br><em>"누가 볼 수 있는가"</em>를<br>붙였습니다</h1>
     <p class="lede" data-i18n="lede">ludin은 Node.js용 API 문서 미들웨어입니다. 기존 OpenAPI 문서 도구가 예쁘게 보여주는 데서 멈춘다면, ludin은 그 위에 로그인, 역할, IP 화이트리스트, 감사 로그를 한 줄로 얹습니다.</p>
     <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/ludin-lee/ludin-node" data-i18n="cta_github">GitHub에서 보기</a>
+      <a class="btn btn-primary" href="https://ludin-lee.github.io/ludin-node/demo/" data-i18n="cta_live">▶ 예시 페이지 가기</a>
+      <a class="btn btn-ghost" href="https://github.com/ludin-lee/ludin-node" data-i18n="cta_github">GitHub에서 보기</a>
       <a class="btn btn-ghost" href="https://www.npmjs.com/package/@ludin-docs/core">npm</a>
-      <button type="button" class="btn btn-ghost" id="openDemo2" data-i18n="cta_demo">▶ 샌드박스 열어보기</button>
+      <button type="button" class="btn btn-ghost" id="openDemo2" data-i18n="cta_demo">샌드박스</button>
     </div>
     <div class="install mono"><span>$</span>npm i @ludin-docs/core @ludin-docs/express</div>
   </section>
@@ -434,10 +436,11 @@ Authorization: Bearer &lt;share-token&gt;
 /* ---------------- i18n ---------------- */
 var T = {
   ko: {
+    cta_live: '▶ 예시 페이지 가기', nav_live: '예시 페이지',
     nav_access: '접근 통제', nav_trust: '문서 품질', nav_share: '내보내기',
     h1: 'API 문서에<br><em>"누가 볼 수 있는가"</em>를<br>붙였습니다',
     lede: 'ludin은 Node.js용 API 문서 미들웨어입니다. 기존 OpenAPI 문서 도구가 예쁘게 보여주는 데서 멈춘다면, ludin은 그 위에 로그인, 역할, IP 화이트리스트, 감사 로그를 한 줄로 얹습니다.',
-    cta_github: 'GitHub에서 보기', cta_demo: '▶ 샌드박스 열어보기', fab: '▶ 샌드박스 열기',
+    cta_github: 'GitHub에서 보기', cta_demo: '샌드박스 열어보기', fab: '▶ 샌드박스 열기',
     start_eyebrow: '한 줄로 시작', start_h2: '이미 있는 앱에 마운트하면 끝',
     start_p: 'OpenAPI 파일 경로나 객체를 넘기고, 계정과 IP 규칙을 코드나 환경변수로 적습니다. 붙일 인프라가 없어서 5분이면 올라갑니다.',
     c_vis: '// admin이 아니면 이 태그는 존재하지 않는다', c_share: '// 만료되는 공유 링크', c_mcp: '// AI 에이전트용 엔드포인트',
@@ -482,10 +485,11 @@ var T = {
     e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
   },
   en: {
+    cta_live: '▶ See it live', nav_live: 'Live demo',
     nav_access: 'Access control', nav_trust: 'Doc quality', nav_share: 'Take it outside',
     h1: 'API docs that know<br><em>who is allowed</em><br>to read them',
     lede: 'ludin is an API documentation middleware for Node.js. Existing OpenAPI doc tools stop at rendering nicely; ludin puts login, roles, an IP allowlist and an audit log on top, in one line.',
-    cta_github: 'View on GitHub', cta_demo: '▶ Open the sandbox', fab: '▶ Open sandbox',
+    cta_github: 'View on GitHub', cta_demo: 'Open the sandbox', fab: '▶ Open sandbox',
     start_eyebrow: 'One line', start_h2: 'Mount it on the app you already have',
     start_p: 'Hand it an OpenAPI file or object, write accounts and IP rules in code or environment variables. Nothing to provision, so it is up in five minutes.',
     c_vis: '// for anyone but admin, this tag does not exist', c_share: '// expiring share links', c_mcp: '// endpoint for AI agents',
@@ -530,10 +534,11 @@ var T = {
     e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
   },
   ja: {
+    cta_live: '▶ 実際の画面を見る', nav_live: 'デモ',
     nav_access: 'アクセス制御', nav_trust: 'ドキュメント品質', nav_share: '外へ持ち出す',
     h1: 'APIドキュメントに<br><em>「誰が見られるか」</em>を<br>付けました',
     lede: 'ludinはNode.js向けのAPIドキュメント・ミドルウェアです。既存のOpenAPIドキュメントツールが「きれいに表示する」で止まるなら、ludinはその上にログイン・ロール・IP許可リスト・監査ログを一行で載せます。',
-    cta_github: 'GitHubで見る', cta_demo: '▶ サンドボックスを開く', fab: '▶ サンドボックス',
+    cta_github: 'GitHubで見る', cta_demo: 'サンドボックスを開く', fab: '▶ サンドボックス',
     start_eyebrow: '一行で始める', start_h2: '今あるアプリにマウントするだけ',
     start_p: 'OpenAPIファイルのパスかオブジェクトを渡し、アカウントとIPルールをコードか環境変数に書きます。用意するインフラがないので5分で立ち上がります。',
     c_vis: '// admin以外にはこのタグは存在しない', c_share: '// 期限付き共有リンク', c_mcp: '// AIエージェント用エンドポイント',
@@ -578,10 +583,11 @@ var T = {
     e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
   },
   zh: {
+    cta_live: '▶ 查看实际页面', nav_live: '在线演示',
     nav_access: '访问控制', nav_trust: '文档质量', nav_share: '对外输出',
     h1: '给 API 文档加上<br><em>"谁可以看"</em><br>这一层',
     lede: 'ludin 是一款面向 Node.js 的 API 文档中间件。现有的 OpenAPI 文档工具止步于"好看地展示"，ludin 则在其之上用一行代码加上登录、角色、IP 白名单和审计日志。',
-    cta_github: '在 GitHub 查看', cta_demo: '▶ 打开沙盒', fab: '▶ 打开沙盒',
+    cta_github: '在 GitHub 查看', cta_demo: '打开沙盒', fab: '▶ 打开沙盒',
     start_eyebrow: '一行代码', start_h2: '挂到现有应用上即可',
     start_p: '传入 OpenAPI 文件路径或对象，把账号和 IP 规则写在代码或环境变量里。没有需要部署的基础设施，五分钟就能上线。',
     c_vis: '// 非 admin 角色看不到这个标签的存在', c_share: '// 有期限的分享链接', c_mcp: '// 面向 AI 代理的端点',
@@ -626,10 +632,11 @@ var T = {
     e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
   },
   es: {
+    cta_live: '▶ Ver la demo en vivo', nav_live: 'Demo',
     nav_access: 'Control de acceso', nav_trust: 'Calidad de la doc', nav_share: 'Sacarla fuera',
     h1: 'Documentación de API<br>que sabe <em>quién puede</em><br>leerla',
     lede: 'ludin es un middleware de documentación de API para Node.js. Las herramientas de documentación OpenAPI existentes se quedan en mostrarla bonita; ludin añade encima login, roles, lista blanca de IP y registro de auditoría, en una línea.',
-    cta_github: 'Ver en GitHub', cta_demo: '▶ Abrir el sandbox', fab: '▶ Abrir sandbox',
+    cta_github: 'Ver en GitHub', cta_demo: 'Abrir el sandbox', fab: '▶ Abrir sandbox',
     start_eyebrow: 'Una línea', start_h2: 'Móntalo en la app que ya tienes',
     start_p: 'Pásale la ruta u objeto OpenAPI y escribe cuentas y reglas de IP en código o variables de entorno. No hay infraestructura que montar, así que está en marcha en cinco minutos.',
     c_vis: '// para quien no sea admin, esta etiqueta no existe', c_share: '// enlaces compartidos con caducidad', c_mcp: '// endpoint para agentes de IA',

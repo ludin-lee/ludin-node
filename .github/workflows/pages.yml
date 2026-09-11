@@ -1,13 +1,13 @@
 name: Pages
 
 # The product page at https://ludin-lee.github.io/ludin-node/ — a static
-# introduction with an in-page sandbox. The real docs UI needs a Node server,
-# so it does not live here; see examples/ for that.
+# introduction with an in-page sandbox — plus /demo/, the real docs UI with an
+# in-page server (scripts/build-demo.mts) so it runs without Node.
 
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'scripts/build-demo.mts', 'scripts/demo/**', 'packages/ui/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm build:demo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
