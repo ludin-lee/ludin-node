@@ -401,6 +401,28 @@ function TryIt({
   const [autoCapture, setAutoCapture] = useState(autoCaptureOn);
   const [captured, setCaptured] = useState<{ key: string; value: string; applied: boolean } | null>(null);
   const schemeNames = useMemo(() => tokenSchemes(doc), [doc]);
+  // The cookie jar for wherever this operation is sent; reloaded when the server changes.
+  const targetOrigin = originOf(buildUrl(server, op.path, op.parameters, {}));
+  const [jar, setJar] = useState<Record<string, string>>(() => loadJar(targetOrigin));
+  useEffect(() => { setJar(loadJar(targetOrigin)); }, [targetOrigin]);
+  const [cookiesGot, setCookiesGot] = useState<Array<{ name: string; value: string; expired: boolean }> | null>(null);
+
+  function applyCookies(list: Array<{ name: string; value: string; expired: boolean }>) {
+    const next = { ...jar };
+    for (const c of list) {
+      if (c.expired) delete next[c.name];
+      else next[c.name] = c.value;
+    }
+    setJar(next);
+    saveJar(targetOrigin, next);
+    setCookiesGot(null);
+  }
+
+  function clearJar() {
+    setJar({});
+    saveJar(targetOrigin, {});
+    setCookiesGot(null);
+  }
 
   /** Store a captured token under every token-bearing scheme, so any operation picks it up. */
   function applyToken(value: string) {
@@ -487,7 +509,14 @@ function TryIt({
     setBusy(true);
     setResult(null);
     setCaptured(null);
+    setCookiesGot(null);
     try {
+      // The jar for this origin, plus any apiKey-in-cookie scheme the person typed a value for.
+      const cookies: Record<string, string> = { ...jar };
+      for (const s of security) {
+        const v = auth[s.name];
+        if (v && s.scheme.type === 'apiKey' && s.scheme.in === 'cookie') cookies[s.scheme.name] = v;
+      }
       const r = await api.try({
         method: op.method,
         url: finalUrl,
@@ -495,6 +524,7 @@ function TryIt({
         body: hasBody ? bodyText : null,
         spec: specName,
         op: { method: op.method, path: op.path },
+        ...(Object.keys(cookies).length ? { cookies } : {}),
       });
       setResult(r);
       setTab('body');
@@ -503,6 +533,11 @@ function TryIt({
       if (token) {
         setCaptured({ ...token, applied: false });
         if (autoCapture) applyToken(token.value);
+      }
+      // Cookie chaining: keep what the target set, drop what it expired.
+      if (r.cookies?.length) {
+        if (autoCapture) applyCookies(r.cookies);
+        else setCookiesGot(r.cookies);
       }
       const entry: HistoryEntry = { values, bodyText, ct, extra, status: r.status, ms: r.ms, at: Date.now() };
       const next = [entry, ...history].slice(0, 20);
@@ -534,12 +569,21 @@ function TryIt({
         {!canTry && <span class="tag">{t('readOnlyRole')}</span>}
       </div>
       <div class="card-b">
-        {schemeNames.length > 0 && (
-          <label class="auto-capture" title={t('autoCaptureHint')}>
-            <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
-            {t('autoCapture')}
-          </label>
-        )}
+        <label class="auto-capture" title={t('autoCaptureHint')}>
+          <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
+          {t('autoCapture')}
+        </label>
+        {cookiesGot && cookiesGot.some((c) => !c.expired) ? (
+          <div class="notice info" style="margin-bottom:8px">
+            {t('cookiesFound', { n: cookiesGot.filter((c) => !c.expired).length, host: targetOrigin.replace(/^https?:\/\//, '') })}{' '}
+            <button class="btn btn-sm" style="height:22px;padding:0 8px" onClick={() => applyCookies(cookiesGot)}>{t('tokenUse')}</button>
+          </div>
+        ) : Object.keys(jar).length > 0 ? (
+          <div class="notice ok" style="margin-bottom:8px">
+            {t('cookiesStored', { n: Object.keys(jar).length, host: targetOrigin.replace(/^https?:\/\//, '') })}{' '}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={clearJar}>{t('tokenClear')}</button>
+          </div>
+        ) : null}
         {security.map((s) => (
           <div class="field">
             <label>
@@ -760,6 +804,31 @@ function loadAuth(): Record<string, string> {
 function saveAuth(v: Record<string, string>) {
   try {
     sessionStorage.setItem('ludin.auth', JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Cookie chaining, the session-cookie twin of token capture: cookies a target
+ * hands out on a Try-it-out response (a login) are kept per origin, in this
+ * tab only, and sent back with every later call to that origin. The proxy makes
+ * the call, so the target may live on any origin – not just the docs' own.
+ */
+function originOf(url: string): string {
+  try { return new URL(url, location.href).origin; } catch { return ''; }
+}
+function loadJar(origin: string): Record<string, string> {
+  try {
+    return origin ? JSON.parse(sessionStorage.getItem(`ludin.cookies:${origin}`) || '{}') : {};
+  } catch {
+    return {};
+  }
+}
+function saveJar(origin: string, jar: Record<string, string>) {
+  try {
+    if (Object.keys(jar).length) sessionStorage.setItem(`ludin.cookies:${origin}`, JSON.stringify(jar));
+    else sessionStorage.removeItem(`ludin.cookies:${origin}`);
   } catch {
     /* ignore */
   }

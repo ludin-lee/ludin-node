@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [Unreleased]
+
+### Added
+
+- **Cookie chaining.** Try it out now keeps the cookies a target sets — a
+  login's `Set-Cookie` — per origin in the browser tab, and sends them back
+  with every later call to that origin. Since ludin makes the call, the API
+  may live on any allowed origin, not just the docs' own; this is what
+  `forwardCookies` cannot cover. Expiring `Set-Cookie`s remove entries, the
+  jar sits under the existing *Auto-capture* switch with a *Clear* button, and
+  `cookie` stays masked in the audit log. `POST /api/try` accepts `cookies`
+  and returns the parsed `cookies` it received. `apiKey` schemes with
+  `in: cookie` are now sent too.
+
 ## [0.6.1] — 2026-09-11
 
 ### Added

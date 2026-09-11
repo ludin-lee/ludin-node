@@ -53,6 +53,8 @@ export interface TryResult {
   body?: string | null;
   bodyBase64?: string | null;
   error?: string;
+  /** Cookies the upstream set on this response, for the per-origin jar. */
+  cookies?: Array<{ name: string; value: string; expired: boolean }>;
   /** Comparison against the documented response schema (core-side). */
   validation?: {
     checked: boolean;
@@ -125,6 +127,8 @@ export const api = {
     body: string | null;
     spec: string;
     op?: { method: string; path: string };
+    /** The jar for the target origin: cookies an earlier response handed out. */
+    cookies?: Record<string, string>;
   }) => send<TryResult>('POST', '/try', payload),
 
   samples: (spec: string, method: string, path: string) =>
