@@ -26,3 +26,5 @@ ludin.db
 .claude/settings.local.json
 .claude/*
 CLAUDE.md
+# static demo, built by scripts/build-demo.mts (the Pages workflow builds it)
+site/demo/
