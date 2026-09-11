@@ -212,6 +212,36 @@ test('try proxy: forwardCookies hands the caller\'s own cookies to same-origin A
   assert.equal((await tryWith({ forwardCookies: ['other'] }, '/console/me')).cookie, undefined);
 });
 
+test('try proxy: a cookie jar from the UI reaches any allowed origin, and Set-Cookie comes back parsed', async (t) => {
+  let seen: Record<string, string> = {};
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+    seen = init.headers as Record<string, string>;
+    const h = new Headers({ 'content-type': 'application/json' });
+    h.append('set-cookie', 'sid=abc123; Path=/; HttpOnly; SameSite=Lax');
+    h.append('set-cookie', 'old=; Max-Age=0; Path=/');
+    h.append('set-cookie', 'gone=x; Expires=Thu, 01 Jan 2015 00:00:00 GMT');
+    return new Response('{}', { status: 200, headers: h });
+  });
+  const ludin = createLudin({ spec, auth: false, audit: { sink: false } });
+
+  // No jar: nothing is sent, and the login response hands the cookies back, flagged.
+  const login = JSON.parse(String((await ludin.handle(post('/api/try', { method: 'POST', url: 'http://api.example.com/login' }))).body));
+  assert.equal(seen.cookie, undefined);
+  assert.deepEqual(login.cookies, [
+    { name: 'sid', value: 'abc123', expired: false },
+    { name: 'old', value: '', expired: true },
+    { name: 'gone', value: 'x', expired: true },
+  ]);
+
+  // With a jar: the target is cross-origin and still gets the cookies — ludin makes the call.
+  // Ludin's own names and malformed pairs are dropped on the way.
+  await ludin.handle(post('/api/try', {
+    method: 'GET', url: 'http://api.example.com/me',
+    cookies: { sid: 'abc123', theme: 'dark', ludin_session: 'nope', 'bad name': 'x', evil: 'a; other=b' },
+  }));
+  assert.equal(seen.cookie, 'sid=abc123; theme=dark');
+});
+
 test('custom verify hook', async () => {
   const ludin = createLudin({
     spec,

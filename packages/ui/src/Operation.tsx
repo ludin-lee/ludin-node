@@ -401,6 +401,64 @@ function TryIt({
   const [autoCapture, setAutoCapture] = useState(autoCaptureOn);
   const [captured, setCaptured] = useState<{ key: string; value: string; applied: boolean } | null>(null);
   const schemeNames = useMemo(() => tokenSchemes(doc), [doc]);
+  // The cookie jar for wherever this operation is sent; reloaded when the server changes.
+  const targetOrigin = originOf(buildUrl(server, op.path, op.parameters, {}));
+  const [jar, setJar] = useState<Record<string, string>>(() => loadJar(targetOrigin));
+  useEffect(() => { setJar(loadJar(targetOrigin)); }, [targetOrigin]);
+  const [cookiesGot, setCookiesGot] = useState<Array<{ name: string; value: string; expired: boolean }> | null>(null);
+  const [pinned, setPinnedState] = useState<Pinned>(loadPinned);
+  const [pinOpen, setPinOpen] = useState(false);
+  function setPinned(next: Pinned) {
+    setPinnedState(next);
+    savePinned(next);
+  }
+  const pinnedCount = pinned.headers.filter(([k]) => k.trim()).length;
+  const [envs, setEnvsState] = useState<Envs>(loadEnvs);
+  const [varsOpen, setVarsOpen] = useState(false);
+  function setEnvs(next: Envs) {
+    setEnvsState(next);
+    saveEnvs(next);
+  }
+  const activeVars = envs.envs[envs.active] ?? [];
+  const vars = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of activeVars) if (k.trim()) out[k.trim()] = v;
+    return out;
+  }, [activeVars]);
+  const varCount = Object.keys(vars).length;
+  const r = (s: string) => substitute(s, vars);
+  function setActiveVars(rows: Array<[string, string]>) {
+    setEnvs({ ...envs, envs: { ...envs.envs, [envs.active]: rows } });
+  }
+  function addEnv() {
+    const name = (prompt(t('varsEnvName')) ?? '').trim();
+    if (!name || envs.envs[name]) return;
+    setEnvs({ active: name, envs: { ...envs.envs, [name]: [] } });
+  }
+  function deleteEnv() {
+    const names = Object.keys(envs.envs);
+    if (names.length < 2) return;
+    const rest = { ...envs.envs };
+    delete rest[envs.active];
+    setEnvs({ active: Object.keys(rest)[0], envs: rest });
+  }
+
+  function applyCookies(list: Array<{ name: string; value: string; expired: boolean }>) {
+    const next = { ...jar };
+    for (const c of list) {
+      if (c.expired) delete next[c.name];
+      else next[c.name] = c.value;
+    }
+    setJar(next);
+    saveJar(targetOrigin, next);
+    setCookiesGot(null);
+  }
+
+  function clearJar() {
+    setJar({});
+    saveJar(targetOrigin, {});
+    setCookiesGot(null);
+  }
 
   /** Store a captured token under every token-bearing scheme, so any operation picks it up. */
   function applyToken(value: string) {
@@ -444,21 +502,27 @@ function TryIt({
     if (!result) return;
     const text = what === 'body'
       ? prettyBody(result)
-      : buildReport({ op, specName, url: finalUrl, headers, body: hasBody ? bodyText : null, result });
+      : buildReport({ op, specName, url: finalUrl, headers, body: resolvedBody, result });
     navigator.clipboard?.writeText(text);
     setCopied(what);
     setTimeout(() => setCopied(null), 1400);
   }
 
-  const url = buildUrl(server, op.path, op.parameters, values);
+  // Everything below works on the request with `{{variables}}` already resolved.
+  const rValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(values)) out[k] = r(v);
+    return out;
+  }, [values, vars]);
+  const url = buildUrl(r(server), op.path, op.parameters, rValues);
   const headers = useMemo(() => {
     const h: Record<string, string> = {};
     for (const p of op.parameters) {
-      if (p.in === 'header' && values[`header:${p.name}`]) h[p.name] = values[`header:${p.name}`];
+      if (p.in === 'header' && rValues[`header:${p.name}`]) h[p.name] = rValues[`header:${p.name}`];
     }
     if (op.op.requestBody && bodyText) h['content-type'] = ct;
     for (const s of security) {
-      const v = auth[s.name];
+      const v = auth[s.name] ? r(auth[s.name]) : '';
       if (!v) continue;
       const sc = s.scheme;
       if (sc.type === 'http' && sc.scheme === 'bearer') h['authorization'] = `Bearer ${v}`;
@@ -466,35 +530,46 @@ function TryIt({
       else if (sc.type === 'apiKey' && sc.in === 'header') h[sc.name] = v;
       else if (sc.type === 'oauth2' || sc.type === 'openIdConnect') h['authorization'] = `Bearer ${v}`;
     }
-    for (const [k, v] of extra) if (k) h[k] = v;
+    // Pinned headers apply everywhere; an operation's own extra header still wins on a clash.
+    if (pinned.on) for (const [k, v] of pinned.headers) if (k.trim()) h[k.trim()] = r(v);
+    for (const [k, v] of extra) if (k) h[k] = r(v);
     return h;
-  }, [op, values, bodyText, ct, security, auth, extra]);
+  }, [op, rValues, bodyText, ct, security, auth, extra, pinned, vars]);
 
   const finalUrl = useMemo(() => {
     let u = url;
     for (const s of security) {
-      const v = auth[s.name];
+      const v = auth[s.name] ? r(auth[s.name]) : '';
       if (v && s.scheme.type === 'apiKey' && s.scheme.in === 'query') {
         u += (u.includes('?') ? '&' : '?') + `${encodeURIComponent(s.scheme.name)}=${encodeURIComponent(v)}`;
       }
     }
     return u;
-  }, [url, security, auth]);
+  }, [url, security, auth, vars]);
 
   const hasBody = op.method !== 'get' && op.method !== 'head' && bodyText;
+  const resolvedBody = hasBody ? r(bodyText) : null;
 
   async function send() {
     setBusy(true);
     setResult(null);
     setCaptured(null);
+    setCookiesGot(null);
     try {
+      // The jar for this origin, plus any apiKey-in-cookie scheme the person typed a value for.
+      const cookies: Record<string, string> = { ...jar };
+      for (const s of security) {
+        const v = auth[s.name];
+        if (v && s.scheme.type === 'apiKey' && s.scheme.in === 'cookie') cookies[s.scheme.name] = v;
+      }
       const r = await api.try({
         method: op.method,
         url: finalUrl,
         headers,
-        body: hasBody ? bodyText : null,
+        body: resolvedBody,
         spec: specName,
         op: { method: op.method, path: op.path },
+        ...(Object.keys(cookies).length ? { cookies } : {}),
       });
       setResult(r);
       setTab('body');
@@ -503,6 +578,11 @@ function TryIt({
       if (token) {
         setCaptured({ ...token, applied: false });
         if (autoCapture) applyToken(token.value);
+      }
+      // Cookie chaining: keep what the target set, drop what it expired.
+      if (r.cookies?.length) {
+        if (autoCapture) applyCookies(r.cookies);
+        else setCookiesGot(r.cookies);
       }
       const entry: HistoryEntry = { values, bodyText, ct, extra, status: r.status, ms: r.ms, at: Date.now() };
       const next = [entry, ...history].slice(0, 20);
@@ -534,12 +614,94 @@ function TryIt({
         {!canTry && <span class="tag">{t('readOnlyRole')}</span>}
       </div>
       <div class="card-b">
-        {schemeNames.length > 0 && (
-          <label class="auto-capture" title={t('autoCaptureHint')}>
-            <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
-            {t('autoCapture')}
-          </label>
+        <label class="auto-capture" title={t('autoCaptureHint')}>
+          <input type="checkbox" checked={autoCapture} onChange={toggleAutoCapture} />
+          {t('autoCapture')}
+        </label>
+        <label class="auto-capture" title={t('pinnedHeadersHint')}>
+          <input type="checkbox" checked={pinned.on} onChange={() => setPinned({ ...pinned, on: !pinned.on })} />
+          {t('pinnedHeaders')}{pinnedCount ? ` (${pinnedCount})` : ''}{' '}
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            style="height:20px;padding:0 6px"
+            onClick={(e) => { e.preventDefault(); setPinOpen(!pinOpen); if (!pinOpen && !pinned.headers.length) setPinned({ ...pinned, headers: [['', '']] }); }}
+          >
+            {pinOpen ? t('pinnedDone') : t('pinnedEdit')}
+          </button>
+        </label>
+        {pinOpen && (
+          <div class="field pinned" style={pinned.on ? '' : 'opacity:.55'}>
+            {pinned.headers.map(([k, v], i) => (
+              <div class="kv">
+                <input placeholder="X-Api-Key" value={k} onInput={(e) => setPinned({ ...pinned, headers: pinned.headers.map((x, j) => (j === i ? [(e.target as HTMLInputElement).value, x[1]] : x)) })} />
+                <input placeholder="Value" value={v} onInput={(e) => setPinned({ ...pinned, headers: pinned.headers.map((x, j) => (j === i ? [x[0], (e.target as HTMLInputElement).value] : x)) })} />
+                <button class="btn btn-sm btn-ghost" onClick={() => setPinned({ ...pinned, headers: pinned.headers.filter((_, j) => j !== i) })}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setPinned({ ...pinned, headers: [...pinned.headers, ['', '']] })}>
+              {t('addHeader')}
+            </button>
+          </div>
         )}
+        <div class="auto-capture" title={t('varsHint')}>
+          <span>{t('vars')}</span>
+          <select
+            class="env-select"
+            value={envs.active}
+            onChange={(e) => {
+              const name = (e.target as HTMLSelectElement).value;
+              if (name === '__new__') { (e.target as HTMLSelectElement).value = envs.active; addEnv(); }
+              else setEnvs({ ...envs, active: name });
+            }}
+          >
+            {Object.keys(envs.envs).map((n) => <option value={n}>{n}</option>)}
+            <option value="__new__">{t('varsEnvNew')}</option>
+          </select>
+          {varCount ? `(${varCount})` : ''}{' '}
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            style="height:20px;padding:0 6px"
+            onClick={() => { setVarsOpen(!varsOpen); if (!varsOpen && !activeVars.length) setActiveVars([['', '']]); }}
+          >
+            {varsOpen ? t('pinnedDone') : t('pinnedEdit')}
+          </button>
+        </div>
+        {varsOpen && (
+          <div class="field vars">
+            {activeVars.map(([k, v], i) => (
+              <div class="kv">
+                <input placeholder="baseUrl" value={k} onInput={(e) => setActiveVars(activeVars.map((x, j) => (j === i ? [(e.target as HTMLInputElement).value, x[1]] : x)))} />
+                <input placeholder="Value" value={v} onInput={(e) => setActiveVars(activeVars.map((x, j) => (j === i ? [x[0], (e.target as HTMLInputElement).value] : x)))} />
+                <button class="btn btn-sm btn-ghost" onClick={() => setActiveVars(activeVars.filter((_, j) => j !== i))}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={() => setActiveVars([...activeVars, ['', '']])}>
+              {t('addHeader')}
+            </button>
+            {Object.keys(envs.envs).length > 1 && (
+              <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px;margin-left:6px" onClick={deleteEnv}>
+                {t('varsEnvDelete', { name: envs.active })}
+              </button>
+            )}
+          </div>
+        )}
+        {cookiesGot && cookiesGot.some((c) => !c.expired) ? (
+          <div class="notice info" style="margin-bottom:8px">
+            {t('cookiesFound', { n: cookiesGot.filter((c) => !c.expired).length, host: targetOrigin.replace(/^https?:\/\//, '') })}{' '}
+            <button class="btn btn-sm" style="height:22px;padding:0 8px" onClick={() => applyCookies(cookiesGot)}>{t('tokenUse')}</button>
+          </div>
+        ) : Object.keys(jar).length > 0 ? (
+          <div class="notice ok" style="margin-bottom:8px">
+            {t('cookiesStored', { n: Object.keys(jar).length, host: targetOrigin.replace(/^https?:\/\//, '') })}{' '}
+            <button class="btn btn-sm btn-ghost" style="height:20px;padding:0 6px" onClick={clearJar}>{t('tokenClear')}</button>
+          </div>
+        ) : null}
         {security.map((s) => (
           <div class="field">
             <label>
@@ -621,7 +783,7 @@ function TryIt({
           <button class="btn btn-primary" disabled={!canTry || busy || missing.length > 0} onClick={send} title={missing.length ? t('missingFields', { names: missing.map((m) => m.name).join(', ') }) : ''}>
             {busy ? <span class="spin" style="border-top-color:#fff" /> : t('sendRequest')}
           </button>
-          <button class="btn" onClick={() => navigator.clipboard?.writeText(toCurl(op.method, finalUrl, headers, hasBody ? bodyText : null))}>
+          <button class="btn" onClick={() => navigator.clipboard?.writeText(toCurl(op.method, finalUrl, headers, resolvedBody))}>
             {t('copyCurl')}
           </button>
           {missing.length > 0 && <span style="font-size:12px;color:var(--text-3)">{t('fillFields', { names: missing.map((m) => m.name).join(', ') })}</span>}
@@ -697,7 +859,7 @@ function TryIt({
                       .join('\n')}
                   </pre>
                 )}
-                {tab === 'curl' && <pre>{toCurl(op.method, finalUrl, headers, hasBody ? bodyText : null)}</pre>}
+                {tab === 'curl' && <pre>{toCurl(op.method, finalUrl, headers, resolvedBody)}</pre>}
               </>
             )}
           </div>
@@ -760,6 +922,71 @@ function loadAuth(): Record<string, string> {
 function saveAuth(v: Record<string, string>) {
   try {
     sessionStorage.setItem('ludin.auth', JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Cookie chaining, the session-cookie twin of token capture: cookies a target
+ * hands out on a Try-it-out response (a login) are kept per origin, in this
+ * tab only, and sent back with every later call to that origin. The proxy makes
+ * the call, so the target may live on any origin – not just the docs' own.
+ */
+function originOf(url: string): string {
+  try { return new URL(url, location.href).origin; } catch { return ''; }
+}
+function loadJar(origin: string): Record<string, string> {
+  try {
+    return origin ? JSON.parse(sessionStorage.getItem(`ludin.cookies:${origin}`) || '{}') : {};
+  } catch {
+    return {};
+  }
+}
+/**
+ * Pinned headers: a small set of headers sent with every request of every
+ * operation – an API key the spec never declared, a tenant id, a feature flag.
+ * One switch turns them all off without losing them. Kept in localStorage like
+ * the per-operation drafts, and headers only: a body or query has no meaning
+ * across operations.
+ */
+interface Pinned { on: boolean; headers: Array<[string, string]> }
+const PINNED_KEY = 'ludin.pinned-headers';
+function loadPinned(): Pinned {
+  const v = loadJson<Partial<Pinned>>(PINNED_KEY);
+  return { on: v?.on !== false, headers: Array.isArray(v?.headers) ? v.headers : [] };
+}
+function savePinned(p: Pinned) {
+  saveJson(PINNED_KEY, p);
+}
+
+/**
+ * Environments: named sets of variables, one active at a time, usable as
+ * `{{name}}` anywhere in a request – path and query values, headers, the body,
+ * pinned headers, auth fields. Switching the environment switches the whole
+ * set, the way a dev / staging / prod toggle should. Unknown names are left
+ * as typed, so a literal `{{...}}` in a body still goes through.
+ */
+interface Envs { active: string; envs: Record<string, Array<[string, string]>> }
+const VARS_KEY = 'ludin.vars';
+const VAR_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
+function loadEnvs(): Envs {
+  const v = loadJson<Partial<Envs>>(VARS_KEY);
+  const envs = v?.envs && typeof v.envs === 'object' && Object.keys(v.envs).length ? v.envs : { default: [] };
+  const active = v?.active && envs[v.active] ? v.active : Object.keys(envs)[0];
+  return { active, envs };
+}
+function saveEnvs(e: Envs) {
+  saveJson(VARS_KEY, e);
+}
+function substitute(s: string, vars: Record<string, string>): string {
+  return s.replace(VAR_RE, (m, k: string) => (k in vars ? vars[k] : m));
+}
+
+function saveJar(origin: string, jar: Record<string, string>) {
+  try {
+    if (Object.keys(jar).length) sessionStorage.setItem(`ludin.cookies:${origin}`, JSON.stringify(jar));
+    else sessionStorage.removeItem(`ludin.cookies:${origin}`);
   } catch {
     /* ignore */
   }

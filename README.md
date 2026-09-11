@@ -204,6 +204,12 @@ Requests go through a server-side proxy (`POST /docs/api/try`) so that every cal
 
 The proxy drops the `Cookie` header, so an API that authenticates with a session cookie — an `/admin` or `/console` living next to the docs — cannot be tried out of the box. `forwardCookies: true` changes that for APIs on the **docs' own origin**: the browser already sends the caller's cookies to `/docs/api/try`, and the proxy hands them on exactly as a direct call from the page would. Cookies for any other origin never reach ludin, so nothing is ever forwarded cross-origin; ludin's own session and share cookies are always left out; a list of names (`forwardCookies: ['sid']`) forwards only those. Two things to know: the target's cookie needs `Path=/` (or a path covering `/docs`) for the browser to send it along, and a `Set-Cookie` in the response comes back as data rather than landing in the browser, so sign in to the target first.
 
+For a session-cookie API on **another** origin — the docs on `localhost`, the API on `api.example.com` — the browser has nothing to lend, so ludin keeps a jar instead. Call the login operation from Try it out: the cookies the response sets are kept in the browser tab, per origin, and sent back with every later call to that origin; since ludin makes the call, the origin does not matter. A `Set-Cookie` that expires a cookie removes it. The jar sits next to captured tokens, under the same *Auto-capture* switch, with a *Clear* button, and it never reaches the audit log (`cookie` is masked).
+
+**Pinned headers** cover the rest: an API key the spec never declared, a tenant id, a feature flag. Add them once at the top of Try it out and they go with every request of every operation; one switch pauses them without losing them. Headers only, and an operation's own extra header still wins on a clash.
+
+**Variables** tie it together: write `{{name}}` anywhere in a request — a path or query value, a header, the body, a pinned header, an auth field — and the active environment fills it in. Environments are named sets (`default`, `staging`, `prod`…) switched from one dropdown, so the same request runs against another stack by changing one thing. An unknown name is left as typed. Stored in the browser; the server never sees the variables, only the resolved request.
+
 ## Repository layout
 
 ```
