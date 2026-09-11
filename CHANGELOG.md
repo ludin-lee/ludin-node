@@ -8,16 +8,44 @@ versioned together.
 
 ### Added
 
+- **Try it out for session-cookie APIs.** `forwardCookies: true` lets the
+  proxy hand the caller's own cookies to an API on the docs' origin — an
+  `/admin` or `/console` next to the docs — exactly as a direct call from the
+  page would. Cookies for other origins never reach ludin, so nothing is
+  forwarded cross-origin; ludin's own session and share cookies are always
+  left out; a list of names forwards only those. Off by default.
+
+## [0.6.0] — 2026-09-10
+
+### Added
+
 - **Export to the tools you use.** `GET /docs/api/export/postman` hands out a
   Postman v2.1 collection and `GET /docs/api/export/types.d.ts` a TypeScript
   declaration file, both generated from the role-filtered document and
-  recorded as `docs.export`. The type file carries only schemas reachable
-  from operations the caller can see. `ludin export <spec> --format
-  postman|types [--out file]` runs the same generators from the CLI.
+  recorded as `docs.export`. Credentials are collection variables
+  (`{{token}}`, `{{apiKey}}`), never literals, and `{{baseUrl}}` resolves a
+  relative server URL against the request origin. The type file carries only
+  schemas reachable by `$ref` from operations the caller can see — the
+  visibility filter removes operations but leaves `components` alone, and a
+  schema name is enough to give a hidden operation away. Read access is
+  export access, so a share link can fetch both.
+- **`ludin export <spec> --format postman|types [--out file]`** runs the same
+  generators without a server. Like `lint` and `diff` it has no caller and so
+  no role, and works from the whole document.
 - **Release notes from a diff.** `ludin diff a.yaml b.yaml --markdown` prints
   the classified changes as Markdown (Breaking / Other changes, grouped by
-  path), and the Changes screen gains *Copy as release notes* in the UI's
-  language.
+  path), and the Changes screen gains *Copy as release notes* in the viewer's
+  language. Classification still happens only in the core, so the CLI and the
+  screen cannot disagree about what breaks.
+
+### Changed
+
+- Code samples and the Postman collection are built from one resolver, so the
+  two can no longer describe different requests.
+- The express example configures `diff.baseline`, so the Changes screen is
+  reachable in the demo.
+- CHANGELOG entries for 0.3.0 through 0.5.0 were written after the fact; the
+  0.2.0 section is marked unpublished, since it shipped inside 0.3.0.
 
 ## [0.5.0] — 2026-09-10
 

@@ -185,6 +185,18 @@ export interface LudinOptions {
   basePath?: string;
   /** Extra hosts Try-it-out proxy may call, besides the spec's `servers`. */
   allowedTargets?: string[];
+  /**
+   * Let Try it out reach APIs that authenticate with a session cookie — an
+   * `/admin` or `/console` living next to the docs. Off by default.
+   *
+   * The browser already sends the caller's own cookies to the proxy when the
+   * API shares the docs' origin; this hands them on to the API, exactly as a
+   * direct call from the page would. Cookies for any other origin never reach
+   * ludin, so nothing is ever forwarded cross-origin, and ludin's own session
+   * and share cookies are always left out. `true` forwards the rest; a list
+   * of names forwards only those.
+   */
+  forwardCookies?: boolean | string[];
 }
 
 /** The identity behind a session, however it was established. */

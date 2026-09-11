@@ -179,6 +179,39 @@ test('try proxy rejects unknown origins and self', async () => {
   assert.equal(self.status, 400);
 });
 
+test('try proxy: forwardCookies hands the caller\'s own cookies to same-origin APIs only', async (t) => {
+  const seen: Array<Record<string, string>> = [];
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+    seen.push(init.headers as Record<string, string>);
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+  });
+  const users = [{ email: 'a@x.io', password: 's3cret', role: 'admin' as const }];
+  async function tryWith(opts: Record<string, unknown>, url: string) {
+    const ludin = createLudin({ spec, auth: { users, session: { secret: 's' } }, audit: { sink: false }, ...opts });
+    const session = cookieOf(await ludin.handle(post('/api/login', { email: 'a@x.io', password: 's3cret' })));
+    // What a browser sends to /docs/api/try when a console session lives on the same origin.
+    const cookie = `${session}; sid=abc; theme=dark; ludin_session_share=nope`;
+    const res = await ludin.handle(post('/api/try', { method: 'GET', url, headers: { cookie: 'typed=by-hand' } }, {
+      headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', cookie },
+    }));
+    assert.equal(res.status, 200, String(res.body));
+    return seen.pop()!;
+  }
+
+  // Off by default: nothing leaves, not even for the docs' own origin.
+  assert.equal((await tryWith({}, '/console/me')).cookie, undefined);
+
+  // On: the caller's cookies go along, ludin's own session and share cookies do not.
+  assert.equal((await tryWith({ forwardCookies: true }, '/console/me')).cookie, 'sid=abc; theme=dark');
+
+  // Never to another origin, even one the proxy may call.
+  assert.equal((await tryWith({ forwardCookies: true }, 'http://api.example.com/pets')).cookie, undefined);
+
+  // A list forwards only those names.
+  assert.equal((await tryWith({ forwardCookies: ['sid'] }, '/console/me')).cookie, 'sid=abc');
+  assert.equal((await tryWith({ forwardCookies: ['other'] }, '/console/me')).cookie, undefined);
+});
+
 test('custom verify hook', async () => {
   const ludin = createLudin({
     spec,
