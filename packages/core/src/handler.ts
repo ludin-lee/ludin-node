@@ -180,7 +180,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       authEnabled,
       theme: options.theme ?? {},
       readme: readme ? { label: readme.label, url: `${basePath === '/' ? '' : basePath}/readme` } : null,
-      version: '0.6.2',
+      version: '0.6.3',
     };
     const page = UI_HTML.replace(
       '<!--LUDIN_CONFIG-->',

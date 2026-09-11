@@ -1,6 +1,6 @@
 {
   "name": "@ludin-docs/core",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Swagger UI, but with login, accounts, IP allowlist, audit log and a beautiful themeable UI. Framework-agnostic core.",
   "license": "MIT",
   "type": "module",

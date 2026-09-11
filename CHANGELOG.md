@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.3] — 2026-09-11
+
+### Added
+
+- **Theme presets.** Nine named palettes on top of the default light/dark
+  pair — `graphite`, `nocturne`, `fjord`, `phosphor`, `contrast` (dark) and
+  `paper`, `blossom`, `cloud`, `mint` (light). `theme.preset` picks the
+  starting one; viewers switch from a *Preset* selector in the user menu and
+  the choice is remembered per browser. Each preset is a complete, fixed
+  scheme, so the light/system/dark toggle only shows for `default`. Buttons on
+  a primary background take their text colour from a new `--on-primary` token.
+  The operator's `primary`/`accent`/`font`/`radius` overrides apply only on
+  top of the preset they were configured with; switching to another preset
+  uses that preset's own values, so a brand colour never lands on a palette
+  it was not picked for.
+
 ## [0.6.2] — 2026-09-11
 
 ### Added

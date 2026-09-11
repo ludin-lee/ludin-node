@@ -1,6 +1,6 @@
 {
   "name": "@ludin-docs/koa",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Koa middleware for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
