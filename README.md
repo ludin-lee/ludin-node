@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/@ludin-docs/core.svg)](https://www.npmjs.com/package/@ludin-docs/core)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-🌐 **Product page:** [ludin-lee.github.io/ludin-node](https://ludin-lee.github.io/ludin-node/) — an introduction in five languages with an in-page sandbox.
+🌐 **Live demo:** [ludin-lee.github.io/ludin-node/demo](https://ludin-lee.github.io/ludin-node/demo/) — the real docs UI on the Petstore example, running entirely in the page (`admin@example.com` / `admin`, `dev` / `dev`, `viewer` / `viewer`). Product page: [ludin-lee.github.io/ludin-node](https://ludin-lee.github.io/ludin-node/).
 
 **API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`. No database, no build step: one middleware and an options object.
 
