@@ -1,6 +1,6 @@
 {
   "name": "@ludin-docs/node",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Plain node:http adapter for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
