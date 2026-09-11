@@ -1,6 +1,6 @@
 {
   "name": "@ludin-docs/nestjs",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "NestJS module for ludin – Swagger UI with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",

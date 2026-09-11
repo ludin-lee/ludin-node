@@ -1,6 +1,6 @@
 {
   "name": "@ludin-docs/hono",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Hono handler for ludin – OpenAPI docs with login, accounts, IP allowlist and a themeable UI.",
   "license": "MIT",
   "type": "module",
