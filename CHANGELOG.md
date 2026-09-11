@@ -8,6 +8,20 @@ versioned together.
 
 ### Added
 
+- **Cookie chaining.** Try it out now keeps the cookies a target sets — a
+  login's `Set-Cookie` — per origin in the browser tab, and sends them back
+  with every later call to that origin. Since ludin makes the call, the API
+  may live on any allowed origin, not just the docs' own; this is what
+  `forwardCookies` cannot cover. Expiring `Set-Cookie`s remove entries, the
+  jar sits under the existing *Auto-capture* switch with a *Clear* button, and
+  `cookie` stays masked in the audit log. `POST /api/try` accepts `cookies`
+  and returns the parsed `cookies` it received. `apiKey` schemes with
+  `in: cookie` are now sent too.
+
+## [0.6.1] — 2026-09-11
+
+### Added
+
 - **Try it out for session-cookie APIs.** `forwardCookies: true` lets the
   proxy hand the caller's own cookies to an API on the docs' origin — an
   `/admin` or `/console` next to the docs — exactly as a direct call from the

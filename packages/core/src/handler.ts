@@ -180,7 +180,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       authEnabled,
       theme: options.theme ?? {},
       readme: readme ? { label: readme.label, url: `${basePath === '/' ? '' : basePath}/readme` } : null,
-      version: '0.6.0',
+      version: '0.6.1',
     };
     const page = UI_HTML.replace(
       '<!--LUDIN_CONFIG-->',
@@ -629,6 +629,48 @@ export function createLudin(options: LudinOptions): LudinHandler {
     spec?: string;
     /** The documented operation behind this call – enables response validation. */
     op?: { method?: string; path?: string };
+    /**
+     * Cookies the docs UI holds for the target origin – ones a previous Try it
+     * out response handed out via Set-Cookie (a login), kept in the browser and
+     * sent back here. Lets a session-cookie API be used from the docs even when
+     * it lives on another origin, since it is ludin that makes the call.
+     */
+    cookies?: Record<string, string>;
+  }
+
+  /** A cookie the upstream set, reduced to what the docs UI needs to keep it. */
+  interface SetCookieEntry {
+    name: string;
+    value: string;
+    /** Max-Age=0 or an Expires in the past: the upstream is asking to drop it. */
+    expired: boolean;
+  }
+
+  /** Cookie names and values are restricted to what fits one `name=value` pair of a Cookie header. */
+  const COOKIE_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+  const COOKIE_VALUE = /^[^\s;,]*$/;
+
+  function parseSetCookie(lines: string[]): SetCookieEntry[] {
+    const out: SetCookieEntry[] = [];
+    for (const line of lines) {
+      const [pair, ...attrs] = line.split(';');
+      const idx = pair.indexOf('=');
+      if (idx < 0) continue;
+      const name = pair.slice(0, idx).trim();
+      const value = pair.slice(idx + 1).trim().replace(/^"(.*)"$/, '$1');
+      if (!COOKIE_NAME.test(name) || !COOKIE_VALUE.test(value)) continue;
+      let expired = false;
+      for (const attr of attrs) {
+        const [k, v = ''] = attr.split('=').map((s) => s.trim());
+        if (/^max-age$/i.test(k) && Number(v) <= 0) expired = true;
+        if (/^expires$/i.test(k)) {
+          const when = Date.parse(v);
+          if (!Number.isNaN(when) && when <= Date.now()) expired = true;
+        }
+      }
+      out.push({ name, value, expired: expired || value === '' });
+    }
+    return out;
   }
 
   /** The incoming Cookie header minus ludin's own cookies, kept verbatim so values round-trip untouched. */
@@ -689,10 +731,21 @@ export function createLudin(options: LudinOptions): LudinHandler {
     // same ones a direct call from the page would carry — and never to another
     // origin, since cookies for other origins never reach ludin in the first
     // place. Ludin's own session and share cookies stay out.
+    const cookiePairs: string[] = [];
     if (target.origin === selfOrigin) {
       const cookie = forwardableCookies(ctx.req.headers['cookie']);
-      if (cookie) headers['cookie'] = cookie;
+      if (cookie) cookiePairs.push(cookie);
     }
+    // The jar the UI keeps for this origin: cookies the target itself handed
+    // out on an earlier call. They are the caller's own, so they may go to any
+    // allowed origin – that is the whole point – but never under ludin's names,
+    // and only as well-formed pairs so nothing can smuggle in a second header.
+    for (const [name, value] of Object.entries(body.cookies ?? {})) {
+      if (name === cookieName || name === shareCookieName) continue;
+      if (typeof value !== 'string' || !COOKIE_NAME.test(name) || !COOKIE_VALUE.test(value)) continue;
+      cookiePairs.push(`${name}=${value}`);
+    }
+    if (cookiePairs.length) headers['cookie'] = cookiePairs.join('; ');
 
     const started = Date.now();
     const method = body.method.toUpperCase();
@@ -737,10 +790,15 @@ export function createLudin(options: LudinOptions): LudinHandler {
       },
     });
 
+    // Set-Cookie must be read through getSetCookie(): the generic accessor folds
+    // several cookies into one comma-joined string that cannot be split safely.
+    const setCookies = typeof upstream.headers.getSetCookie === 'function' ? upstream.headers.getSetCookie() : [];
+
     return {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: resHeaders,
+      cookies: parseSetCookie(setCookies),
       ms,
       size: buf.length,
       body: isText ? buf.toString('utf8') : null,
