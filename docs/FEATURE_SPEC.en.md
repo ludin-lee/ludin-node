@@ -71,6 +71,7 @@ One `readme` line adds a button to the top bar and puts that HTML file behind **
 - Input: a JSON/YAML file path, an object, a URL, or a function (generated at runtime)
 - Grouping by tag, path/method lists, schema viewer (nested, recursive, oneOf/anyOf/allOf)
 - Try it out: parameter form, request body editor, response view, cURL copy
+- APIs that authenticate with a session cookie (an `/admin` or `/console` living next to the docs) can be tried too: with `forwardCookies` on, the proxy hands the caller's **own** cookies to the target. Only when it shares the docs' **origin** — cookies for any other origin never reach ludin, so there is nothing to forward. Ludin's own session and share cookies are always left out, and a list of names narrows it further. Off by default. A `Set-Cookie` in the response comes back as data rather than landing in the browser, so sign in to the target first
 - Security schemes: apiKey, http (basic/bearer), oauth2, openIdConnect — credentials entered stay in the browser session only
 - Search (path, summary, tag) and deep links (`#tag/operationId`)
 - Multiple specs (switch between several services in one ludin)
@@ -382,6 +383,7 @@ interface LudinOptions {
   share?: { enabled?: boolean; maxTtl?: string };
   theme?: ThemeOptions;
   allowedTargets?: string[];
+  forwardCookies?: boolean | string[];
   basePath?: string;
 }
 ```

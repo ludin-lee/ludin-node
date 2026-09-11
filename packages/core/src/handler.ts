@@ -69,6 +69,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
     : null;
   const shareCookieName = `${cookieName}_share`;
   const shareMaxTtl = parseDuration(options.share?.maxTtl, 30 * 86400);
+  const forwardCookies = options.forwardCookies ?? false;
+  const forwardableCookieNames = Array.isArray(forwardCookies) ? new Set(forwardCookies) : null;
   const lockout = new Lockout(auth?.lockout?.attempts ?? 5, parseDuration(auth?.lockout?.window, 15 * 60) * 1000);
   const ipPolicy = options.ipPolicy ?? 'and';
   const allowLocalhost = options.allowLocalhost ?? true;
@@ -629,6 +631,23 @@ export function createLudin(options: LudinOptions): LudinHandler {
     op?: { method?: string; path?: string };
   }
 
+  /** The incoming Cookie header minus ludin's own cookies, kept verbatim so values round-trip untouched. */
+  function forwardableCookies(raw: string | string[] | undefined): string | undefined {
+    if (!forwardCookies) return undefined;
+    const header = Array.isArray(raw) ? raw.join('; ') : raw;
+    if (!header) return undefined;
+    const kept = header
+      .split(';')
+      .map((pair) => pair.trim())
+      .filter((pair) => {
+        const idx = pair.indexOf('=');
+        const name = idx < 0 ? '' : pair.slice(0, idx).trim();
+        if (!name || name === cookieName || name === shareCookieName) return false;
+        return forwardableCookieNames ? forwardableCookieNames.has(name) : true;
+      });
+    return kept.length ? kept.join('; ') : undefined;
+  }
+
   async function tryProxy(ctx: Ctx): Promise<LudinResponse> {
     requireMethod(ctx, 'POST');
     return json(200, await executeTry(ctx, parseJson(ctx.req.body) as TryPayload));
@@ -665,6 +684,15 @@ export function createLudin(options: LudinOptions): LudinHandler {
     }
     headers['x-forwarded-for'] = ctx.ip;
     headers['x-ludin-user'] = ctx.user!.email;
+    // Session-cookie APIs on the docs' own origin, when the deployment opted
+    // in. Only the caller's own cookies as the browser sent them to us — the
+    // same ones a direct call from the page would carry — and never to another
+    // origin, since cookies for other origins never reach ludin in the first
+    // place. Ludin's own session and share cookies stay out.
+    if (target.origin === selfOrigin) {
+      const cookie = forwardableCookies(ctx.req.headers['cookie']);
+      if (cookie) headers['cookie'] = cookie;
+    }
 
     const started = Date.now();
     const method = body.method.toUpperCase();
