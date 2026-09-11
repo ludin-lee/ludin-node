@@ -30,6 +30,19 @@ export type SpecSource =
   | object // an OpenAPI document (e.g. from @nestjs/swagger)
   | (() => object | Promise<object>);
 
+/** Named palettes shipped with the UI. `default` is the built-in light/dark pair. */
+export type ThemePreset =
+  | 'default'
+  | 'graphite'
+  | 'nocturne'
+  | 'fjord'
+  | 'phosphor'
+  | 'paper'
+  | 'contrast'
+  | 'blossom'
+  | 'cloud'
+  | 'mint';
+
 export interface ThemeOptions {
   title?: string;
   logo?: string; // URL or data URI, shown top-left
@@ -42,6 +55,15 @@ export interface ThemeOptions {
   radius?: 'none' | 'sm' | 'md' | 'lg';
   density?: 'compact' | 'comfortable';
   mode?: 'light' | 'dark' | 'system';
+  /**
+   * Starting palette. Every preset except `default` is a complete, fixed
+   * color scheme (dark presets stay dark, light ones stay light), so the
+   * light/system/dark toggle only applies to `default`. Viewers can switch
+   * presets in the user menu; their choice is remembered per browser.
+   * `primary`, `accent`, `font` and `radius` apply on top of this preset;
+   * when a viewer switches to another one, that preset's own values are used.
+   */
+  preset?: ThemePreset;
   customCss?: string;
   /** UI language: 'en' | 'ko' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'pt' | 'ru'. Default: the browser language, falling back to English. Viewers can switch in the menu. */
   language?: string;
