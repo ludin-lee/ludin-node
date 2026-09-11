@@ -17,6 +17,16 @@ versioned together.
   `cookie` stays masked in the audit log. `POST /api/try` accepts `cookies`
   and returns the parsed `cookies` it received. `apiKey` schemes with
   `in: cookie` are now sent too.
+- **Pinned headers.** Headers every request must carry — an API key the spec
+  never declared, a tenant id — are written once at the top of Try it out and
+  sent with every request of every operation. One switch pauses them without
+  losing the values; an operation's own extra header wins on a clash. Headers
+  only, stored in the browser.
+- **Variables and environments.** `{{name}}` anywhere in a request — path
+  and query values, headers, body, pinned headers, auth fields — is filled
+  from the active environment. Environments are named variable sets switched
+  from a dropdown at the top of Try it out; unknown names are left as typed.
+  Stored in the browser, never sent to the server.
 
 ## [0.6.1] — 2026-09-11
 
