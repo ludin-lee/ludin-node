@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ludin — Node.js용 API 문서 미들웨어. OpenAPI 렌더링 위에 로그인, 역할, IP 화이트리스트, 감사 로그를 한 줄로 얹습니다.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ludin — API 문서에 "누가 볼 수 있는가"를 붙였습니다">
+<meta property="og:description" content="Node.js용 API 문서 미들웨어. 로그인 · 역할 · IP 화이트리스트 · 감사 로그 · 코드 샘플 · 스펙 diff · 공유 링크 · MCP. DB 없음, 5분 설치.">
+<meta property="og:url" content="https://ludin-lee.github.io/ludin-node/">
+<meta property="og:image" content="https://ludin-lee.github.io/ludin-node/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ludin — API docs that know who is allowed to read them">
+<meta name="twitter:description" content="API documentation middleware for Node.js: login, roles, IP allowlist and an audit log on top of OpenAPI rendering. No database, five-minute setup.">
+<meta name="twitter:image" content="https://ludin-lee.github.io/ludin-node/og.png">
+<link rel="canonical" href="https://ludin-lee.github.io/ludin-node/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2026%2026%22%20fill%3D%22none%22%3E%3Crect%20x%3D%221.5%22%20y%3D%221.5%22%20width%3D%2223%22%20height%3D%2223%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%2F%3E%3Cpath%20d%3D%22M8%207v12h10%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<title>ludin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #f4f6fa; --surface: #ffffff; --sunken: #eaedf4; --line: #d9deea;
+    --ink: #151a24; --ink-2: #3d4657; --muted: #6b7486;
+    --primary: #4f6ef7; --primary-ink: #2f4ed6; --primary-soft: #e6ebfe;
+    --ok: #10b981; --ok-soft: #dcf7ec; --warn: #e5484d; --warn-soft: #fde5e6;
+    --code-bg: #171b24; --code-ink: #e7eaf0; --code-muted: #8b95a8;
+    --shadow: 0 12px 40px rgba(21, 26, 36, .10);
+    --field-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1218; --surface: #171b24; --sunken: #11151c; --line: #262c3a;
+      --ink: #e7eaf0; --ink-2: #c3c9d6; --muted: #8f98aa;
+      --primary: #7b93ff; --primary-ink: #a4b5ff; --primary-soft: #1f2744;
+      --ok: #34d399; --ok-soft: #12352b; --warn: #ff6b70; --warn-soft: #3d1d20;
+      --code-bg: #0b0e14; --code-ink: #e7eaf0; --code-muted: #7d8799;
+      --shadow: 0 12px 40px rgba(0, 0, 0, .45);
+      --field-bg: #0f1218;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1218; --surface: #171b24; --sunken: #11151c; --line: #262c3a;
+    --ink: #e7eaf0; --ink-2: #c3c9d6; --muted: #8f98aa;
+    --primary: #7b93ff; --primary-ink: #a4b5ff; --primary-soft: #1f2744;
+    --ok: #34d399; --ok-soft: #12352b; --warn: #ff6b70; --warn-soft: #3d1d20;
+    --code-bg: #0b0e14; --code-ink: #e7eaf0; --code-muted: #7d8799;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .45);
+    --field-bg: #0f1218;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans KR", "IBM Plex Sans", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; word-break: keep-all;
+  }
+  body[data-lang="ja"] { font-family: "Noto Sans JP", "IBM Plex Sans", "Hiragino Sans", system-ui, sans-serif; }
+  body[data-lang="zh"] { font-family: "Noto Sans SC", "IBM Plex Sans", "PingFang SC", system-ui, sans-serif; }
+  body[data-lang="en"], body[data-lang="es"] { font-family: "IBM Plex Sans", "IBM Plex Sans KR", system-ui, sans-serif; word-break: normal; }
+  code, pre, .mono, input, textarea { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+  a { color: var(--primary-ink); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  button { font-family: inherit; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; color: var(--ink); }
+  .brand svg { width: 26px; height: 26px; }
+  .top nav { display: flex; gap: 22px; font-size: 14px; font-weight: 500; align-items: center; }
+  .top nav a { color: var(--ink-2); }
+  .lang { font: inherit; font-size: 13px; font-weight: 500; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+
+  .hero { padding: 48px 0 72px; max-width: 760px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .eyebrow b { color: var(--primary-ink); font-weight: 600; }
+  h1 { font-size: clamp(34px, 4.6vw, 50px); line-height: 1.18; letter-spacing: -.025em; margin: 14px 0 18px; font-weight: 700; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--primary-ink); }
+  .lede { font-size: 17.5px; color: var(--ink-2); max-width: 34em; margin: 0 0 26px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 8px; font-weight: 600; font-size: 15px; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-ink); text-decoration: none; }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+  .btn-ghost:hover { border-color: var(--muted); text-decoration: none; }
+  .install { margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; background: var(--code-bg); color: var(--code-ink); padding: 10px 14px; border-radius: 8px; font-size: 13.5px; }
+  .install span { color: var(--code-muted); }
+
+  /* ---------- sandbox ---------- */
+  .demo { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .demo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--sunken); }
+  .demo-head .title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .roles { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; }
+  .roles button { font-size: 12.5px; font-weight: 600; padding: 5px 11px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+  .roles button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+  .demo-body { display: grid; grid-template-columns: 190px minmax(0, 1fr); height: 560px; }
+  .side { border-right: 1px solid var(--line); padding: 12px 10px; font-size: 13px; overflow: auto; }
+  .side .grp { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 8px 4px; }
+  .side .op { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); font-size: 13px; text-align: left; cursor: pointer; }
+  .side .op:hover { background: var(--sunken); color: var(--ink); }
+  .side .op.cur, .side .op.cur:hover { background: var(--primary-soft); color: var(--ink); }
+  .m { font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .04em; padding: 2px 5px; border-radius: 4px; min-width: 40px; text-align: center; color: #fff; }
+  .m-get { background: #2f9e64; } .m-post { background: #3b6df0; } .m-del { background: #d64545; }
+  .main { padding: 16px 18px; font-size: 13.5px; overflow: auto; }
+  .main h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .main .path { color: var(--muted); font-size: 12.5px; }
+  .main .desc { color: var(--ink-2); margin: 8px 0 14px; }
+
+  .req { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .req .rh, .resp .rh { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: var(--sunken); font-size: 12px; color: var(--muted); }
+  .req .rh b { color: var(--ink-2); font-weight: 600; }
+  .req .row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border-top: 1px solid var(--line); align-items: start; }
+  .req .row:first-of-type { border-top: 0; }
+  .req label, .req .lbl { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
+  .url { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-2); }
+  .url .host { color: var(--muted); }
+  .field { font-size: 12.5px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--field-bg); color: var(--ink); min-width: 0; }
+  .field:focus { border-color: var(--primary); outline: none; }
+  .url .field { width: 70px; padding: 3px 7px; }
+  .kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 6px; }
+  .kv .field.k { color: var(--muted); }
+  .kv .field.k:not([readonly]) { color: var(--ink); }
+  textarea.field { width: 100%; min-height: 76px; resize: vertical; line-height: 1.5; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-2); background: var(--surface); cursor: pointer; }
+  .chip:hover { border-color: var(--muted); color: var(--ink); }
+  .chip.on, .chip.on:hover { border-color: var(--primary); color: var(--primary-ink); background: var(--primary-soft); }
+  .chip.try { background: var(--primary); color: #fff; border-color: transparent; margin-left: auto; }
+  .chip.try:hover { background: var(--primary-ink); color: #fff; }
+  .resp { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .badge { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .resp pre { margin: 0; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); background: var(--surface); white-space: pre; overflow: auto; height: 190px; }
+  .audit { border-top: 1px solid var(--line); background: var(--code-bg); color: var(--code-muted); padding: 10px 14px; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.55; height: 78px; }
+  .audit .lbl { color: var(--code-muted); letter-spacing: .08em; text-transform: uppercase; font-size: 10px; display: block; margin-bottom: 3px; }
+  .audit div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .audit .k { color: #7b93ff; } .audit .s { color: #34d399; } .audit .w { color: #ff6b70; }
+  .note { font-size: 13px; color: #c3c9d6; margin: 12px 0 0; }
+
+  .fab { position: fixed; right: 22px; bottom: 22px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; border: 0; border-radius: 999px; background: var(--primary); color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer; box-shadow: 0 10px 30px rgba(79, 110, 247, .35); transition: transform .18s ease, opacity .18s ease; }
+  .fab:hover { background: var(--primary-ink); }
+  .fab.pressed { transform: scale(.92); }
+  .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(8, 11, 18, .62); display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; opacity: 0; transition: opacity .3s ease; }
+  .overlay.in { opacity: 1; }
+  .modal { width: min(980px, 100%); transform-origin: var(--ox, 100%) var(--oy, 100%); opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.14, .05); transition: transform .5s cubic-bezier(.18, .9, .22, 1.04), opacity .28s ease; will-change: transform, opacity; }
+  .overlay.in .modal { opacity: 1; transform: none; }
+  .overlay.out .modal { transition: transform .38s cubic-bezier(.55, 0, .85, .35), opacity .3s ease .08s; }
+  .modal-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #e7eaf0; font-size: 14px; font-weight: 500; margin-bottom: 10px; }
+  .close { font-size: 14px; font-weight: 600; width: 34px; height: 34px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .08); color: #fff; cursor: pointer; }
+  .close:hover { background: rgba(255, 255, 255, .18); }
+  .modal .demo { box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+  @media (prefers-reduced-motion: reduce) {
+    .overlay, .modal, .overlay.out .modal, .fab { transition: none; }
+    .modal { transform: none; opacity: 1; }
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  .sec-head { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 32px; margin-bottom: 32px; }
+  h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.25; letter-spacing: -.02em; margin: 0; font-weight: 700; text-wrap: balance; }
+  .sec-head p { margin: 0; color: var(--ink-2); font-size: 16.5px; max-width: 34em; }
+  .k-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--primary-ink); font-weight: 600; margin-bottom: 10px; display: block; }
+  .feat { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+  .feat dl { margin: 0; }
+  .feat .row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .feat dt { font-weight: 600; font-size: 15px; margin: 0; }
+  .feat dd { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .feat dd code, .desc code { font-size: 12.5px; background: var(--sunken); padding: 1px 5px; border-radius: 4px; color: var(--ink); }
+  .code { background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 20px 22px; font-size: 13.5px; line-height: 1.6; overflow-x: auto; margin: 0; }
+  .code .c { color: var(--code-muted); } .code .k { color: #7b93ff; } .code .s { color: #34d399; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .principle { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+  .principle h2 { font-size: clamp(28px, 3.6vw, 40px); }
+  .principle p { color: var(--ink-2); margin: 12px 0 0; }
+  .env { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; background: var(--sunken); border-radius: 10px; padding: 16px 18px; color: var(--ink-2); line-height: 1.7; overflow-x: auto; }
+  .env b { color: var(--ink); font-weight: 600; } .env .s { color: var(--ok); }
+  .adapters { display: flex; flex-wrap: wrap; gap: 10px; }
+  .adapters span { font-family: "IBM Plex Mono", monospace; font-size: 13px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); }
+  .adapters span b { color: var(--ink); font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+  .stat { padding: 16px 18px; border-left: 2px solid var(--primary); background: var(--surface); }
+  .stat b { display: block; font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 80px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+  footer .links { display: flex; gap: 18px; }
+
+  @media (max-width: 860px) {
+    .sec-head, .feat, .two, .principle { grid-template-columns: 1fr; }
+    .hero { padding-top: 16px; }
+    .demo-body { grid-template-columns: 150px minmax(0, 1fr); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .top nav a { display: none; }
+  }
+  @media (max-width: 560px) {
+    .demo-body { grid-template-columns: 1fr; height: auto; }
+    .side { border-right: 0; border-bottom: 1px solid var(--line); }
+    .overlay { padding: 12px; align-items: flex-start; }
+    .fab { right: 14px; bottom: 14px; }
+    .feat .row, .req .row { grid-template-columns: 1fr; gap: 4px; }
+    .principle { padding: 26px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top" aria-label="ludin">
+      <svg viewBox="0 0 26 26" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="23" height="23" rx="6" stroke="currentColor" stroke-width="2"/><path d="M8 7v12h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ludin
+    </a>
+    <nav>
+      <a href="#access" data-i18n="nav_access">접근 통제</a>
+      <a href="#trust" data-i18n="nav_trust">문서 품질</a>
+      <a href="#share" data-i18n="nav_share">내보내기</a>
+      <a href="https://github.com/ludin-lee/ludin-node">GitHub</a>
+      <select class="lang" id="lang" aria-label="Language">
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="zh">中文</option>
+        <option value="es">Español</option>
+      </select>
+    </nav>
+  </header>
+
+  <section class="hero" id="top" style="border-top:0">
+    <div class="eyebrow">Node.js · OpenAPI · <b>v0.6.2</b></div>
+    <h1 data-i18n="h1">API 문서에<br><em>"누가 볼 수 있는가"</em>를<br>붙였습니다</h1>
+    <p class="lede" data-i18n="lede">ludin은 Node.js용 API 문서 미들웨어입니다. 기존 OpenAPI 문서 도구가 예쁘게 보여주는 데서 멈춘다면, ludin은 그 위에 로그인, 역할, IP 화이트리스트, 감사 로그를 한 줄로 얹습니다.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/ludin-lee/ludin-node" data-i18n="cta_github">GitHub에서 보기</a>
+      <a class="btn btn-ghost" href="https://www.npmjs.com/package/@ludin-docs/core">npm</a>
+      <button type="button" class="btn btn-ghost" id="openDemo2" data-i18n="cta_demo">▶ 샌드박스 열어보기</button>
+    </div>
+    <div class="install mono"><span>$</span>npm i @ludin-docs/core @ludin-docs/express</div>
+  </section>
+
+  <section id="start">
+    <div class="sec-head">
+      <div><span class="k-eyebrow" data-i18n="start_eyebrow">한 줄로 시작</span><h2 data-i18n="start_h2">이미 있는 앱에 마운트하면 끝</h2></div>
+      <p data-i18n="start_p">OpenAPI 파일 경로나 객체를 넘기고, 계정과 IP 규칙을 코드나 환경변수로 적습니다. 붙일 인프라가 없어서 5분이면 올라갑니다.</p>
+    </div>
+<pre class="code"><span class="k">import</span> { ludin } <span class="k">from</span> <span class="s">'@ludin-docs/express'</span>;
+
+app.use(<span class="s">'/docs'</span>, ludin({
+  spec: <span class="s">'./openapi.yaml'</span>,
+  auth: { users: [{ email: <span class="s">'me@corp.io'</span>, password: process.env.DOCS_PW, role: <span class="s">'admin'</span> }] },
+  ipAllowlist: [<span class="s">'10.0.0.0/8'</span>, <span class="s">'203.0.113.0/24'</span>],
+  visibility: { <span class="s">'tag:Admin'</span>: [<span class="s">'admin'</span>] },   <span class="c" data-i18n="c_vis">// admin이 아니면 이 태그는 존재하지 않는다</span>
+  share: { enabled: <span class="k">true</span> },                <span class="c" data-i18n="c_share">// 만료되는 공유 링크</span>
+  mcp:   { enabled: <span class="k">true</span> },                <span class="c" data-i18n="c_mcp">// AI 에이전트용 엔드포인트</span>
+}));</pre>
+  </section>
+
+  <section id="access">
+    <div class="sec-head">
+      <div><span class="k-eyebrow" data-i18n="access_eyebrow">접근 통제</span><h2 data-i18n="access_h2">문서를 여는 모든 경로가 한 파이프라인을 지납니다</h2></div>
+      <p data-i18n="access_p">IP 검사 → 세션 → 역할 → 스펙 필터링 → 렌더 → 감사 기록. 문서 UI도, 스펙 JSON도, Try it out 프록시도, 에이전트 엔드포인트도 예외 없이 같은 순서로 검사됩니다.</p>
+    </div>
+    <div class="feat">
+      <dl>
+        <div class="row"><dt data-i18n="a1t">로그인</dt><dd data-i18n="a1d">이메일/비밀번호. scrypt 내장, bcrypt·argon2 선택. 서명된 HttpOnly 쿠키 세션, 실패 횟수 기반 잠금. 사내 인증에는 <code>verify(email, password)</code> 콜백으로 연결.</dd></div>
+        <div class="row"><dt data-i18n="a2t">역할</dt><dd data-i18n="a2d">viewer · developer · admin 기본 3단계에 커스텀 역할 추가. 권한은 <code>docs:read</code>, <code>docs:try</code>, <code>admin:read</code> 셋.</dd></div>
+        <div class="row"><dt data-i18n="a3t">IP 화이트리스트</dt><dd data-i18n="a3d">CIDR, 단일 IP, 범위, IPv6. 리버스 프록시 뒤에서는 <code>trustProxy</code>로 신뢰할 hop 수를 지정. IP만으로 통과시키는 <code>ipPolicy: 'or'</code>도 가능.</dd></div>
+      </dl>
+      <dl>
+        <div class="row"><dt data-i18n="a4t">가시성</dt><dd data-i18n="a4d">태그·경로·메서드 단위로 <code>visibility</code>를 걸면 그 역할은 해당 오퍼레이션이 <em>존재하지 않는</em> 문서를 받습니다. 검색 인덱스, 코드 샘플, 내보내기 전부 필터링 후의 문서에서 생성됩니다.</dd></div>
+        <div class="row"><dt data-i18n="a5t">감사 로그</dt><dd data-i18n="a5d">로그인 성공·실패, 열람, 내려받기, API 호출(메서드·경로·상태·소요시간), IP 차단. 기본은 JSON lines로 stdout, 원하는 싱크로 교체 가능. 민감 헤더는 마스킹.</dd></div>
+        <div class="row"><dt data-i18n="a6t">Try it out</dt><dd data-i18n="a6d">브라우저가 아니라 서버 프록시가 호출합니다. 그래서 모든 호출이 사용자에게 귀속되고, 스펙의 <code>servers</code> 밖으로는 나가지 않습니다. 같은 origin의 세션 쿠키 API도 옵션으로 시험 가능.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="trust">
+    <div class="sec-head">
+      <div><span class="k-eyebrow" data-i18n="trust_eyebrow">문서 품질</span><h2 data-i18n="trust_h2">읽는 문서에서, 믿을 수 있는 문서로</h2></div>
+      <p data-i18n="trust_p">무거운 계산은 전부 서버에서 합니다. UI는 결과만 그리므로 가볍고, 어느 것도 역할 필터를 우회하지 않습니다.</p>
+    </div>
+    <div class="feat">
+      <dl>
+        <div class="row"><dt data-i18n="t1t">코드 샘플</dt><dd data-i18n="t1d">curl · fetch · axios · Python · Go · <code>.http</code>. 서버 URL, 인증 헤더, 바디 예시가 채워진 채로 나옵니다.</dd></div>
+        <div class="row"><dt data-i18n="t2t">⌘K 검색</dt><dd data-i18n="t2d">경로·요약·operationId·태그에 더해 <strong>스키마 필드명</strong>까지. "createdAt을 돌려주는 API가 뭐지"에 답합니다.</dd></div>
+        <div class="row"><dt data-i18n="t3t">응답 검증</dt><dd data-i18n="t3d">Try it out 응답을 문서화된 스키마와 대조해 어긋난 곳을 표시합니다. 봉투 응답(<code>{ data: … }</code>)도 인식.</dd></div>
+      </dl>
+      <dl>
+        <div class="row"><dt data-i18n="t4t">건강 점수 · lint</dt><dd data-i18n="t4d">설명 누락, 예시 없음, 응답 스키마 없음 같은 항목을 점수로. <code>ludin lint spec.yaml --min 80</code>으로 CI에서 강제.</dd></div>
+        <div class="row"><dt data-i18n="t5t">스펙 diff</dt><dd data-i18n="t5d">이전 버전과 비교해 breaking change를 분류합니다. 경로 삭제, required 추가, enum 축소, 타입 변경, 응답 코드 제거. <code>--markdown</code>으로 릴리스 노트까지.</dd></div>
+        <div class="row"><dt data-i18n="t6t">3.1 웹훅</dt><dd data-i18n="t6d">API가 나를 호출하는 방향의 오퍼레이션도 렌더합니다. 가시성 규칙은 웹훅에도 똑같이 적용.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="share">
+    <div class="sec-head">
+      <div><span class="k-eyebrow" data-i18n="share_eyebrow">밖으로 내보내기</span><h2 data-i18n="share_h2">파트너에게도, 에이전트에게도, 딱 그만큼만</h2></div>
+      <p data-i18n="share_p">나가는 모든 것은 받는 사람의 역할로 필터링된 문서에서 만들어집니다. 읽을 수 있는 만큼만 가져갈 수 있습니다.</p>
+    </div>
+    <div class="two">
+      <dl class="feat" style="grid-template-columns:1fr">
+        <div class="row"><dt data-i18n="s1t">공유 링크</dt><dd data-i18n="s1d">역할, 유효 기간, 스펙, 실행 허용 여부를 정해 발급. 첫 사용 시 URL에서 HttpOnly 쿠키로 옮겨가 리퍼러·기록에 남지 않습니다. 관리자 권한은 절대 담을 수 없습니다.</dd></div>
+        <div class="row"><dt data-i18n="s2t">Postman · TypeScript</dt><dd data-i18n="s2d">Postman v2.1 컬렉션과 <code>.d.ts</code> 선언 파일. 자격 증명은 변수로만, 타입은 보이는 오퍼레이션에서 도달 가능한 스키마만.</dd></div>
+        <div class="row"><dt data-i18n="s3t">MCP 엔드포인트</dt><dd data-i18n="s3d">AI 에이전트가 목록·검색·상세·실행 네 가지 도구로 문서를 씁니다. 새 API 키 없이 공유 링크나 세션으로 인증하고, 실행은 <code>docs:try</code>가 있어야만 보입니다.</dd></div>
+      </dl>
+<pre class="code" style="align-self:stretch"><span class="c" data-i18n="c_mcp1"># 읽기 전용 공유 링크를 에이전트에 물려주면</span>
+<span class="c" data-i18n="c_mcp2"># 검색·조회는 되고 call_operation은 목록에 없다</span>
+POST /docs/api/mcp
+Authorization: Bearer &lt;share-token&gt;
+
+{ "method": "tools/list" }
+
+→ list_operations
+  search_operations
+  get_operation
+  <span class="c" data-i18n="c_mcp3">(call_operation: docs:try 필요)</span></pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="principle">
+      <div>
+        <span class="k-eyebrow" data-i18n="p_eyebrow">설계 원칙</span>
+        <h2 data-i18n="p_h2">DB가 없습니다</h2>
+        <p data-i18n="p_p">계정, IP 규칙, 역할 전부 코드와 환경변수에서 옵니다. 관리 화면은 현재 설정을 읽기 전용으로 보여줄 뿐입니다. 붙일 인프라가 없으니 5분이면 올라가고, 뚫릴 저장소도 없습니다. 런타임 의존성은 사실상 0입니다.</p>
+      </div>
+      <div class="env">
+<b>LUDIN_USERS</b>=me@corp.io:<span class="s">$scrypt$…</span>:admin,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;partner@x.io:<span class="s">$scrypt$…</span>:viewer<br>
+<b>LUDIN_IPS</b>=10.0.0.0/8,203.0.113.0/24<br>
+<b>LUDIN_SESSION_SECRET</b>=<span class="s">…</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div><span class="k-eyebrow" data-i18n="r_eyebrow">그 외</span><h2 data-i18n="r_h2">쓰던 프레임워크 그대로</h2></div>
+      <p data-i18n="r_p">코어는 프레임워크에 독립적인 <code class="mono">Request → Response</code> 핸들러이고, 어댑터는 얇은 래퍼입니다. UI는 코어 안에 단일 HTML로 컴파일되어 정적 파일 서빙도 필요 없습니다.</p>
+    </div>
+    <div class="adapters">
+      <span><b>@ludin-docs/express</b></span>
+      <span><b>@ludin-docs/fastify</b></span>
+      <span><b>@ludin-docs/koa</b></span>
+      <span><b>@ludin-docs/hono</b></span>
+      <span><b>@ludin-docs/nestjs</b></span>
+      <span><b>@ludin-docs/node</b> · node:http</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>OpenAPI 2.0 · 3.0 · 3.1</b><span data-i18n="st1">2.0은 자동 변환</span></div>
+      <div class="stat"><b data-i18n="st2b">9개 언어</b><span data-i18n="st2">UI · 한국어 포함</span></div>
+      <div class="stat"><b data-i18n="st3b">다중 스펙</b><span data-i18n="st3">서비스 여러 개를 한 화면에서</span></div>
+      <div class="stat"><b data-i18n="st4b">브랜딩</b><span data-i18n="st4">로고 · 색 · 다크모드 · README 페이지</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>ludin · MIT · Node.js 20+</div>
+    <div class="links">
+      <a href="https://github.com/ludin-lee/ludin-node">GitHub</a>
+      <a href="https://www.npmjs.com/package/@ludin-docs/core">npm</a>
+      <a href="https://github.com/ludin-lee/ludin-node/blob/main/docs/FEATURE_SPEC.md" data-i18n="f_spec">기능 명세</a>
+      <a href="https://github.com/ludin-lee/ludin-node/blob/main/CHANGELOG.md" data-i18n="f_changelog">변경 이력</a>
+    </div>
+  </footer>
+</div>
+
+<button type="button" class="fab" id="openDemo" aria-haspopup="dialog" aria-controls="overlay" data-i18n="fab">▶ 샌드박스 열기</button>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+    <div class="modal-bar">
+      <div id="demoTitle" data-i18n="modal_title">샌드박스 · 실제 ludin 화면을 흉내 낸 데모입니다. 요청을 고쳐서 보내보세요.</div>
+      <button type="button" class="close" id="closeDemo" aria-label="Close">✕</button>
+    </div>
+    <div class="demo" id="demo">
+      <div class="demo-head">
+        <div class="title"><span data-i18n="demo_title">같은 문서, 다른 역할</span> <span class="mono" style="color:var(--muted);font-weight:400">petstore.yaml</span></div>
+        <div class="roles" role="group" aria-label="Role">
+          <button type="button" data-role="viewer" aria-pressed="false">viewer</button>
+          <button type="button" data-role="developer" aria-pressed="true">developer</button>
+          <button type="button" data-role="admin" aria-pressed="false">admin</button>
+        </div>
+      </div>
+      <div class="demo-body">
+        <aside class="side">
+          <div class="grp">Pets</div>
+          <button type="button" class="op cur" data-op="listPets"><span class="m m-get">GET</span>/pets</button>
+          <button type="button" class="op" data-op="createPet"><span class="m m-post">POST</span>/pets</button>
+          <button type="button" class="op" data-op="getPet"><span class="m m-get">GET</span>/pets/{id}</button>
+          <button type="button" class="op" data-op="deletePet"><span class="m m-del">DEL</span>/pets/{id}</button>
+          <div class="grp only-admin gone" hidden>Admin</div>
+          <button type="button" class="op only-admin" data-op="reset" hidden><span class="m m-post">POST</span>/admin/reset</button>
+        </aside>
+        <div class="main">
+          <h4><span class="m m-get" id="opMethod">GET</span><span id="opTitle">List all pets</span></h4>
+          <div class="path mono" id="opPath">/pets · docs:read</div>
+          <p class="desc" id="opDesc"></p>
+
+          <div class="req">
+            <div class="rh"><b data-i18n="req_title">요청</b><span id="reqHint" data-i18n="req_hint">값을 바꾸면 코드 샘플과 실제 응답이 따라 바뀝니다</span></div>
+            <div class="row"><span class="lbl">URL</span><div class="url" id="urlRow"></div></div>
+            <div class="row" id="queryRow"><span class="lbl">Query</span><div class="kv" id="queryKv"></div></div>
+            <div class="row"><span class="lbl">Headers</span><div class="kv" id="headerKv"></div></div>
+            <div class="row" id="bodyRow"><span class="lbl">Body</span><textarea class="field" id="bodyField" spellcheck="false"></textarea></div>
+          </div>
+
+          <div class="chips">
+            <button type="button" class="chip" data-lang="curl">curl</button><button type="button" class="chip" data-lang="fetch">fetch</button><button type="button" class="chip" data-lang="python">python</button>
+            <button type="button" class="chip try only-try" id="tryBtn">▶ Try it out</button>
+          </div>
+          <div class="resp">
+            <div class="rh"><span id="respLabel"></span><span id="respBadge" class="badge ok">200</span></div>
+<pre id="respBody"></pre>
+          </div>
+        </div>
+      </div>
+      <div class="audit" aria-live="polite">
+        <span class="lbl">audit · stdout</span>
+        <div id="audit1"></div>
+        <div id="audit2"></div>
+      </div>
+    </div>
+    <p class="note" data-i18n="note">역할을 눌러보세요. viewer는 실행 버튼이 없고, Admin 태그는 admin에게만 존재합니다. 숨겨진 것은 목록·검색·내보내기 어디에도 없습니다. 토큰을 지우거나 없는 id를 넣으면 문서에 적힌 대로 401·404가 돌아옵니다.</p>
+  </div>
+</div>
+
+<script>
+/* ---------------- i18n ---------------- */
+var T = {
+  ko: {
+    nav_access: '접근 통제', nav_trust: '문서 품질', nav_share: '내보내기',
+    h1: 'API 문서에<br><em>"누가 볼 수 있는가"</em>를<br>붙였습니다',
+    lede: 'ludin은 Node.js용 API 문서 미들웨어입니다. 기존 OpenAPI 문서 도구가 예쁘게 보여주는 데서 멈춘다면, ludin은 그 위에 로그인, 역할, IP 화이트리스트, 감사 로그를 한 줄로 얹습니다.',
+    cta_github: 'GitHub에서 보기', cta_demo: '▶ 샌드박스 열어보기', fab: '▶ 샌드박스 열기',
+    start_eyebrow: '한 줄로 시작', start_h2: '이미 있는 앱에 마운트하면 끝',
+    start_p: 'OpenAPI 파일 경로나 객체를 넘기고, 계정과 IP 규칙을 코드나 환경변수로 적습니다. 붙일 인프라가 없어서 5분이면 올라갑니다.',
+    c_vis: '// admin이 아니면 이 태그는 존재하지 않는다', c_share: '// 만료되는 공유 링크', c_mcp: '// AI 에이전트용 엔드포인트',
+    access_eyebrow: '접근 통제', access_h2: '문서를 여는 모든 경로가 한 파이프라인을 지납니다',
+    access_p: 'IP 검사 → 세션 → 역할 → 스펙 필터링 → 렌더 → 감사 기록. 문서 UI도, 스펙 JSON도, Try it out 프록시도, 에이전트 엔드포인트도 예외 없이 같은 순서로 검사됩니다.',
+    a1t: '로그인', a1d: '이메일/비밀번호. scrypt 내장, bcrypt·argon2 선택. 서명된 HttpOnly 쿠키 세션, 실패 횟수 기반 잠금. 사내 인증에는 <code>verify(email, password)</code> 콜백으로 연결.',
+    a2t: '역할', a2d: 'viewer · developer · admin 기본 3단계에 커스텀 역할 추가. 권한은 <code>docs:read</code>, <code>docs:try</code>, <code>admin:read</code> 셋.',
+    a3t: 'IP 화이트리스트', a3d: 'CIDR, 단일 IP, 범위, IPv6. 리버스 프록시 뒤에서는 <code>trustProxy</code>로 신뢰할 hop 수를 지정. IP만으로 통과시키는 <code>ipPolicy: \'or\'</code>도 가능.',
+    a4t: '가시성', a4d: '태그·경로·메서드 단위로 <code>visibility</code>를 걸면 그 역할은 해당 오퍼레이션이 <em>존재하지 않는</em> 문서를 받습니다. 검색 인덱스, 코드 샘플, 내보내기 전부 필터링 후의 문서에서 생성됩니다.',
+    a5t: '감사 로그', a5d: '로그인 성공·실패, 열람, 내려받기, API 호출(메서드·경로·상태·소요시간), IP 차단. 기본은 JSON lines로 stdout, 원하는 싱크로 교체 가능. 민감 헤더는 마스킹.',
+    a6t: 'Try it out', a6d: '브라우저가 아니라 서버 프록시가 호출합니다. 그래서 모든 호출이 사용자에게 귀속되고, 스펙의 <code>servers</code> 밖으로는 나가지 않습니다. 같은 origin의 세션 쿠키 API도 옵션으로 시험 가능.',
+    trust_eyebrow: '문서 품질', trust_h2: '읽는 문서에서, 믿을 수 있는 문서로',
+    trust_p: '무거운 계산은 전부 서버에서 합니다. UI는 결과만 그리므로 가볍고, 어느 것도 역할 필터를 우회하지 않습니다.',
+    t1t: '코드 샘플', t1d: 'curl · fetch · axios · Python · Go · <code>.http</code>. 서버 URL, 인증 헤더, 바디 예시가 채워진 채로 나옵니다.',
+    t2t: '⌘K 검색', t2d: '경로·요약·operationId·태그에 더해 <strong>스키마 필드명</strong>까지. "createdAt을 돌려주는 API가 뭐지"에 답합니다.',
+    t3t: '응답 검증', t3d: 'Try it out 응답을 문서화된 스키마와 대조해 어긋난 곳을 표시합니다. 봉투 응답(<code>{ data: … }</code>)도 인식.',
+    t4t: '건강 점수 · lint', t4d: '설명 누락, 예시 없음, 응답 스키마 없음 같은 항목을 점수로. <code>ludin lint spec.yaml --min 80</code>으로 CI에서 강제.',
+    t5t: '스펙 diff', t5d: '이전 버전과 비교해 breaking change를 분류합니다. 경로 삭제, required 추가, enum 축소, 타입 변경, 응답 코드 제거. <code>--markdown</code>으로 릴리스 노트까지.',
+    t6t: '3.1 웹훅', t6d: 'API가 나를 호출하는 방향의 오퍼레이션도 렌더합니다. 가시성 규칙은 웹훅에도 똑같이 적용.',
+    share_eyebrow: '밖으로 내보내기', share_h2: '파트너에게도, 에이전트에게도, 딱 그만큼만',
+    share_p: '나가는 모든 것은 받는 사람의 역할로 필터링된 문서에서 만들어집니다. 읽을 수 있는 만큼만 가져갈 수 있습니다.',
+    s1t: '공유 링크', s1d: '역할, 유효 기간, 스펙, 실행 허용 여부를 정해 발급. 첫 사용 시 URL에서 HttpOnly 쿠키로 옮겨가 리퍼러·기록에 남지 않습니다. 관리자 권한은 절대 담을 수 없습니다.',
+    s2t: 'Postman · TypeScript', s2d: 'Postman v2.1 컬렉션과 <code>.d.ts</code> 선언 파일. 자격 증명은 변수로만, 타입은 보이는 오퍼레이션에서 도달 가능한 스키마만.',
+    s3t: 'MCP 엔드포인트', s3d: 'AI 에이전트가 목록·검색·상세·실행 네 가지 도구로 문서를 씁니다. 새 API 키 없이 공유 링크나 세션으로 인증하고, 실행은 <code>docs:try</code>가 있어야만 보입니다.',
+    c_mcp1: '# 읽기 전용 공유 링크를 에이전트에 물려주면', c_mcp2: '# 검색·조회는 되고 call_operation은 목록에 없다', c_mcp3: '(call_operation: docs:try 필요)',
+    p_eyebrow: '설계 원칙', p_h2: 'DB가 없습니다',
+    p_p: '계정, IP 규칙, 역할 전부 코드와 환경변수에서 옵니다. 관리 화면은 현재 설정을 읽기 전용으로 보여줄 뿐입니다. 붙일 인프라가 없으니 5분이면 올라가고, 뚫릴 저장소도 없습니다. 런타임 의존성은 사실상 0입니다.',
+    r_eyebrow: '그 외', r_h2: '쓰던 프레임워크 그대로',
+    r_p: '코어는 프레임워크에 독립적인 <code class="mono">Request → Response</code> 핸들러이고, 어댑터는 얇은 래퍼입니다. UI는 코어 안에 단일 HTML로 컴파일되어 정적 파일 서빙도 필요 없습니다.',
+    st1: '2.0은 자동 변환', st2b: '9개 언어', st2: 'UI · 한국어 포함', st3b: '다중 스펙', st3: '서비스 여러 개를 한 화면에서', st4b: '브랜딩', st4: '로고 · 색 · 다크모드 · README 페이지',
+    f_spec: '기능 명세', f_changelog: '변경 이력',
+    modal_title: '샌드박스 · 실제 ludin 화면을 흉내 낸 데모입니다. 요청을 고쳐서 보내보세요.', demo_title: '같은 문서, 다른 역할',
+    req_title: '요청', req_hint: '값을 바꾸면 코드 샘플과 실제 응답이 따라 바뀝니다',
+    note: '역할을 눌러보세요. viewer는 실행 버튼이 없고, Admin 태그는 admin에게만 존재합니다. 숨겨진 것은 목록·검색·내보내기 어디에도 없습니다. 토큰을 지우거나 없는 id를 넣으면 문서에 적힌 대로 401·404가 돌아옵니다.',
+    resp_doc: '문서의 응답 예시', resp_real: '실제 응답', sample: '코드 샘플', sample_note: '지금 입력한 요청 그대로', schema_ok: '스키마 일치 ✓', documented: '문서화된 오류 응답', no_body: '(본문 없음)',
+    op_listPets: '등록된 반려동물 목록을 돌려줍니다. <code>limit</code> 쿼리로 개수를 제한할 수 있습니다.',
+    op_createPet: '반려동물을 하나 등록합니다. 요청 바디는 <code>name</code>이 필수이고 <code>tag</code>는 선택입니다.',
+    op_getPet: '<code>id</code>로 반려동물 하나를 조회합니다. 없으면 404와 에러 객체를 돌려줍니다.',
+    op_deletePet: '반려동물을 삭제합니다. 성공하면 본문 없이 204를 돌려줍니다.',
+    op_reset: '저장소를 초기 데이터로 되돌립니다. <strong>Admin</strong> 태그가 걸려 있어 admin 역할에게만 존재하는 오퍼레이션입니다.',
+    perm_reset: 'tag:Admin → admin만',
+    e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
+  },
+  en: {
+    nav_access: 'Access control', nav_trust: 'Doc quality', nav_share: 'Take it outside',
+    h1: 'API docs that know<br><em>who is allowed</em><br>to read them',
+    lede: 'ludin is an API documentation middleware for Node.js. Existing OpenAPI doc tools stop at rendering nicely; ludin puts login, roles, an IP allowlist and an audit log on top, in one line.',
+    cta_github: 'View on GitHub', cta_demo: '▶ Open the sandbox', fab: '▶ Open sandbox',
+    start_eyebrow: 'One line', start_h2: 'Mount it on the app you already have',
+    start_p: 'Hand it an OpenAPI file or object, write accounts and IP rules in code or environment variables. Nothing to provision, so it is up in five minutes.',
+    c_vis: '// for anyone but admin, this tag does not exist', c_share: '// expiring share links', c_mcp: '// endpoint for AI agents',
+    access_eyebrow: 'Access control', access_h2: 'Every way into the docs walks one pipeline',
+    access_p: 'IP check → session → role → spec filtering → render → audit. The docs UI, the spec JSON, the Try-it-out proxy and the agent endpoint are all checked in the same order, no exceptions.',
+    a1t: 'Login', a1d: 'Email and password. scrypt built in, bcrypt and argon2 optional. Signed HttpOnly cookie sessions, lockout after repeated failures. Plug into your own auth with a <code>verify(email, password)</code> callback.',
+    a2t: 'Roles', a2d: 'viewer · developer · admin out of the box, custom roles on top. Three permissions: <code>docs:read</code>, <code>docs:try</code>, <code>admin:read</code>.',
+    a3t: 'IP allowlist', a3d: 'CIDR, single addresses, ranges, IPv6. Behind a reverse proxy, <code>trustProxy</code> says how many hops to trust. <code>ipPolicy: \'or\'</code> lets a matching IP skip login.',
+    a4t: 'Visibility', a4d: 'Set <code>visibility</code> by tag, path or method and that role receives a document in which the operation <em>does not exist</em>. Search index, code samples and exports are all generated from the filtered document.',
+    a5t: 'Audit log', a5d: 'Login success and failure, views, downloads, API calls (method, path, status, duration), IP blocks. JSON lines to stdout by default, any sink you like. Sensitive headers are masked.',
+    a6t: 'Try it out', a6d: 'A server-side proxy makes the call, not the browser. Every call is attributed to a user and nothing leaves the spec\'s <code>servers</code>. Session-cookie APIs on the same origin can be tried with one option.',
+    trust_eyebrow: 'Doc quality', trust_h2: 'From docs you read to docs you trust',
+    trust_p: 'All the heavy lifting happens on the server. The UI only renders results, so it stays light, and nothing sidesteps the role filter.',
+    t1t: 'Code samples', t1d: 'curl · fetch · axios · Python · Go · <code>.http</code>, with the server URL, auth header and body example already filled in.',
+    t2t: '⌘K search', t2d: 'Path, summary, operationId, tag and <strong>schema field names</strong>. It answers "which endpoint returns createdAt".',
+    t3t: 'Response validation', t3d: 'Every Try-it-out response is checked against the documented schema and drift is flagged. Envelope responses (<code>{ data: … }</code>) are understood.',
+    t4t: 'Health score · lint', t4d: 'Missing descriptions, examples or response schemas become a score. Enforce it in CI with <code>ludin lint spec.yaml --min 80</code>.',
+    t5t: 'Spec diff', t5d: 'Compare with the previous version and classify breaking changes: removed paths, new required fields, narrowed enums, type changes, removed status codes. <code>--markdown</code> writes the release notes.',
+    t6t: '3.1 webhooks', t6d: 'Operations where the API calls you are rendered too. Visibility rules apply to webhooks exactly as to paths.',
+    share_eyebrow: 'Take it outside', share_h2: 'Partners and agents get exactly as much, and no more',
+    share_p: 'Everything that leaves is built from the document as filtered for the recipient\'s role. You can take with you what you can read.',
+    s1t: 'Share links', s1d: 'Pick the role, lifetime, spec and whether execution is allowed. On first use the token moves from the URL into an HttpOnly cookie, so it never rides along in referrers or history. It can never carry admin.',
+    s2t: 'Postman · TypeScript', s2d: 'A Postman v2.1 collection and a <code>.d.ts</code> declaration file. Credentials are variables only; the types carry just the schemas reachable from visible operations.',
+    s3t: 'MCP endpoint', s3d: 'AI agents use the docs through four tools: list, search, detail and call. They authenticate with a share link or session, no new API key, and the call tool only appears with <code>docs:try</code>.',
+    c_mcp1: '# hand an agent a read-only share link and', c_mcp2: '# it can search and read; call_operation is not listed', c_mcp3: '(call_operation: needs docs:try)',
+    p_eyebrow: 'Design principle', p_h2: 'There is no database',
+    p_p: 'Accounts, IP rules and roles all come from code and environment variables. The admin screen is a read-only view of the running configuration. Nothing to provision, so it is up in five minutes, and there is no store to breach. Runtime dependencies are practically zero.',
+    r_eyebrow: 'And the rest', r_h2: 'Keep the framework you have',
+    r_p: 'The core is a framework-agnostic <code class="mono">Request → Response</code> handler; adapters are thin wrappers. The UI compiles into the core as a single HTML string, so there are no static files to serve.',
+    st1: '2.0 converted automatically', st2b: '9 UI languages', st2: 'Korean, Japanese, Chinese, Spanish…', st3b: 'Multiple specs', st3: 'several services in one place', st4b: 'Branding', st4: 'logo · colours · dark mode · README page',
+    f_spec: 'Feature spec', f_changelog: 'Changelog',
+    modal_title: 'Sandbox · a mock of the real ludin screen. Edit the request and send it.', demo_title: 'Same document, different roles',
+    req_title: 'Request', req_hint: 'Change a value and the code samples and the response follow',
+    note: 'Try the roles. viewer has no execute button and the Admin tag only exists for admin. Whatever is hidden is absent from the list, the search and the exports. Clear the token or use a missing id and you get the 401 and 404 the docs describe.',
+    resp_doc: 'Documented response example', resp_real: 'Actual response', sample: 'Code sample', sample_note: 'for the request as typed', schema_ok: 'schema OK ✓', documented: 'documented error response', no_body: '(no body)',
+    op_listPets: 'Returns the registered pets. Limit the count with the <code>limit</code> query.',
+    op_createPet: 'Registers one pet. In the request body <code>name</code> is required and <code>tag</code> is optional.',
+    op_getPet: 'Looks up one pet by <code>id</code>. Returns 404 with an error object when it does not exist.',
+    op_deletePet: 'Deletes a pet. On success returns 204 with no body.',
+    op_reset: 'Resets the store to its seed data. It carries the <strong>Admin</strong> tag, so the operation only exists for the admin role.',
+    perm_reset: 'tag:Admin → admin only',
+    e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
+  },
+  ja: {
+    nav_access: 'アクセス制御', nav_trust: 'ドキュメント品質', nav_share: '外へ持ち出す',
+    h1: 'APIドキュメントに<br><em>「誰が見られるか」</em>を<br>付けました',
+    lede: 'ludinはNode.js向けのAPIドキュメント・ミドルウェアです。既存のOpenAPIドキュメントツールが「きれいに表示する」で止まるなら、ludinはその上にログイン・ロール・IP許可リスト・監査ログを一行で載せます。',
+    cta_github: 'GitHubで見る', cta_demo: '▶ サンドボックスを開く', fab: '▶ サンドボックス',
+    start_eyebrow: '一行で始める', start_h2: '今あるアプリにマウントするだけ',
+    start_p: 'OpenAPIファイルのパスかオブジェクトを渡し、アカウントとIPルールをコードか環境変数に書きます。用意するインフラがないので5分で立ち上がります。',
+    c_vis: '// admin以外にはこのタグは存在しない', c_share: '// 期限付き共有リンク', c_mcp: '// AIエージェント用エンドポイント',
+    access_eyebrow: 'アクセス制御', access_h2: 'ドキュメントへの入口はすべて同じパイプラインを通ります',
+    access_p: 'IP検査 → セッション → ロール → 仕様フィルタ → レンダリング → 監査記録。ドキュメントUIも仕様JSONもTry it outプロキシもエージェント用エンドポイントも、例外なく同じ順序で検査されます。',
+    a1t: 'ログイン', a1d: 'メール／パスワード。scrypt内蔵、bcrypt・argon2は任意。署名付きHttpOnlyクッキーのセッション、失敗回数によるロック。社内認証には<code>verify(email, password)</code>コールバックで接続。',
+    a2t: 'ロール', a2d: 'viewer · developer · adminの3段階にカスタムロールを追加可能。権限は<code>docs:read</code>、<code>docs:try</code>、<code>admin:read</code>の3つ。',
+    a3t: 'IP許可リスト', a3d: 'CIDR、単一IP、範囲、IPv6。リバースプロキシの背後では<code>trustProxy</code>で信頼するホップ数を指定。IPだけで通す<code>ipPolicy: \'or\'</code>も可能。',
+    a4t: '可視性', a4d: 'タグ・パス・メソッド単位で<code>visibility</code>を設定すると、そのロールには当該オペレーションが<em>存在しない</em>ドキュメントが渡されます。検索インデックス、コードサンプル、エクスポートはすべてフィルタ後のドキュメントから生成。',
+    a5t: '監査ログ', a5d: 'ログイン成功・失敗、閲覧、ダウンロード、API呼び出し（メソッド・パス・ステータス・所要時間）、IPブロック。既定はJSON linesでstdout、任意のシンクに差し替え可能。機密ヘッダーはマスク。',
+    a6t: 'Try it out', a6d: 'ブラウザではなくサーバー側プロキシが呼び出します。すべての呼び出しがユーザーに紐づき、仕様の<code>servers</code>の外には出ません。同一オリジンのセッションクッキーAPIもオプションで試せます。',
+    trust_eyebrow: 'ドキュメント品質', trust_h2: '読むドキュメントから、信頼できるドキュメントへ',
+    trust_p: '重い処理はすべてサーバーで行います。UIは結果を描くだけなので軽く、何もロールフィルタを迂回しません。',
+    t1t: 'コードサンプル', t1d: 'curl · fetch · axios · Python · Go · <code>.http</code>。サーバーURL、認証ヘッダー、ボディ例が埋まった状態で出力。',
+    t2t: '⌘K検索', t2d: 'パス・要約・operationId・タグに加え<strong>スキーマのフィールド名</strong>まで。「createdAtを返すAPIはどれ」に答えます。',
+    t3t: 'レスポンス検証', t3d: 'Try it outのレスポンスを文書化されたスキーマと照合し、ずれを表示。エンベロープ形式（<code>{ data: … }</code>）も認識。',
+    t4t: '健全性スコア · lint', t4d: '説明の欠落、例の欠落、レスポンススキーマの欠落などをスコア化。<code>ludin lint spec.yaml --min 80</code>でCIで強制。',
+    t5t: '仕様diff', t5d: '前バージョンと比較して破壊的変更を分類。パス削除、required追加、enum縮小、型変更、レスポンスコード削除。<code>--markdown</code>でリリースノートまで。',
+    t6t: '3.1 Webhooks', t6d: 'APIがこちらを呼ぶ方向のオペレーションも描画。可視性ルールはWebhookにも同様に適用。',
+    share_eyebrow: '外へ持ち出す', share_h2: 'パートナーにもエージェントにも、必要な分だけ',
+    share_p: '外に出るものはすべて、受け取る人のロールでフィルタしたドキュメントから作られます。読める分だけ持ち出せます。',
+    s1t: '共有リンク', s1d: 'ロール、有効期間、仕様、実行許可を決めて発行。初回利用時にURLからHttpOnlyクッキーへ移るのでリファラや履歴に残りません。管理者権限は決して含められません。',
+    s2t: 'Postman · TypeScript', s2d: 'Postman v2.1コレクションと<code>.d.ts</code>宣言ファイル。資格情報は変数のみ、型は見えるオペレーションから到達可能なスキーマのみ。',
+    s3t: 'MCPエンドポイント', s3d: 'AIエージェントが一覧・検索・詳細・実行の4つのツールでドキュメントを使います。新しいAPIキーなしに共有リンクかセッションで認証し、実行は<code>docs:try</code>がある場合のみ表示。',
+    c_mcp1: '# 読み取り専用の共有リンクをエージェントに渡すと', c_mcp2: '# 検索・参照はでき、call_operationは一覧に出ない', c_mcp3: '(call_operation: docs:tryが必要)',
+    p_eyebrow: '設計原則', p_h2: 'データベースがありません',
+    p_p: 'アカウント、IPルール、ロールはすべてコードと環境変数から来ます。管理画面は現在の設定を読み取り専用で表示するだけ。用意するインフラがないので5分で立ち上がり、破られるストアもありません。ランタイム依存はほぼゼロ。',
+    r_eyebrow: 'その他', r_h2: '使っているフレームワークのまま',
+    r_p: 'コアはフレームワーク非依存の<code class="mono">Request → Response</code>ハンドラで、アダプタは薄いラッパーです。UIはコアに単一HTMLとしてコンパイルされ、静的ファイル配信も不要。',
+    st1: '2.0は自動変換', st2b: 'UI 9言語', st2: '日本語を含む', st3b: '複数仕様', st3: '複数サービスを一画面で', st4b: 'ブランディング', st4: 'ロゴ · 色 · ダークモード · READMEページ',
+    f_spec: '機能仕様', f_changelog: '変更履歴',
+    modal_title: 'サンドボックス · 実際のludin画面を模したデモです。リクエストを編集して送ってみてください。', demo_title: '同じドキュメント、異なるロール',
+    req_title: 'リクエスト', req_hint: '値を変えるとコードサンプルと実際のレスポンスが追従します',
+    note: 'ロールを押してみてください。viewerには実行ボタンがなく、AdminタグはAdminにしか存在しません。隠されたものは一覧・検索・エクスポートのどこにもありません。トークンを消したり存在しないidを入れると、ドキュメント通りの401・404が返ります。',
+    resp_doc: 'ドキュメントのレスポンス例', resp_real: '実際のレスポンス', sample: 'コードサンプル', sample_note: '今入力したリクエストのまま', schema_ok: 'スキーマ一致 ✓', documented: '文書化されたエラー応答', no_body: '(本文なし)',
+    op_listPets: '登録済みのペット一覧を返します。<code>limit</code>クエリで件数を制限できます。',
+    op_createPet: 'ペットを1件登録します。リクエストボディは<code>name</code>が必須、<code>tag</code>は任意です。',
+    op_getPet: '<code>id</code>でペットを1件取得します。存在しなければ404とエラーオブジェクトを返します。',
+    op_deletePet: 'ペットを削除します。成功すると本文なしで204を返します。',
+    op_reset: 'ストアを初期データに戻します。<strong>Admin</strong>タグが付いているため、adminロールにのみ存在するオペレーションです。',
+    perm_reset: 'tag:Admin → adminのみ',
+    e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
+  },
+  zh: {
+    nav_access: '访问控制', nav_trust: '文档质量', nav_share: '对外输出',
+    h1: '给 API 文档加上<br><em>"谁可以看"</em><br>这一层',
+    lede: 'ludin 是一款面向 Node.js 的 API 文档中间件。现有的 OpenAPI 文档工具止步于"好看地展示"，ludin 则在其之上用一行代码加上登录、角色、IP 白名单和审计日志。',
+    cta_github: '在 GitHub 查看', cta_demo: '▶ 打开沙盒', fab: '▶ 打开沙盒',
+    start_eyebrow: '一行代码', start_h2: '挂到现有应用上即可',
+    start_p: '传入 OpenAPI 文件路径或对象，把账号和 IP 规则写在代码或环境变量里。没有需要部署的基础设施，五分钟就能上线。',
+    c_vis: '// 非 admin 角色看不到这个标签的存在', c_share: '// 有期限的分享链接', c_mcp: '// 面向 AI 代理的端点',
+    access_eyebrow: '访问控制', access_h2: '通往文档的每条路径都走同一条流水线',
+    access_p: 'IP 检查 → 会话 → 角色 → 规范过滤 → 渲染 → 审计记录。文档 UI、规范 JSON、Try it out 代理、代理端点，全部按同一顺序检查，没有例外。',
+    a1t: '登录', a1d: '邮箱／密码。内置 scrypt，可选 bcrypt、argon2。签名的 HttpOnly Cookie 会话，按失败次数锁定。用 <code>verify(email, password)</code> 回调接入公司认证。',
+    a2t: '角色', a2d: '默认 viewer · developer · admin 三级，可添加自定义角色。权限只有三种：<code>docs:read</code>、<code>docs:try</code>、<code>admin:read</code>。',
+    a3t: 'IP 白名单', a3d: 'CIDR、单个 IP、范围、IPv6。反向代理之后用 <code>trustProxy</code> 指定信任的跳数。<code>ipPolicy: \'or\'</code> 可让匹配的 IP 免登录。',
+    a4t: '可见性', a4d: '按标签、路径或方法设置 <code>visibility</code>，该角色拿到的文档中这个操作<em>根本不存在</em>。搜索索引、代码示例、导出全部从过滤后的文档生成。',
+    a5t: '审计日志', a5d: '登录成功／失败、浏览、下载、API 调用（方法、路径、状态、耗时）、IP 拦截。默认以 JSON lines 输出到 stdout，可替换为任意 sink。敏感请求头会被脱敏。',
+    a6t: 'Try it out', a6d: '由服务端代理发起调用，而不是浏览器。所以每次调用都归属到用户，并且不会离开规范里的 <code>servers</code>。同源的会话 Cookie API 也可通过选项试用。',
+    trust_eyebrow: '文档质量', trust_h2: '从"能读的文档"到"可信的文档"',
+    trust_p: '所有重计算都在服务端完成。UI 只负责渲染结果，因此轻量，而且没有任何东西绕过角色过滤。',
+    t1t: '代码示例', t1d: 'curl · fetch · axios · Python · Go · <code>.http</code>，服务器 URL、认证头和请求体示例已填好。',
+    t2t: '⌘K 搜索', t2d: '除路径、摘要、operationId、标签外，还能搜<strong>schema 字段名</strong>。能回答"哪个接口返回 createdAt"。',
+    t3t: '响应校验', t3d: '将 Try it out 的响应与文档化的 schema 对比并标出偏差。也识别信封格式（<code>{ data: … }</code>）。',
+    t4t: '健康分 · lint', t4d: '缺少描述、缺少示例、缺少响应 schema 等项目计入分数。用 <code>ludin lint spec.yaml --min 80</code> 在 CI 中强制。',
+    t5t: '规范 diff', t5d: '与上一版本比较并分类破坏性变更：删除路径、新增 required、缩小 enum、类型变更、删除响应码。<code>--markdown</code> 直接生成发布说明。',
+    t6t: '3.1 Webhooks', t6d: '"API 调用你"方向的操作同样渲染。可见性规则对 webhook 同样适用。',
+    share_eyebrow: '对外输出', share_h2: '给合作方、给代理，都恰到好处',
+    share_p: '所有输出都基于按接收者角色过滤后的文档生成。能读多少，就能带走多少。',
+    s1t: '分享链接', s1d: '指定角色、有效期、规范和是否允许执行。首次使用时令牌从 URL 移入 HttpOnly Cookie，不会留在 referrer 或历史记录里。永远无法携带管理员权限。',
+    s2t: 'Postman · TypeScript', s2d: 'Postman v2.1 集合与 <code>.d.ts</code> 声明文件。凭据只以变量出现，类型只包含可见操作可达的 schema。',
+    s3t: 'MCP 端点', s3d: 'AI 代理通过列表、搜索、详情、调用四个工具使用文档。用分享链接或会话认证，无需新的 API key；调用工具仅在拥有 <code>docs:try</code> 时出现。',
+    c_mcp1: '# 把只读分享链接交给代理后', c_mcp2: '# 可以搜索和查看，call_operation 不在列表中', c_mcp3: '(call_operation：需要 docs:try)',
+    p_eyebrow: '设计原则', p_h2: '没有数据库',
+    p_p: '账号、IP 规则、角色全部来自代码和环境变量。管理页面只是以只读方式展示当前配置。没有需要部署的基础设施，五分钟上线，也没有可被攻破的存储。运行时依赖几乎为零。',
+    r_eyebrow: '其他', r_h2: '继续用你的框架',
+    r_p: '核心是与框架无关的 <code class="mono">Request → Response</code> 处理器，适配器只是薄薄的包装。UI 编译进核心成为单个 HTML 字符串，无需提供静态文件。',
+    st1: '2.0 自动转换', st2b: '9 种 UI 语言', st2: '含中文', st3b: '多规范', st3: '多个服务集中在一处', st4b: '品牌定制', st4: 'logo · 配色 · 深色模式 · README 页面',
+    f_spec: '功能规范', f_changelog: '变更日志',
+    modal_title: '沙盒 · 模拟真实 ludin 界面的演示。改一改请求再发送试试。', demo_title: '同一份文档，不同角色',
+    req_title: '请求', req_hint: '改动数值后，代码示例和实际响应会随之变化',
+    note: '点一点角色。viewer 没有执行按钮，Admin 标签只对 admin 存在。被隐藏的内容在列表、搜索、导出中都不会出现。清空令牌或填一个不存在的 id，就会按文档返回 401、404。',
+    resp_doc: '文档中的响应示例', resp_real: '实际响应', sample: '代码示例', sample_note: '按当前输入的请求生成', schema_ok: 'schema 一致 ✓', documented: '文档化的错误响应', no_body: '(无正文)',
+    op_listPets: '返回已登记的宠物列表。可用 <code>limit</code> 查询参数限制数量。',
+    op_createPet: '登记一只宠物。请求体中 <code>name</code> 必填，<code>tag</code> 可选。',
+    op_getPet: '按 <code>id</code> 查询一只宠物。不存在时返回 404 和错误对象。',
+    op_deletePet: '删除一只宠物。成功时返回无正文的 204。',
+    op_reset: '把存储重置为初始数据。带有 <strong>Admin</strong> 标签，因此只对 admin 角色存在。',
+    perm_reset: 'tag:Admin → 仅 admin',
+    e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
+  },
+  es: {
+    nav_access: 'Control de acceso', nav_trust: 'Calidad de la doc', nav_share: 'Sacarla fuera',
+    h1: 'Documentación de API<br>que sabe <em>quién puede</em><br>leerla',
+    lede: 'ludin es un middleware de documentación de API para Node.js. Las herramientas de documentación OpenAPI existentes se quedan en mostrarla bonita; ludin añade encima login, roles, lista blanca de IP y registro de auditoría, en una línea.',
+    cta_github: 'Ver en GitHub', cta_demo: '▶ Abrir el sandbox', fab: '▶ Abrir sandbox',
+    start_eyebrow: 'Una línea', start_h2: 'Móntalo en la app que ya tienes',
+    start_p: 'Pásale la ruta u objeto OpenAPI y escribe cuentas y reglas de IP en código o variables de entorno. No hay infraestructura que montar, así que está en marcha en cinco minutos.',
+    c_vis: '// para quien no sea admin, esta etiqueta no existe', c_share: '// enlaces compartidos con caducidad', c_mcp: '// endpoint para agentes de IA',
+    access_eyebrow: 'Control de acceso', access_h2: 'Toda entrada a la documentación recorre la misma tubería',
+    access_p: 'Comprobación de IP → sesión → rol → filtrado de la especificación → render → auditoría. La UI, el JSON de la especificación, el proxy de Try it out y el endpoint para agentes se comprueban en el mismo orden, sin excepciones.',
+    a1t: 'Login', a1d: 'Correo y contraseña. scrypt integrado, bcrypt y argon2 opcionales. Sesiones en cookie HttpOnly firmada, bloqueo tras varios fallos. Conecta tu propia autenticación con un callback <code>verify(email, password)</code>.',
+    a2t: 'Roles', a2d: 'viewer · developer · admin de serie, y roles personalizados encima. Tres permisos: <code>docs:read</code>, <code>docs:try</code>, <code>admin:read</code>.',
+    a3t: 'Lista blanca de IP', a3d: 'CIDR, direcciones sueltas, rangos, IPv6. Tras un proxy inverso, <code>trustProxy</code> indica cuántos saltos confiar. Con <code>ipPolicy: \'or\'</code> una IP válida se salta el login.',
+    a4t: 'Visibilidad', a4d: 'Define <code>visibility</code> por etiqueta, ruta o método y ese rol recibe un documento en el que la operación <em>no existe</em>. El índice de búsqueda, los ejemplos de código y las exportaciones se generan del documento ya filtrado.',
+    a5t: 'Registro de auditoría', a5d: 'Logins correctos y fallidos, vistas, descargas, llamadas a la API (método, ruta, estado, duración), bloqueos de IP. JSON lines a stdout por defecto, o el sink que quieras. Las cabeceras sensibles se enmascaran.',
+    a6t: 'Try it out', a6d: 'Llama un proxy en el servidor, no el navegador. Cada llamada se atribuye a un usuario y nada sale de los <code>servers</code> de la especificación. Las API con cookie de sesión en el mismo origen se pueden probar con una opción.',
+    trust_eyebrow: 'Calidad de la doc', trust_h2: 'De una doc que se lee a una doc en la que se confía',
+    trust_p: 'Todo el trabajo pesado ocurre en el servidor. La UI solo pinta resultados, así que es ligera, y nada esquiva el filtro por rol.',
+    t1t: 'Ejemplos de código', t1d: 'curl · fetch · axios · Python · Go · <code>.http</code>, con la URL del servidor, la cabecera de autenticación y el cuerpo de ejemplo ya rellenos.',
+    t2t: 'Búsqueda ⌘K', t2d: 'Ruta, resumen, operationId, etiqueta y <strong>nombres de campo del esquema</strong>. Responde a "qué endpoint devuelve createdAt".',
+    t3t: 'Validación de respuestas', t3d: 'Cada respuesta de Try it out se compara con el esquema documentado y se marcan las desviaciones. Entiende respuestas con envoltorio (<code>{ data: … }</code>).',
+    t4t: 'Puntuación · lint', t4d: 'Descripciones, ejemplos o esquemas de respuesta ausentes se convierten en una puntuación. Exígela en CI con <code>ludin lint spec.yaml --min 80</code>.',
+    t5t: 'Diff de la especificación', t5d: 'Compara con la versión anterior y clasifica los cambios rompedores: rutas eliminadas, nuevos required, enums reducidos, cambios de tipo, códigos eliminados. <code>--markdown</code> escribe las notas de la versión.',
+    t6t: 'Webhooks 3.1', t6d: 'También se renderizan las operaciones en las que la API te llama a ti. Las reglas de visibilidad se aplican igual a los webhooks.',
+    share_eyebrow: 'Sacarla fuera', share_h2: 'Socios y agentes reciben justo lo necesario, nada más',
+    share_p: 'Todo lo que sale se construye del documento filtrado para el rol del destinatario. Te llevas lo que puedes leer.',
+    s1t: 'Enlaces compartidos', s1d: 'Elige rol, duración, especificación y si se permite ejecutar. En el primer uso el token pasa de la URL a una cookie HttpOnly, así no viaja en referrers ni historial. Nunca puede llevar admin.',
+    s2t: 'Postman · TypeScript', s2d: 'Una colección Postman v2.1 y un archivo <code>.d.ts</code>. Las credenciales son solo variables; los tipos llevan únicamente los esquemas alcanzables desde operaciones visibles.',
+    s3t: 'Endpoint MCP', s3d: 'Los agentes de IA usan la documentación con cuatro herramientas: listar, buscar, detalle y llamar. Se autentican con un enlace compartido o una sesión, sin nueva API key, y la herramienta de llamada solo aparece con <code>docs:try</code>.',
+    c_mcp1: '# dale a un agente un enlace de solo lectura y', c_mcp2: '# puede buscar y leer; call_operation no aparece', c_mcp3: '(call_operation: requiere docs:try)',
+    p_eyebrow: 'Principio de diseño', p_h2: 'No hay base de datos',
+    p_p: 'Cuentas, reglas de IP y roles vienen del código y de variables de entorno. La pantalla de administración solo muestra la configuración en modo lectura. Nada que montar, en marcha en cinco minutos, y ningún almacén que vulnerar. Dependencias en tiempo de ejecución: prácticamente cero.',
+    r_eyebrow: 'Y el resto', r_h2: 'Conserva tu framework',
+    r_p: 'El núcleo es un manejador <code class="mono">Request → Response</code> independiente del framework; los adaptadores son envoltorios finos. La UI se compila dentro del núcleo como un único HTML, sin archivos estáticos que servir.',
+    st1: '2.0 se convierte solo', st2b: '9 idiomas de UI', st2: 'español incluido', st3b: 'Varias especificaciones', st3: 'varios servicios en un solo sitio', st4b: 'Marca', st4: 'logo · colores · modo oscuro · página README',
+    f_spec: 'Especificación', f_changelog: 'Cambios',
+    modal_title: 'Sandbox · una maqueta de la pantalla real de ludin. Edita la petición y envíala.', demo_title: 'Mismo documento, distintos roles',
+    req_title: 'Petición', req_hint: 'Cambia un valor y los ejemplos de código y la respuesta lo siguen',
+    note: 'Prueba los roles. viewer no tiene botón de ejecutar y la etiqueta Admin solo existe para admin. Lo oculto no aparece en la lista, la búsqueda ni las exportaciones. Borra el token o usa un id inexistente y recibirás el 401 y 404 que describe la doc.',
+    resp_doc: 'Ejemplo de respuesta documentado', resp_real: 'Respuesta real', sample: 'Ejemplo de código', sample_note: 'para la petición tal como está', schema_ok: 'esquema OK ✓', documented: 'respuesta de error documentada', no_body: '(sin cuerpo)',
+    op_listPets: 'Devuelve las mascotas registradas. Limita la cantidad con la query <code>limit</code>.',
+    op_createPet: 'Registra una mascota. En el cuerpo, <code>name</code> es obligatorio y <code>tag</code> opcional.',
+    op_getPet: 'Busca una mascota por <code>id</code>. Devuelve 404 con un objeto de error si no existe.',
+    op_deletePet: 'Elimina una mascota. Si tiene éxito devuelve 204 sin cuerpo.',
+    op_reset: 'Restablece el almacén a sus datos iniciales. Lleva la etiqueta <strong>Admin</strong>, así que la operación solo existe para el rol admin.',
+    perm_reset: 'tag:Admin → solo admin',
+    e401: 'missing or invalid bearer token', e404: 'not found', e400json: 'request body is not valid JSON', e400name: '"name" is required'
+  }
+};
+var lang = 'ko';
+function t(key) { return (T[lang] && T[lang][key]) || T.ko[key] || ''; }
+function applyLang(next) {
+  lang = T[next] ? next : 'ko';
+  document.documentElement.lang = lang;
+  document.body.setAttribute('data-lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    var v = T[lang][el.getAttribute('data-i18n')];
+    if (v != null) el.innerHTML = v;
+  });
+  document.getElementById('lang').value = lang;
+  try { localStorage.setItem('ludin-intro-lang', lang); } catch (e) {}
+  if (window.__renderDemo) window.__renderDemo();
+}
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('ludin-intro-lang'); } catch (e) {}
+  var nav = (navigator.language || 'ko').slice(0, 2);
+  applyLang(saved || (T[nav] ? nav : 'en'));
+  document.getElementById('lang').addEventListener('change', function (e) { applyLang(e.target.value); });
+})();
+
+/* ---------------- modal: genie in / out ---------------- */
+(function () {
+  var overlay = document.getElementById('overlay');
+  var modal = overlay.querySelector('.modal');
+  var fab = document.getElementById('openDemo');
+  var lastFocus = null, closing = false;
+  function aimAtFab() {
+    var f = fab.getBoundingClientRect();
+    // offsetLeft/Top ignore the collapse transform; the overlay is fixed at inset 0, so they are viewport coordinates.
+    var mLeft = modal.offsetLeft - overlay.scrollLeft, mTop = modal.offsetTop - overlay.scrollTop;
+    var fx = f.left + f.width / 2, fy = f.top + f.height / 2;
+    modal.style.setProperty('--ox', (fx - mLeft) + 'px');
+    modal.style.setProperty('--oy', (fy - mTop) + 'px');
+    modal.style.setProperty('--dx', '0px');
+    modal.style.setProperty('--dy', '0px');
+  }
+  function openDemo() {
+    if (!overlay.hidden) return;
+    lastFocus = document.activeElement;
+    fab.classList.add('pressed');
+    overlay.hidden = false;
+    overlay.classList.remove('out');
+    aimAtFab();
+    void overlay.offsetWidth; // commit the collapsed state before animating
+    overlay.classList.add('in');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { fab.classList.remove('pressed'); document.getElementById('closeDemo').focus(); }, 180);
+  }
+  function closeDemo() {
+    if (overlay.hidden || closing) return;
+    closing = true;
+    aimAtFab();
+    overlay.classList.add('out');
+    overlay.classList.remove('in');
+    var done = false;
+    function finish() {
+      if (done) return; done = true;
+      overlay.hidden = true;
+      overlay.classList.remove('out');
+      document.body.style.overflow = '';
+      closing = false;
+      fab.classList.add('pressed');
+      setTimeout(function () { fab.classList.remove('pressed'); }, 160);
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    modal.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 520);
+  }
+  fab.addEventListener('click', openDemo);
+  document.getElementById('openDemo2').addEventListener('click', openDemo);
+  document.getElementById('closeDemo').addEventListener('click', closeDemo);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeDemo(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !overlay.hidden) closeDemo(); });
+})();
+
+/* ---------------- sandbox ---------------- */
+(function () {
+  var demo = document.getElementById('demo');
+  var roleButtons = demo.querySelectorAll('.roles button');
+  var adminOnly = demo.querySelectorAll('.only-admin');
+  var tryOnly = demo.querySelectorAll('.only-try');
+  var opButtons = demo.querySelectorAll('.side .op');
+  var langChips = demo.querySelectorAll('.chip[data-lang]');
+  var $ = function (id) { return document.getElementById(id); };
+  var a1 = $('audit1'), a2 = $('audit2'), badge = $('respBadge'), body = $('respBody'), respLabel = $('respLabel');
+  var opMethod = $('opMethod'), opTitle = $('opTitle'), opPath = $('opPath'), opDesc = $('opDesc');
+  var urlRow = $('urlRow'), queryRow = $('queryRow'), queryKv = $('queryKv'), headerKv = $('headerKv'), bodyRow = $('bodyRow'), bodyField = $('bodyField');
+  var HOST = 'https://api.corp.io';
+  var TOKEN = 'letmein';
+  var PETS = [{ id: 1, name: 'Rex', tag: 'dog' }, { id: 2, name: 'Tama', tag: 'cat' }];
+  var email = { viewer: 'partner@x.io', developer: 'dev@corp.io', admin: 'me@corp.io' };
+  var role = 'developer', current = 'listPets', activeLang = null, lastReal = null;
+
+  var ops = {
+    listPets: { m: 'GET', cls: 'm-get', title: 'List all pets', path: '/pets', perm: 'docs:read', query: ['limit'], example: PETS, status: 200 },
+    createPet: { m: 'POST', cls: 'm-post', title: 'Create a pet', path: '/pets', perm: 'docs:read', body: { name: 'Mochi', tag: 'cat' }, example: { id: 3, name: 'Mochi', tag: 'cat' }, status: 201 },
+    getPet: { m: 'GET', cls: 'm-get', title: 'Get a pet by id', path: '/pets/{id}', perm: 'docs:read', params: { id: '1' }, example: PETS[0], status: 200 },
+    deletePet: { m: 'DEL', cls: 'm-del', title: 'Delete a pet', path: '/pets/{id}', perm: 'docs:read', params: { id: '1' }, example: null, status: 204 },
+    reset: { m: 'POST', cls: 'm-post', title: 'Reset the store', path: '/admin/reset', perm: 'reset', example: { ok: true, pets: 2 }, status: 200 }
+  };
+  // Per-operation request state, so edits survive switching back and forth.
+  var state = {};
+  Object.keys(ops).forEach(function (k) {
+    var op = ops[k];
+    state[k] = {
+      params: Object.assign({}, op.params || {}),
+      query: {},
+      headers: [['Authorization', 'Bearer ' + TOKEN]].concat(op.body ? [['Content-Type', 'application/json']] : []).concat([['', '']]),
+      body: op.body ? JSON.stringify(op.body, null, 2) : ''
+    };
+  });
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function stamp() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  function httpMethod(op) { return op.m === 'DEL' ? 'DELETE' : op.m; }
+  function pretty(v) { return v == null ? t('no_body') : JSON.stringify(v, null, 2); }
+  function log(type, extra, bad) {
+    a1.innerHTML = a2.innerHTML;
+    a2.innerHTML = '{"ts":"' + stamp() + '","type":"<span class="' + (bad ? 'w' : 's') + '">' + type + '</span>","user":{"email":"' + email[role] +
+      '","role":"<span class="k">' + role + '</span>"},"ip":"10.0.4.21"' + (extra || '') + '}';
+  }
+
+  /* --- request as currently typed --- */
+  function builtRequest() {
+    var op = ops[current], st = state[current];
+    var path = op.path.replace(/\{(\w+)\}/g, function (_, p) { return encodeURIComponent(st.params[p] || '') || '{' + p + '}'; });
+    var qs = Object.keys(st.query).filter(function (k) { return st.query[k] !== ''; })
+      .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(st.query[k]); }).join('&');
+    var headers = st.headers.filter(function (h) { return h[0].trim(); }).map(function (h) { return [h[0].trim(), h[1]]; });
+    return { method: httpMethod(op), url: HOST + path + (qs ? '?' + qs : ''), headers: headers, body: op.body ? st.body : null };
+  }
+  function header(req, name) {
+    for (var i = 0; i < req.headers.length; i++) if (req.headers[i][0].toLowerCase() === name.toLowerCase()) return req.headers[i][1];
+    return '';
+  }
+
+  /* --- the fake upstream: answers the way the documented petstore does --- */
+  function serve(req) {
+    var op = ops[current], st = state[current];
+    var auth = header(req, 'Authorization');
+    if (!/^Bearer\s+\S+$/.test(auth) || auth.replace(/^Bearer\s+/, '') !== TOKEN) return { status: 401, body: { code: 401, message: t('e401') } };
+    switch (current) {
+      case 'listPets': {
+        var lim = parseInt(st.query.limit, 10);
+        return { status: 200, body: lim > 0 ? PETS.slice(0, lim) : PETS };
+      }
+      case 'getPet': {
+        var p = PETS.filter(function (x) { return String(x.id) === st.params.id; })[0];
+        return p ? { status: 200, body: p } : { status: 404, body: { code: 404, message: t('e404') } };
+      }
+      case 'deletePet': {
+        var d = PETS.filter(function (x) { return String(x.id) === st.params.id; })[0];
+        return d ? { status: 204, body: null } : { status: 404, body: { code: 404, message: t('e404') } };
+      }
+      case 'createPet': {
+        var j;
+        try { j = JSON.parse(st.body); } catch (e) { return { status: 400, body: { code: 400, message: t('e400json') } }; }
+        if (!j || typeof j.name !== 'string' || !j.name.trim()) return { status: 400, body: { code: 400, message: t('e400name') } };
+        return { status: 201, body: { id: 3, name: j.name, tag: j.tag == null ? null : String(j.tag) } };
+      }
+      case 'reset': return { status: 200, body: { ok: true, pets: 2 } };
+    }
+  }
+
+  /* --- code samples from the request as typed --- */
+  function sample(lang) {
+    var req = builtRequest(), op = ops[current];
+    var hasBody = req.body != null && req.body.trim() !== '';
+    var compact = hasBody ? (function () { try { return JSON.stringify(JSON.parse(req.body)); } catch (e) { return req.body; } })() : '';
+    if (lang === 'curl') {
+      var lines = ['curl -X ' + req.method + ' \'' + req.url + '\''];
+      req.headers.forEach(function (h) { lines.push('  -H \'' + h[0] + ': ' + h[1] + '\''); });
+      if (hasBody) lines.push('  -d \'' + compact + '\'');
+      return lines.join(' \\\n');
+    }
+    if (lang === 'fetch') {
+      var hs = req.headers.map(function (h) { return '    \'' + h[0] + '\': \'' + h[1].replace(/'/g, "\\'") + '\''; }).join(',\n');
+      return 'const res = await fetch(\'' + req.url + '\', {\n  method: \'' + req.method + '\',\n  headers: {\n' + hs + '\n  }' +
+        (hasBody ? ',\n  body: JSON.stringify(' + compact + ')' : '') + '\n});\n' +
+        (op.status === 204 ? 'if (!res.ok) throw new Error(res.statusText);' : 'const data = await res.json();');
+    }
+    var ph = req.headers.map(function (h) { return '        "' + h[0] + '": "' + h[1].replace(/"/g, '\\"') + '"'; }).join(',\n');
+    return 'import requests\n\nr = requests.' + req.method.toLowerCase() + '(\n    "' + req.url + '",\n    headers={\n' + ph + '\n    },' +
+      (hasBody ? '\n    json=' + compact.replace(/:/g, ': ').replace(/,/g, ', ') + ',' : '') +
+      '\n)\nr.raise_for_status()' + (op.status === 204 ? '' : '\nprint(r.json())');
+  }
+
+  /* --- rendering --- */
+  function field(value, extra) { return '<input class="field' + (extra && extra.cls ? ' ' + extra.cls : '') + '" value="' + esc(value) + '"' + (extra && extra.ph ? ' placeholder="' + esc(extra.ph) + '"' : '') + (extra && extra.data ? ' ' + extra.data : '') + (extra && extra.ro ? ' readonly' : '') + ' spellcheck="false">'; }
+  function renderRequest() {
+    var op = ops[current], st = state[current];
+    // URL with editable path params
+    var html = '<span class="host">' + HOST + '</span>';
+    op.path.split(/(\{\w+\})/).forEach(function (seg) {
+      var m = seg.match(/^\{(\w+)\}$/);
+      if (m) html += field(st.params[m[1]] || '', { data: 'data-param="' + m[1] + '"', ph: m[1] });
+      else if (seg) html += '<span>' + esc(seg) + '</span>';
+    });
+    urlRow.innerHTML = html;
+    // query
+    if (op.query) {
+      queryRow.hidden = false;
+      queryKv.innerHTML = op.query.map(function (q) {
+        return field(q, { cls: 'k', ro: true }) + field(st.query[q] || '', { data: 'data-query="' + q + '"', ph: '10' });
+      }).join('');
+    } else { queryRow.hidden = true; }
+    // headers: fixed rows editable in value, one free row
+    headerKv.innerHTML = st.headers.map(function (h, i) {
+      var fixed = i < st.headers.length - 1;
+      return field(h[0], { cls: 'k', ro: fixed, data: 'data-hk="' + i + '"', ph: 'X-Request-Id' }) + field(h[1], { data: 'data-hv="' + i + '"', ph: fixed ? '' : 'value' });
+    }).join('');
+    // body
+    if (op.body) { bodyRow.hidden = false; bodyField.value = st.body; } else { bodyRow.hidden = true; }
+  }
+  function refreshPanel() {
+    // whatever is showing (sample or real response) follows the edited request
+    if (activeLang) { body.textContent = sample(activeLang); return; }
+    if (lastReal) showReal(lastReal, false);
+  }
+  function showDoc() {
+    var op = ops[current];
+    setLang(null); lastReal = null;
+    respLabel.textContent = t('resp_doc');
+    badge.hidden = false; badge.className = 'badge ok'; badge.textContent = String(op.status);
+    body.textContent = pretty(op.example);
+  }
+  function showReal(res, fresh) {
+    lastReal = res;
+    var ok = res.status < 400;
+    respLabel.textContent = t('resp_real') + ' · ' + res.ms + 'ms';
+    badge.hidden = false;
+    badge.className = 'badge ' + (ok ? 'ok' : 'warn');
+    badge.textContent = res.status + ' · ' + (ok ? (res.status === 204 ? '' : t('schema_ok')) : t('documented'));
+    if (res.status === 204) badge.textContent = '204';
+    body.textContent = pretty(res.body);
+  }
+  function setLang(l) {
+    activeLang = l;
+    langChips.forEach(function (c) { c.classList.toggle('on', c.dataset.lang === l); });
+  }
+  function show(key) {
+    var op = ops[key];
+    current = key;
+    opButtons.forEach(function (b) { b.classList.toggle('cur', b.dataset.op === key); });
+    opMethod.className = 'm ' + op.cls; opMethod.textContent = op.m;
+    opTitle.textContent = op.title;
+    opPath.textContent = op.path + ' · ' + (op.perm === 'reset' ? 'docs:read · ' + t('perm_reset') : op.perm);
+    opDesc.innerHTML = t('op_' + key);
+    renderRequest();
+    showDoc();
+  }
+  function applyRole(next) {
+    role = next;
+    roleButtons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.role === role)); });
+    adminOnly.forEach(function (el) { el.hidden = role !== 'admin'; });
+    tryOnly.forEach(function (el) { el.hidden = role === 'viewer'; });
+    show(current === 'reset' && role !== 'admin' ? 'listPets' : current);
+    log('docs.view');
+  }
+
+  /* --- wiring --- */
+  roleButtons.forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.role !== role) applyRole(b.dataset.role); }); });
+  opButtons.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.op); }); });
+  langChips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      if (c.classList.contains('on')) { showDoc(); return; }
+      setLang(c.dataset.lang); lastReal = null;
+      respLabel.textContent = t('sample') + ' · ' + c.dataset.lang + ' · ' + t('sample_note');
+      badge.hidden = true;
+      body.textContent = sample(c.dataset.lang);
+    });
+  });
+  demo.addEventListener('input', function (e) {
+    var el = e.target, st = state[current];
+    if (el.dataset.param != null) st.params[el.dataset.param] = el.value;
+    else if (el.dataset.query != null) st.query[el.dataset.query] = el.value;
+    else if (el.dataset.hk != null) st.headers[+el.dataset.hk][0] = el.value;
+    else if (el.dataset.hv != null) st.headers[+el.dataset.hv][1] = el.value;
+    else if (el === bodyField) st.body = el.value;
+    else return;
+    refreshPanel();
+  });
+  $('tryBtn').addEventListener('click', function () {
+    var req = builtRequest();
+    var res = serve(req);
+    res.ms = 18 + Math.floor(Math.random() * 40);
+    setLang(null);
+    showReal(res, true);
+    log('docs.try', ',"detail":{"method":"' + req.method + '","url":"' + esc(req.url) + '","status":' + res.status + ',"ms":' + res.ms + ',"requestHeaders":{"authorization":"***"}}', res.status >= 400);
+  });
+
+  window.__renderDemo = function () { show(current); };
+  a2.innerHTML = '{"ts":"' + stamp() + '","type":"<span class="s">login.success</span>","user":{"email":"dev@corp.io","role":"<span class="k">developer</span>"},"ip":"10.0.4.21"}';
+  applyRole('developer');
+})();
+</script>
+
+</body>
+</html>

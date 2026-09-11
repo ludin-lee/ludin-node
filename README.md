@@ -1,8 +1,10 @@
 # ludin
 
 [![CI](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml/badge.svg)](https://github.com/ludin-lee/ludin-node/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/ludin.svg)](https://www.npmjs.com/package/ludin)
+[![npm](https://img.shields.io/npm/v/@ludin-docs/core.svg)](https://www.npmjs.com/package/@ludin-docs/core)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+🌐 **Product page:** [ludin-lee.github.io/ludin-node](https://ludin-lee.github.io/ludin-node/) — an introduction in five languages with an in-page sandbox.
 
 **API docs, but with a front door.** Login, accounts & roles, IP allowlist, audit log and a fast, themeable UI — for any OpenAPI 3 document, in Express, Fastify, Koa, Hono, NestJS or plain `node:http`. No database, no build step: one middleware and an options object.
 
