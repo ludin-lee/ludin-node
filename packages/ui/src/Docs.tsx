@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { api, type Me } from './api';
-import { boot, getMode, setMode, type Mode } from './config';
+import { PRESETS, boot, getMode, getPreset, setMode, setPreset, type Mode, type Preset } from './config';
 import { groupOperations, serverUrls, type Doc, type Operation, type TagGroup } from './openapi';
 import { Brand } from './Brand';
 import { OperationView } from './Operation';
@@ -45,6 +45,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [navOpen, setNavOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [mode, setModeState] = useState<Mode>(getMode());
+  const [preset, setPresetState] = useState<Preset>(getPreset());
   const [palette, setPalette] = useState(false);
   // Deliberately not persisted: every visit starts with summaries, URL mode is a session choice.
   const [navLabel, setNavLabel] = useState<'summary' | 'path'>('summary');
@@ -184,6 +185,10 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const can = (p: string) => me.permissions.includes(p);
   const schemas = doc?.components?.schemas ?? {};
 
+  function changePreset(p: Preset) {
+    setPreset(p);
+    setPresetState(p);
+  }
   function changeMode(m: Mode) {
     setMode(m);
     setModeState(m);
@@ -274,16 +279,26 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   {me.user?.email} · {me.user?.role}
                 </span>
               </div>
-              <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
-                {t('theme')}
-                <span class="seg">
-                  {(['light', 'system', 'dark'] as Mode[]).map((m) => (
-                    <button class={mode === m ? 'on' : ''} onClick={() => changeMode(m)}>
-                      {m === 'light' ? t('themeLight') : m === 'dark' ? t('themeDark') : t('themeSystem')}
-                    </button>
+              <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
+                {t('preset')}
+                <select style="width:auto;padding:3px 8px;font-size:12px" value={preset} onChange={(e) => changePreset((e.target as HTMLSelectElement).value as Preset)}>
+                  {PRESETS.map(([id, name]) => (
+                    <option value={id}>{id === 'default' ? t('presetDefault') : name}</option>
                   ))}
-                </span>
+                </select>
               </div>
+              {preset === 'default' && (
+                <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
+                  {t('theme')}
+                  <span class="seg">
+                    {(['light', 'system', 'dark'] as Mode[]).map((m) => (
+                      <button class={mode === m ? 'on' : ''} onClick={() => changeMode(m)}>
+                        {m === 'light' ? t('themeLight') : m === 'dark' ? t('themeDark') : t('themeSystem')}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              )}
               <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
                 {t('language')}
                 <select style="width:auto;padding:3px 8px;font-size:12px" value={getLang()} onChange={(e) => setLang((e.target as HTMLSelectElement).value)}>

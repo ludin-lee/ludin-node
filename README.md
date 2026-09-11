@@ -159,7 +159,7 @@ interface LudinOptions {
   mcp?: { enabled?: boolean };                     // MCP endpoint for agents (opt-in)
 
   diff?: { baseline?: SpecSource }; // previous document, for the Changes view (per spec: SpecEntry.baseline)
-  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, customCss, language, loginHeadline, loginDescription };
+  theme?: { title, logo, logoDark, favicon, primary, accent, font, radius, density, mode, preset, customCss, language, loginHeadline, loginDescription };
   allowedTargets?: string[];       // extra origins Try-it-out may call
   forwardCookies?: boolean | string[]; // hand the caller's own cookies to same-origin APIs (opt-in)
 }
@@ -186,6 +186,7 @@ Everything a client sees is already filtered by their role, and the same is true
 - **A collection and types** – the same screen exports a Postman v2.1 collection (`/docs/api/export/postman`) and a TypeScript declaration file (`/docs/api/export/types.d.ts`), built from that caller's filtered document. Credentials are collection variables (`{{token}}`, `{{apiKey}}`), never literals, and the `.d.ts` carries only the schemas reachable from operations the caller can see. Both are audited like a download.
 - **A page of your own** – `readme` puts your guide, onboarding steps or release notes one click away from the reference, for the roles you choose.
 - **Branding** – `theme.title` names the platform, `theme.logo` (any URL or data URI) is the icon in the top-left corner, `theme.logoDark` swaps it in dark mode, `theme.favicon` sets the tab icon.
+- **Presets** – `theme.preset` picks a named palette as the starting point: `graphite`, `nocturne`, `fjord`, `phosphor`, `contrast` (dark) or `paper`, `blossom`, `cloud`, `mint` (light). Viewers can switch presets from the user menu; the choice is remembered per browser. `primary`, `accent`, `font` and `radius` apply on top of the preset you configured; when a viewer switches to another preset, that preset's own values are used, so a brand color never lands on a palette it was not picked for.
 
 OpenAPI descriptions are rendered as Markdown; the source is HTML-escaped before decoration and only `http(s)`, `mailto:` and relative links survive, so a document can never inject markup into the page. The `readme` file is the one place your own HTML runs — which is why it runs sandboxed, in a frame of its own.
 

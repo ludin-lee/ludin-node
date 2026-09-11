@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { boot, getMode } from './config';
+import { boot, isDark } from './config';
 
 /** Platform name + logo in the top-left corner. */
 export function Brand() {
@@ -8,10 +8,7 @@ export function Brand() {
   const [broken, setBroken] = useState(false);
 
   // A logo made for a light background disappears on dark; `logoDark` opts out.
-  const dark =
-    t.logoDark &&
-    (getMode() === 'dark' || (getMode() === 'system' && matchMedia?.('(prefers-color-scheme: dark)').matches));
-  const src = dark ? t.logoDark : t.logo;
+  const src = t.logoDark && isDark() ? t.logoDark : t.logo;
 
   return (
     <div class="brand">

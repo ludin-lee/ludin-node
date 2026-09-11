@@ -3,6 +3,7 @@
   --mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
   --primary: #4f6ef7;
   --accent: #10b981;
+  --on-primary: #fff;
   --radius: 8px;
 
   --bg: #f6f7fb;
@@ -80,6 +81,256 @@
   --warn: #fbbf24;
   --err: #f87171;
   color-scheme: dark;
+}
+
+/* ------------------------------------------------------------ presets
+   Named palettes (theme.preset / the user menu). Each block is a complete
+   scheme and sits after the light/dark blocks so it wins at equal
+   specificity whatever the mode toggle says. Keep the token list in step
+   with :root above; a missing token would leak the mode's value through. */
+:root[data-preset='graphite'] {
+  --radius: 8px;
+  --bg: #101214;
+  --bg-elev: #16191d;
+  --bg-sunken: #0b0d0f;
+  --bg-code: #0b0d0f;
+  --border: #262a30;
+  --border-strong: #363b43;
+  --text: #e6e8eb;
+  --text-2: #9aa3ad;
+  --text-3: #6b7480;
+  --primary: #4c9aff;
+  --accent: #46c07a;
+  --on-primary: #ffffff;
+  --get: #58a6ff;
+  --post: #3fb950;
+  --put: #d29922;
+  --patch: #bc8cff;
+  --delete: #f85149;
+  --other: #8b949e;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-preset='nocturne'] {
+  --radius: 8px;
+  --bg: #1a1b2e;
+  --bg-elev: #22243a;
+  --bg-sunken: #14152a;
+  --bg-code: #14152a;
+  --border: #2f3150;
+  --border-strong: #3e4068;
+  --text: #e4e6f7;
+  --text-2: #a2a6c9;
+  --text-3: #6f739a;
+  --primary: #a98cf5;
+  --accent: #7dd3fc;
+  --on-primary: #1a1b2e;
+  --get: #7dd3fc;
+  --post: #6ee7b7;
+  --put: #fbbf24;
+  --patch: #c4b5fd;
+  --delete: #fb7185;
+  --other: #8f93b8;
+  --ok: #6ee7b7;
+  --warn: #fbbf24;
+  --err: #fb7185;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-preset='fjord'] {
+  --radius: 6px;
+  --bg: #262b35;
+  --bg-elev: #2d323d;
+  --bg-sunken: #20252e;
+  --bg-code: #20252e;
+  --border: #3a4150;
+  --border-strong: #4a5367;
+  --text: #eceff4;
+  --text-2: #b3bccd;
+  --text-3: #7b879b;
+  --primary: #7fc4d6;
+  --accent: #9fc48a;
+  --on-primary: #1b2430;
+  --get: #7ea2c8;
+  --post: #9fc48a;
+  --put: #e6c98a;
+  --patch: #b38bb0;
+  --delete: #c46a72;
+  --other: #7b879b;
+  --ok: #9fc48a;
+  --warn: #e6c98a;
+  --err: #c46a72;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-preset='phosphor'] {
+  --font: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --radius: 2px;
+  --bg: #050807;
+  --bg-elev: #0a0f0c;
+  --bg-sunken: #030504;
+  --bg-code: #030504;
+  --border: #163a24;
+  --border-strong: #1f5233;
+  --text: #c8f7d4;
+  --text-2: #7fcf95;
+  --text-3: #3f8a56;
+  --primary: #2ee27a;
+  --accent: #ffb000;
+  --on-primary: #04170b;
+  --get: #56d8ff;
+  --post: #2ee27a;
+  --put: #ffb000;
+  --patch: #d57bff;
+  --delete: #ff5c5c;
+  --other: #4f8a63;
+  --ok: #2ee27a;
+  --warn: #ffb000;
+  --err: #ff5c5c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-preset='paper'] {
+  --radius: 8px;
+  --bg: #f5efe3;
+  --bg-elev: #fdf9f0;
+  --bg-sunken: #ece4d3;
+  --bg-code: #f0e9d9;
+  --border: #e0d6c2;
+  --border-strong: #cbbfa6;
+  --text: #2b2418;
+  --text-2: #6b5e48;
+  --text-3: #9c8f76;
+  --primary: #b5541c;
+  --accent: #3d7a5a;
+  --on-primary: #ffffff;
+  --get: #1f6fb2;
+  --post: #3d7a5a;
+  --put: #b5541c;
+  --patch: #7a4fb0;
+  --delete: #b3312d;
+  --other: #8a7f6a;
+  --ok: #3d7a5a;
+  --warn: #b0761c;
+  --err: #b3312d;
+  --shadow: 0 1px 2px rgba(20, 24, 40, 0.06), 0 8px 24px -12px rgba(20, 24, 40, 0.18);
+  --overlay: rgba(20, 24, 40, 0.5);
+  color-scheme: light;
+}
+:root[data-preset='contrast'] {
+  --radius: 4px;
+  --bg: #000000;
+  --bg-elev: #0a0a0a;
+  --bg-sunken: #161616;
+  --bg-code: #0a0a0a;
+  --border: #4d4d4d;
+  --border-strong: #8a8a8a;
+  --text: #ffffff;
+  --text-2: #d4d4d4;
+  --text-3: #a3a3a3;
+  --primary: #ffd400;
+  --accent: #00e5ff;
+  --on-primary: #000000;
+  --get: #0060df;
+  --post: #0f7b3e;
+  --put: #b25e00;
+  --patch: #7a3ee6;
+  --delete: #d61f1f;
+  --other: #5c5c5c;
+  --ok: #4ade80;
+  --warn: #ffb020;
+  --err: #ff6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+:root[data-preset='blossom'] {
+  --radius: 14px;
+  --bg: #fff5f7;
+  --bg-elev: #ffffff;
+  --bg-sunken: #ffe9ee;
+  --bg-code: #fff0f3;
+  --border: #f8d7df;
+  --border-strong: #efbcc9;
+  --text: #3d2a31;
+  --text-2: #7d5f6a;
+  --text-3: #b08f9a;
+  --primary: #e8739a;
+  --accent: #8fd3c4;
+  --on-primary: #ffffff;
+  --get: #6aa7e8;
+  --post: #62c48f;
+  --put: #f0a35a;
+  --patch: #b48ae0;
+  --delete: #ea6a7c;
+  --other: #a89aa0;
+  --ok: #62c48f;
+  --warn: #e0923f;
+  --err: #ea6a7c;
+  --shadow: 0 1px 2px rgba(20, 24, 40, 0.06), 0 8px 24px -12px rgba(20, 24, 40, 0.18);
+  --overlay: rgba(20, 24, 40, 0.5);
+  color-scheme: light;
+}
+:root[data-preset='cloud'] {
+  --radius: 14px;
+  --bg: #f3f8ff;
+  --bg-elev: #ffffff;
+  --bg-sunken: #e6f0fd;
+  --bg-code: #edf3fd;
+  --border: #d3e2f7;
+  --border-strong: #b4cdf0;
+  --text: #243044;
+  --text-2: #5f7191;
+  --text-3: #91a3bf;
+  --primary: #6fa3f2;
+  --accent: #f2a9c4;
+  --on-primary: #ffffff;
+  --get: #6fa3f2;
+  --post: #5ec39c;
+  --put: #f2b45c;
+  --patch: #a58cf0;
+  --delete: #f07a8a;
+  --other: #9fb0c8;
+  --ok: #5ec39c;
+  --warn: #e6a23c;
+  --err: #f07a8a;
+  --shadow: 0 1px 2px rgba(20, 24, 40, 0.06), 0 8px 24px -12px rgba(20, 24, 40, 0.18);
+  --overlay: rgba(20, 24, 40, 0.5);
+  color-scheme: light;
+}
+:root[data-preset='mint'] {
+  --radius: 14px;
+  --bg: #f1faf6;
+  --bg-elev: #ffffff;
+  --bg-sunken: #e2f4ec;
+  --bg-code: #eaf6f0;
+  --border: #cfe9dc;
+  --border-strong: #a9d6c2;
+  --text: #1f3a30;
+  --text-2: #557567;
+  --text-3: #86a597;
+  --primary: #3fb894;
+  --accent: #f6b28f;
+  --on-primary: #ffffff;
+  --get: #5ea9e8;
+  --post: #3fb894;
+  --put: #f0a65a;
+  --patch: #9d8ce6;
+  --delete: #ee7a86;
+  --other: #93aba0;
+  --ok: #3fb894;
+  --warn: #dc9a3e;
+  --err: #ee7a86;
+  --shadow: 0 1px 2px rgba(20, 24, 40, 0.06), 0 8px 24px -12px rgba(20, 24, 40, 0.18);
+  --overlay: rgba(20, 24, 40, 0.5);
+  color-scheme: light;
 }
 
 :root[data-density='compact'] {
@@ -195,7 +446,7 @@ textarea {
 .btn-primary {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .btn-primary:hover {
   background: color-mix(in srgb, var(--primary) 88%, black);
