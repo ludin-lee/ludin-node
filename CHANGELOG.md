@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.4] — 2026-09-14
+
+### Fixed
+
+- **Pin star visibility.** The pin star in the operation list was invisible
+  until hover and only 12px, so few viewers found the feature. It now shows
+  at 45% opacity on every row, is 15px, brightens with a warm tint on hover,
+  and a pinned star is full-strength warn colour with a soft glow.
+
 ## [0.6.3] — 2026-09-11
 
 ### Added
