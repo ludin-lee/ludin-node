@@ -85,7 +85,7 @@ app.use('/docs', ludin({
 - 기본: 이메일 + 비밀번호(scrypt 내장, bcrypt/argon2 선택). env로 받은 **평문 또는 해시** 둘 다 허용(해시 권장, 접두어로 구분)
 - 세션: 서명 JWT 쿠키(HttpOnly, SameSite, Secure 자동), 만료 설정 가능
 - 로그인 없이는 docs·스펙 JSON·README 페이지·Try it out 프록시 등 **모든 경로** 차단
-- 브루트포스 방어: 실패 횟수 기반 지연/잠금(메모리)
+- 브루트포스 방어: 실패 횟수 기반 잠금(메모리). `lockout.attempts`(기본 5회) / `lockout.window`(기본 15분, 집계 구간이자 잠금 시간)로 조절하고, `lockout: false`로 끌 수 있다
 - 확장 어댑터(v1 이후): OAuth2/OIDC(Google, GitHub, Keycloak 등). 지금도 커스텀 `verify(email, password)` 콜백으로 기존 사내 인증에 연동할 수 있다
 - 선택: 로그인 완전 비활성화(`auth: false`) — IP 제한만 쓰고 싶은 경우
 
@@ -368,7 +368,7 @@ interface LudinOptions {
     users?: BoundUser[];
     session?: { secret?: string; ttl?: string; cookieName?: string };
     verify?: (email, password) => Promise<AuthUser | null>;
-    lockout?: { attempts: number; window: string };
+    lockout?: false | { attempts: number; window: string };
   };
   ipAllowlist?: string[];
   ipPolicy?: 'and' | 'or';
