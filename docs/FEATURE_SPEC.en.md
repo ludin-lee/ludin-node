@@ -85,7 +85,7 @@ One `readme` line adds a button to the top bar and puts that HTML file behind **
 - Default: email + password (scrypt built in, bcrypt/argon2 optional). Values from env may be **plain text or a hash** (a hash is recommended; the prefix tells them apart)
 - Session: signed JWT cookie (HttpOnly, SameSite, Secure automatically), configurable expiry
 - Without a login, **every route** is blocked: the docs, the spec JSON, the readme page, the Try-it-out proxy
-- Brute-force protection: delay / lockout based on failed attempts (in memory)
+- Brute-force protection: lockout based on failed attempts (in memory). Tuned with `lockout.attempts` (default 5) / `lockout.window` (default 15 min, both the counting window and the lock duration); `lockout: false` turns it off
 - Extension adapters (post-v1): OAuth2/OIDC (Google, GitHub, Keycloak …). Today a custom `verify(email, password)` callback already plugs into your own auth system
 - Optional: turn login off entirely (`auth: false`) — for IP-only restriction
 
@@ -368,7 +368,7 @@ interface LudinOptions {
     users?: BoundUser[];
     session?: { secret?: string; ttl?: string; cookieName?: string };
     verify?: (email, password) => Promise<AuthUser | null>;
-    lockout?: { attempts: number; window: string };
+    lockout?: false | { attempts: number; window: string };
   };
   ipAllowlist?: string[];
   ipPolicy?: 'and' | 'or';

@@ -71,7 +71,8 @@ export function createLudin(options: LudinOptions): LudinHandler {
   const shareMaxTtl = parseDuration(options.share?.maxTtl, 30 * 86400);
   const forwardCookies = options.forwardCookies ?? false;
   const forwardableCookieNames = Array.isArray(forwardCookies) ? new Set(forwardCookies) : null;
-  const lockout = new Lockout(auth?.lockout?.attempts ?? 5, parseDuration(auth?.lockout?.window, 15 * 60) * 1000);
+  const lockoutOpts = auth?.lockout;
+  const lockout = lockoutOpts === false ? null : new Lockout(lockoutOpts?.attempts ?? 5, parseDuration(lockoutOpts?.window, 15 * 60) * 1000);
   const ipPolicy = options.ipPolicy ?? 'and';
   const allowLocalhost = options.allowLocalhost ?? true;
   const anonymousRole = options.ipAllowlistRole ?? 'developer';
@@ -459,7 +460,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
     const password = body.password ?? '';
     if (!email || !password) throw new HttpError(400, 'Email and password are required');
 
-    const locked = lockout.check(ctx.ip, email);
+    const locked = lockout?.check(ctx.ip, email) ?? 0;
     if (locked) throw new HttpError(429, `Too many attempts. Try again in ${locked}s.`, 'locked');
 
     let user: AuthUser | null = null;
@@ -473,7 +474,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
     }
 
     if (!user) {
-      lockout.fail(ctx.ip, email);
+      lockout?.fail(ctx.ip, email);
       await auditor.emit({ type: 'login.failure', ip: ctx.ip, user: null, detail: { email } });
       throw new HttpError(401, 'Invalid email or password', 'bad_credentials');
     }
@@ -483,7 +484,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
       throw new HttpError(403, 'Your IP address is not allowed for this account.', 'ip_blocked');
     }
 
-    lockout.reset(ctx.ip, email);
+    lockout?.reset(ctx.ip, email);
     await auditor.emit({ type: 'login.success', ip: ctx.ip, user: pick(user) });
     return startSession(ctx, user);
   }

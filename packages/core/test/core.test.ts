@@ -145,6 +145,13 @@ test('lockout after repeated failures', async () => {
   assert.equal(res.status, 429);
 });
 
+test('lockout: false never locks', async () => {
+  const ludin = createLudin({ spec, auth: { users: [{ email: 'a@x.io', password: 'p' }], lockout: false }, audit: { sink: false } });
+  for (let i = 0; i < 10; i++) assert.equal((await ludin.handle(post('/api/login', { email: 'a@x.io', password: 'x' }))).status, 401);
+  const res = await ludin.handle(post('/api/login', { email: 'a@x.io', password: 'p' }));
+  assert.equal(res.status, 200);
+});
+
 test('ip allowlist: and / or policies, localhost bypass, hideOnBlock', async () => {
   const base = { spec, auth: { users: [{ email: 'a@x.io', password: 'p' }] }, ipAllowlist: ['10.0.0.0/8'], audit: { sink: false as const } };
   const and = createLudin(base);
