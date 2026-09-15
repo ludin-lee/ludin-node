@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.5] — 2026-09-15
+
+### Added
+
+- **`auth.lockout: false`.** The brute-force lockout can now be turned off,
+  for setups that already rate-limit upstream or while iterating on a dev
+  box. `lockout.window` (default `'15m'`) remains both the counting window
+  and the lock duration; `lockout.attempts` (default 5) the threshold.
+
 ## [0.6.2] — 2026-09-11
 
 ### Added

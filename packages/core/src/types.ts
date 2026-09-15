@@ -129,12 +129,18 @@ export interface AuthOptions {
     ttl?: string | number;
     cookieName?: string;
   };
-  lockout?: {
-    /** Failed attempts before lockout. Default 5. */
-    attempts?: number;
-    /** Window / lock duration. Default '15m'. */
-    window?: string | number;
-  };
+  /**
+   * Brute-force guard, keyed by IP + email. `false` turns it off (e.g. behind an
+   * upstream rate limiter, or while iterating on a dev box).
+   */
+  lockout?:
+    | false
+    | {
+        /** Failed attempts before lockout. Default 5. */
+        attempts?: number;
+        /** Counting window and lock duration, e.g. '10m', '1h' or seconds. Default '15m'. */
+        window?: string | number;
+      };
 }
 
 export interface LudinOptions {

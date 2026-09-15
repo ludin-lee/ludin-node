@@ -151,7 +151,7 @@ interface LudinOptions {
     users?: BoundUser[];
     verify?: (email, password) => AuthUser | null;   // plug in your own auth
     session?: { secret?: string; ttl?: '12h'; cookieName?: string };
-    lockout?: { attempts?: 5; window?: '15m' };
+    lockout?: false | { attempts?: 5; window?: '15m' };   // false = no brute-force lockout
   };
   ipAllowlist?: string[];          // '10.0.0.0/8', '2001:db8::/32', '1.2.3.4-1.2.3.9', '*'
   ipPolicy?: 'and' | 'or';         // and: IP AND login (default) · or: matching IP skips login
