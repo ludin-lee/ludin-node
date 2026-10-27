@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.6] — 2026-10-27
+
+### Fixed
+
+- **Shared links open the right spec.** With several specs, a `#/op/...` link
+  opened in whichever spec the viewer looked at last and showed "endpoint not
+  found". The selected spec is now kept in the URL as `?spec=`, which takes
+  precedence on load.
+
 ## [0.6.5] — 2026-09-15
 
 ### Added
