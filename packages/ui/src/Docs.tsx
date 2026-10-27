@@ -32,6 +32,9 @@ function parseHash(): Route {
 export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [specs, setSpecs] = useState<Array<{ name: string; hasBaseline?: boolean }>>([]);
   const [specName, setSpecName] = useState<string>(() => {
+    // ?spec= wins so a shared #/op/... link opens in the sender's spec, not the viewer's last one.
+    const fromUrl = new URLSearchParams(location.search).get('spec');
+    if (fromUrl) return fromUrl;
     try {
       return localStorage.getItem('ludin.spec') || '';
     } catch {
@@ -119,6 +122,15 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
       /* ignore */
     }
   }, [specName]);
+
+  // Keep the spec in the address bar; #/... links are hash-only so they carry it along.
+  useEffect(() => {
+    if (!specName || !specs.length) return;
+    const url = new URL(location.href);
+    if (specs.length > 1) url.searchParams.set('spec', specName);
+    else url.searchParams.delete('spec');
+    history.replaceState(history.state, '', url);
+  }, [specName, specs]);
 
   useEffect(() => {
     const onHash = () => {
