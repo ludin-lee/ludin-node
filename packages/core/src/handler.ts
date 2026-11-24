@@ -675,7 +675,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
   }
 
   /** The incoming Cookie header minus ludin's own cookies, kept verbatim so values round-trip untouched. */
-  function forwardableCookies(raw: string | string[] | undefined): string | undefined {
+  function forwardableCookies(raw: string | string[] | undefined, except: ReadonlySet<string>): string | undefined {
     if (!forwardCookies) return undefined;
     const header = Array.isArray(raw) ? raw.join('; ') : raw;
     if (!header) return undefined;
@@ -686,6 +686,7 @@ export function createLudin(options: LudinOptions): LudinHandler {
         const idx = pair.indexOf('=');
         const name = idx < 0 ? '' : pair.slice(0, idx).trim();
         if (!name || name === cookieName || name === shareCookieName) return false;
+        if (except.has(name)) return false;
         return forwardableCookieNames ? forwardableCookieNames.has(name) : true;
       });
     return kept.length ? kept.join('; ') : undefined;
@@ -732,20 +733,27 @@ export function createLudin(options: LudinOptions): LudinHandler {
     // same ones a direct call from the page would carry — and never to another
     // origin, since cookies for other origins never reach ludin in the first
     // place. Ludin's own session and share cookies stay out.
-    const cookiePairs: string[] = [];
-    if (target.origin === selfOrigin) {
-      const cookie = forwardableCookies(ctx.req.headers['cookie']);
-      if (cookie) cookiePairs.push(cookie);
-    }
+    //
     // The jar the UI keeps for this origin: cookies the target itself handed
     // out on an earlier call. They are the caller's own, so they may go to any
     // allowed origin – that is the whole point – but never under ludin's names,
     // and only as well-formed pairs so nothing can smuggle in a second header.
+    //
+    // A name present in both goes out once, with the jar's value: a login made
+    // in Try it out is newer than whatever the browser still holds, and most
+    // cookie parsers read only the first of two same-named pairs.
+    const jar = new Map<string, string>();
     for (const [name, value] of Object.entries(body.cookies ?? {})) {
       if (name === cookieName || name === shareCookieName) continue;
       if (typeof value !== 'string' || !COOKIE_NAME.test(name) || !COOKIE_VALUE.test(value)) continue;
-      cookiePairs.push(`${name}=${value}`);
+      jar.set(name, `${name}=${value}`);
     }
+    const cookiePairs: string[] = [];
+    if (target.origin === selfOrigin) {
+      const cookie = forwardableCookies(ctx.req.headers['cookie'], new Set(jar.keys()));
+      if (cookie) cookiePairs.push(cookie);
+    }
+    cookiePairs.push(...jar.values());
     if (cookiePairs.length) headers['cookie'] = cookiePairs.join('; ');
 
     const started = Date.now();
