@@ -249,6 +249,34 @@ test('try proxy: a cookie jar from the UI reaches any allowed origin, and Set-Co
   assert.equal(seen.cookie, 'sid=abc123; theme=dark');
 });
 
+test('try proxy: a jar cookie replaces the browser cookie of the same name', async (t) => {
+  let seen: Record<string, string> = {};
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+    seen = init.headers as Record<string, string>;
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+  });
+  const ludin = createLudin({ spec, auth: false, audit: { sink: false }, forwardCookies: ['sid', 'theme'] });
+  async function sent(url: string, browser: string | undefined, cookies?: Record<string, string>) {
+    seen = {};
+    const res = await ludin.handle(post('/api/try', { method: 'GET', url, ...(cookies ? { cookies } : {}) }, {
+      headers: { host: 'localhost:3000', 'x-requested-with': 'ludin', ...(browser ? { cookie: browser } : {}) },
+    }));
+    assert.equal(res.status, 200, String(res.body));
+    return seen.cookie;
+  }
+
+  // Same name on both sides: the jar holds the login made in Try it out, so it wins — once.
+  assert.equal(await sent('/console/me', 'sid=old', { sid: 'new' }), 'sid=new');
+  // Only the clashing name is replaced; other browser cookies still go along.
+  assert.equal(await sent('/console/me', 'sid=old; theme=dark', { sid: 'new' }), 'theme=dark; sid=new');
+  // Browser only, jar only: unchanged.
+  assert.equal(await sent('/console/me', 'sid=old'), 'sid=old');
+  assert.equal(await sent('/console/me', undefined, { sid: 'new' }), 'sid=new');
+  // Another origin: browser cookies stay home, the jar still travels.
+  assert.equal(await sent('http://api.example.com/me', 'sid=old', { sid: 'new' }), 'sid=new');
+  assert.equal(await sent('http://api.example.com/me', 'sid=old'), undefined);
+});
+
 test('custom verify hook', async () => {
   const ludin = createLudin({
     spec,
