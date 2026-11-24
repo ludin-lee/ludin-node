@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.7] — 2026-11-24
+
+### Fixed
+
+- **Try it out no longer sends a cookie twice.** With `forwardCookies` on, a
+  cookie held by both the browser and the Try-it-out jar went upstream as
+  `name=old; name=new`, and most servers read the stale first value. Each name
+  is now sent once, and the jar's value — the login just made in Try it out —
+  wins.
+
 ## [0.6.6] — 2026-10-27
 
 ### Fixed
