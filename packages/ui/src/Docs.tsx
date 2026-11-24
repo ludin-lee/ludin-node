@@ -14,6 +14,7 @@ import { LOCALES, getLang, setLang, t } from './i18n';
 type Route =
   | { kind: 'overview' }
   | { kind: 'op'; id: string }
+  | { kind: 'flow'; flow: number; step: number }
   | { kind: 'admin' }
   | { kind: 'readme' }
   | { kind: 'changes' }
@@ -25,9 +26,16 @@ function parseHash(): Route {
   if (h === 'readme') return { kind: 'readme' };
   if (h === 'changes') return { kind: 'changes' };
   if (h.startsWith('op/')) return { kind: 'op', id: h.slice(3) };
+  if (h.startsWith('flow/')) {
+    const [flow, step] = h.slice(5).split('/').map((n) => parseInt(n, 10) || 0);
+    return { kind: 'flow', flow, step: step ?? 0 };
+  }
   if (h.startsWith('schema/')) return { kind: 'schema', name: h.slice(7) };
   return { kind: 'overview' };
 }
+
+/** A named, ordered run of operations — login, create, send, check — walked one step at a time. */
+interface Flow { name: string; steps: string[] }
 
 export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [specs, setSpecs] = useState<Array<{ name: string; hasBaseline?: boolean }>>([]);
@@ -61,6 +69,24 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     const next = pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id];
     setPins(next);
     try { localStorage.setItem(`ludin.pins:${specName}`, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  // Flows live next to pins: per spec, in this browser only.
+  const [flows, setFlowsState] = useState<Flow[]>([]);
+  useEffect(() => {
+    try { setFlowsState(JSON.parse(localStorage.getItem(`ludin.flows:${specName}`) ?? '[]')); } catch { setFlowsState([]); }
+  }, [specName]);
+  function setFlows(next: Flow[]) {
+    next = next.filter((f) => f.steps.length);
+    setFlowsState(next);
+    try { localStorage.setItem(`ludin.flows:${specName}`, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  function addToFlow(target: string, id: string) {
+    if (target !== 'new') return setFlows(flows.map((f, i) => (String(i) === target ? { ...f, steps: [...f.steps, id] } : f)));
+    const name = (prompt(t('flowName')) ?? '').trim();
+    if (name) setFlows([...flows, { name, steps: [id] }]);
+  }
+  function editSteps(fi: number, edit: (steps: string[]) => string[]) {
+    setFlows(flows.map((f, i) => (i === fi ? { ...f, steps: edit([...f.steps]) } : f)));
   }
   const [sideW, setSideW] = useState(() => {
     try {
@@ -193,7 +219,11 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
   const pinnedOps = useMemo(() => pins.map((id) => allOps.find((o) => o.id === id)).filter(Boolean) as Operation[], [pins, allOps]);
 
-  const current: Operation | undefined = route.kind === 'op' ? allOps.find((o) => o.id === route.id) : undefined;
+  // An edit can shorten the flow under the open step; fall back to its last one.
+  const flowAt = route.kind === 'flow' ? flows[route.flow] : undefined;
+  const stepAt = flowAt && route.kind === 'flow' ? Math.min(route.step, flowAt.steps.length - 1) : 0;
+  const currentId = route.kind === 'op' ? route.id : flowAt?.steps[stepAt];
+  const current: Operation | undefined = currentId ? allOps.find((o) => o.id === currentId) : undefined;
   const can = (p: string) => me.permissions.includes(p);
   const schemas = doc?.components?.schemas ?? {};
 
@@ -206,18 +236,20 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     setModeState(m);
   }
 
+  const navTitle = (o: Operation) => `${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`;
+  const navText = (o: Operation) =>
+    navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary;
+
   function navItem(o: Operation) {
     const pinned = pins.includes(o.id);
     return (
       <a
         href={`#/op/${encodeURIComponent(o.id)}`}
         class={`nav-item ${current?.id === o.id ? 'active' : ''} ${o.deprecated ? 'deprecated' : ''}`}
-        title={`${o.method.toUpperCase()} ${o.path}${o.summary && o.summary !== o.path ? ` — ${o.summary}` : ''}`}
+        title={navTitle(o)}
       >
         <span class={`method ${o.method}`}>{o.method}</span>
-        <span class="path">
-          {navLabel === 'path' || !o.summary || o.summary === `${o.method.toUpperCase()} ${o.path}` ? o.path : o.summary}
-        </span>
+        <span class="path">{navText(o)}</span>
         <span
           class={`pin ${pinned ? 'on' : ''}`}
           title={pinned ? t('unpin') : t('pin')}
@@ -225,6 +257,27 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
         >
           {pinned ? '★' : '☆'}
         </span>
+      </a>
+    );
+  }
+
+  /** One step of a flow. An operation the role cannot see, or the spec dropped, stays listed, struck through. */
+  function flowItem(fi: number, id: string, si: number) {
+    const o = allOps.find((x) => x.id === id);
+    const act = (edit: (steps: string[]) => string[]) => (e: Event) => { e.preventDefault(); e.stopPropagation(); editSteps(fi, edit); };
+    return (
+      <a
+        href={`#/flow/${fi}/${si}`}
+        class={`nav-item ${flowAt === flows[fi] && stepAt === si ? 'active' : ''} ${o && !o.deprecated ? '' : 'deprecated'}`}
+        title={o ? navTitle(o) : id}
+      >
+        <span class="step-no">{si + 1}</span>
+        {o && <span class={`method ${o.method}`}>{o.method}</span>}
+        <span class="path">{o ? navText(o) : id}</span>
+        {si > 0 && (
+          <span class="flow-act" title={t('flowUp')} onClick={act((s) => { [s[si - 1], s[si]] = [s[si], s[si - 1]]; return s; })}>↑</span>
+        )}
+        <span class="flow-act" title={t('flowRemove')} onClick={act((s) => s.filter((_, i) => i !== si))}>×</span>
       </a>
     );
   }
@@ -353,6 +406,28 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <span class="spin" />
             </div>
           )}
+          {flows.map((f, fi) => (
+            <details class="nav-group" open>
+              <summary>
+                <span class="caret">▸</span>▶ {f.name}
+                <span class="count">{f.steps.length}</span>
+                <span
+                  class="flow-act"
+                  title={t('flowDelete', { name: f.name })}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!confirm(t('flowDelete', { name: f.name }))) return;
+                    setFlows(flows.filter((_, i) => i !== fi));
+                    // Flow links are positional; leave rather than land on a neighbour.
+                    if (route.kind === 'flow') location.hash = '#/';
+                  }}
+                >
+                  ×
+                </span>
+              </summary>
+              {f.steps.map((id, si) => flowItem(fi, id, si))}
+            </details>
+          ))}
           {pinnedOps.length > 0 && (
             <details class="nav-group" open>
               <summary>
@@ -405,9 +480,37 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
             specName ? <Changes specName={specName} /> : null
           ) : route.kind === 'admin' && can('admin:read') ? (
             <Admin me={me} />
-          ) : route.kind === 'op' ? (
+          ) : route.kind === 'op' || route.kind === 'flow' ? (
             doc && current ? (
+              <>
+              <div class="flow-bar">
+                {flowAt && route.kind === 'flow' && (
+                  <>
+                    <b>▶ {flowAt.name}</b>
+                    <span class="step-no">{stepAt + 1} / {flowAt.steps.length}</span>
+                    {stepAt > 0 && <a class="btn btn-sm" href={`#/flow/${route.flow}/${stepAt - 1}`}>← {t('flowPrev')}</a>}
+                    {stepAt < flowAt.steps.length - 1 && (
+                      <a class="btn btn-sm btn-primary" href={`#/flow/${route.flow}/${stepAt + 1}`}>{t('flowNext')} →</a>
+                    )}
+                  </>
+                )}
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const el = e.target as HTMLSelectElement;
+                    addToFlow(el.value, current.id);
+                    el.value = '';
+                  }}
+                >
+                  <option value="" disabled>＋ {t('flowAdd')}</option>
+                  {flows.map((f, i) => (
+                    <option value={String(i)}>{f.name}</option>
+                  ))}
+                  <option value="new">{t('flowNew')}</option>
+                </select>
+              </div>
               <OperationView key={current.id} doc={doc} op={current} canTry={can('docs:try')} specName={specName} server={server} />
+              </>
             ) : doc ? (
               <div class="empty">
                 <h2>{t('endpointNotFound')}</h2>
