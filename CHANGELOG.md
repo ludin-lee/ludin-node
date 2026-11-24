@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.8] — 2026-11-24
+
+### Added
+
+- **Flows.** API testing is mostly scenarios — sign in, create, send, check.
+  "Add to flow" on an operation collects it into a named flow; flows sit
+  numbered at the top of the sidebar and are walked with previous/next. Steps
+  can be reordered or removed, and the same operation may appear twice.
+  Stored per spec in the browser, like pins.
+
 ## [0.6.7] — 2026-11-24
 
 ### Fixed
