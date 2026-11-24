@@ -223,6 +223,8 @@ For a session-cookie API on **another** origin — the docs on `localhost`, the 
 
 **Variables** tie it together: write `{{name}}` anywhere in a request — a path or query value, a header, the body, a pinned header, an auth field — and the active environment fills it in. Environments are named sets (`default`, `staging`, `prod`…) switched from one dropdown, so the same request runs against another stack by changing one thing. An unknown name is left as typed. Stored in the browser; the server never sees the variables, only the resolved request.
 
+**Flows** keep a scenario together: add operations to a named flow from the operation page — sign in, create, send, check — and they appear in order at the top of the sidebar, with previous/next buttons to walk them. Captured tokens, the cookie jar, variables and each operation's remembered inputs carry the state from one step to the next. Flows are stored per spec in the browser.
+
 ## Repository layout
 
 ```
