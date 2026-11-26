@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the packages are
 versioned together.
 
+## [0.6.9] — 2026-11-26
+
+### Changed
+
+- **Themed dialogs.** Naming a flow, deleting a flow and naming a new
+  environment no longer use the browser's native prompt/confirm; they open a
+  dialog in the docs theme. Naming a new flow pops out of the "Add to flow"
+  control as a speech bubble.
+
 ## [0.6.8] — 2026-11-24
 
 ### Added
