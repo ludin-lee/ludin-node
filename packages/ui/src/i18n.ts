@@ -51,6 +51,8 @@ const en = {
   flowAdd: 'Add to flow',
   flowNew: 'New flow…',
   flowName: 'Flow name',
+  cancel: 'Cancel',
+  confirm: 'OK',
   flowPrev: 'Previous',
   flowNext: 'Next',
   flowUp: 'Move up',
@@ -221,6 +223,7 @@ export type MsgKey = keyof typeof en;
 
 const dicts: Record<string, Partial<Record<MsgKey, string>>> = {
   ko: {
+    cancel: '취소', confirm: '확인',
     unavailable: '사용할 수 없음',
     signInHeadline: '로그인이 필요합니다',
     signInDescription: '이 API 문서는 비공개입니다. 발급받은 계정으로 로그인하세요.',
