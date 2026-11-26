@@ -1517,3 +1517,23 @@ kbd {
   border: 1px solid color-mix(in srgb, var(--patch) 35%, transparent);
 }
 .nav-item .wh { color: var(--patch); font-size: 10px; flex: 0 0 auto; }
+
+/* themed prompt/confirm dialog (reuses the palette backdrop + card) */
+.palette.dialog { width: 400px; }
+.dialog-body { padding: 18px 18px 8px; }
+.dialog-body p { margin: 0 0 12px; font-size: 14px; }
+.dialog-body input { width: 100%; box-sizing: border-box; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px 14px; }
+.bubble-backdrop { background: transparent; padding: 0; }
+.palette.dialog.bubble {
+  position: fixed; overflow: visible; transform-origin: var(--ox, 20px) -10px;
+  animation: bubble-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.palette.dialog.bubble::before {
+  content: ''; position: absolute; top: -6px; left: calc(var(--ox, 20px) - 6px);
+  width: 12px; height: 12px; background: var(--bg-elev);
+  border-left: 1px solid var(--border); border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+@keyframes bubble-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .palette.dialog.bubble { animation: none; } }

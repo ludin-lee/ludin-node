@@ -8,6 +8,7 @@ import { Admin } from './Admin';
 import { Readme } from './Readme';
 import { Overview } from './Overview';
 import { Palette } from './Palette';
+import { askConfirm, askText } from './Dialog';
 import { Changes } from './Changes';
 import { LOCALES, getLang, setLang, t } from './i18n';
 
@@ -80,9 +81,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
     setFlowsState(next);
     try { localStorage.setItem(`ludin.flows:${specName}`, JSON.stringify(next)); } catch { /* ignore */ }
   }
-  function addToFlow(target: string, id: string) {
+  async function addToFlow(target: string, id: string, anchor?: HTMLElement) {
     if (target !== 'new') return setFlows(flows.map((f, i) => (String(i) === target ? { ...f, steps: [...f.steps, id] } : f)));
-    const name = (prompt(t('flowName')) ?? '').trim();
+    const name = ((await askText(t('flowName'), anchor)) ?? '').trim();
     if (name) setFlows([...flows, { name, steps: [id] }]);
   }
   function editSteps(fi: number, edit: (steps: string[]) => string[]) {
@@ -414,9 +415,9 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 <span
                   class="flow-act"
                   title={t('flowDelete', { name: f.name })}
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.preventDefault();
-                    if (!confirm(t('flowDelete', { name: f.name }))) return;
+                    if (!(await askConfirm(t('flowDelete', { name: f.name })))) return;
                     setFlows(flows.filter((_, i) => i !== fi));
                     // Flow links are positional; leave rather than land on a neighbour.
                     if (route.kind === 'flow') location.hash = '#/';
@@ -498,7 +499,7 @@ export function Docs({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   value=""
                   onChange={(e) => {
                     const el = e.target as HTMLSelectElement;
-                    addToFlow(el.value, current.id);
+                    addToFlow(el.value, current.id, el);
                     el.value = '';
                   }}
                 >
