@@ -1,3 +1,4 @@
+import { askText } from './Dialog';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Markdown } from './Markdown';
 import { JsonView, parseForTree } from './Json';
@@ -430,8 +431,8 @@ function TryIt({
   function setActiveVars(rows: Array<[string, string]>) {
     setEnvs({ ...envs, envs: { ...envs.envs, [envs.active]: rows } });
   }
-  function addEnv() {
-    const name = (prompt(t('varsEnvName')) ?? '').trim();
+  async function addEnv() {
+    const name = ((await askText(t('varsEnvName'))) ?? '').trim();
     if (!name || envs.envs[name]) return;
     setEnvs({ active: name, envs: { ...envs.envs, [name]: [] } });
   }
